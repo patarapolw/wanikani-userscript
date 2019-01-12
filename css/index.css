@@ -1,0 +1,11 @@
+.code {
+    background-color: #ecf0f1;
+    padding: 1em;
+    min-height: 500px;
+    white-space: pre-wrap;
+    word-break: keep-all;
+}
+
+#hiddenDiv {
+    display: none;
+}

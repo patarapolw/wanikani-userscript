@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="./images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
+  <link rel="manifest" href="./images/site.webmanifest">
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
+    crossorigin="anonymous">
+  <link rel="stylesheet" href="./css/index.css">
+
+  <title>WaniKani Userscript Playground</title>
+</head>
+
+<body>
+  <div class="container">
+    <div class="col-12 mt-3">
+      <form id="searchForm" onsubmit="return false;">
+        <h6 class="col-12 mb-3">Input:</h6>
+        <div class="form-row">
+          <!-- <div class="form-inline form-group col-md-4">
+            <label class="col-auto mr-sm-2 d-inline" for="searchType">Type:</label>
+            <select class="custom-select col d-inline" id="searchType" name="type">
+              <option value="vocab">Vocab</option>
+              <option value="kanji" selected>Kanji</option>
+              <option value="radical">Radical</option>
+            </select>
+          </div> -->
+
+          <div class="form-group form-group col-12">
+            <label class="my-1 mr-2 sr-only" for="searchQ">Search for:</label>
+            <input type="text" class="form-control" name="q" id="searchQ" placeholder="Please enter your search text.">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-12 mt-3">
+      <h6 class="col-12 mb-3">Output:</h6>
+
+      <figure class="highlight">
+        <div id="outputArea">
+          <h3>Kanjipedia:</h3>
+          <div id="kanjipedia" class="mb-3"></div>
+
+          <div><h3>Weblio:</h3></div>
+
+          <h4>Vocab:</h4>
+          <div id="weblio-vocab" class="mb-3"></div>
+
+          <h4>Kanji:</h4>
+          <div id="weblio-kanji" class="mb-3"></div>
+        </div>
+      </figure>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>
+  <script src="js/external_definition.min.js"></script>
+  <script src="js/index.min.js"></script>
+</body>
+
+</html>

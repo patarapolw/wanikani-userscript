@@ -1,0 +1,33 @@
+{
+  "name": "wanikani-userscript",
+  "version": "1.0.0",
+  "description": "GitHub Pages for WaniKani UserScripts",
+  "main": "js/index.min.js",
+  "module": "src/index.user.ts",
+  "repository": "http://patarapolw.github.io/wanikani-userscript",
+  "author": "Pacharapol Withayasakpunt",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/cheerio": "^0.22.10",
+    "@types/node": "^10.12.18",
+    "@types/yaml": "^1.0.1",
+    "expose-loader": "^0.7.5",
+    "ts-loader": "^5.3.3",
+    "tslint": "^5.12.1",
+    "typescript": "^3.2.2",
+    "webpack": "^4.28.4",
+    "webpack-cli": "^3.2.1",
+    "webpack-dev-server": "^3.1.14",
+    "webpack-merge": "^4.2.1"
+  },
+  "scripts": {
+    "start": "webpack-dev-server --open --config webpack.dev.js",
+    "build": "webpack --config webpack.prod.js",
+    "build-dev": "webpack --config webpack.dev.js",
+    "watch": "webpack --watch --config webpack.dev.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.2",
+    "yaml": "^1.2.0"
+  }
+}
