@@ -13,7 +13,7 @@ document.getElementById("searchQ")!.addEventListener("keyup", function (event) {
         }, {});
 
         (window as any).external_definition.parseJapanese(q.q, getFunction).then((r: any) => {
-            document.getElementById("kanjipedia")!.innerHTML = r.kanjipedia;
+            document.getElementById("kanjipedia")!.innerHTML = r.kanjipedia　|| "";
 
             const kanjipediaUrlEl = document.getElementById("kanjipedia-url") as HTMLAnchorElement;
             if (r.kanjipediaUrl !== null) {
