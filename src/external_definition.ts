@@ -32,13 +32,15 @@ async function parseJapanese(q: string, getFunction: (url: string) => Promise<st
 
 async function parseKanjipedia(q: string, getFunction: (url: string) => Promise<string>) {
     const urlBase = "https://www.kanjipedia.jp/";
-    let html: string = await getFunction(`${urlBase}search?k=${q}&kt=1&sk=leftHand`);
+    const html: string = await getFunction(`${urlBase}search?k=${q}&kt=1&sk=leftHand`);
+    const trueUrl = new URL($("#resultKanjiList", html).find("a").attr("href"), urlBase).href;
 
-    const $$ = $.load(await getFunction(new URL($("#resultKanjiList", html).find("a").attr("href"), urlBase).href));
+    const $$ = $.load(await getFunction(trueUrl));
     fixUrl($$, urlBase)
 
     return {
         kanjipedia: $$("#kanjiRightSection").find("p").html(),
+        kanjipediaUrl: trueUrl
     };
 }
 
