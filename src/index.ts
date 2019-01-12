@@ -34,16 +34,10 @@ document.getElementById("searchQ")!.addEventListener("keyup", function (event) {
                 kanjipediaUrlEl.style.display = "none";
             }
 
-            const elWeblioVocab = document.getElementById("weblio-vocab")!;
-            elWeblioVocab.innerHTML = "";
-            r.weblio.vocab.forEach((el: string) => {
-                elWeblioVocab.innerHTML += el;
-            });
-
-            const elWeblioKanji = document.getElementById("weblio-kanji")!;
-            elWeblioKanji.innerHTML = "";
-            r.weblio.kanji.forEach((el: string) => {
-                elWeblioKanji.innerHTML += el;
+            const weblioEl = document.getElementById("weblio")!;
+            weblioEl.innerHTML = "";
+            r.weblio.forEach((el: string) => {
+                weblioEl.innerHTML += el;
             });
         })
     }

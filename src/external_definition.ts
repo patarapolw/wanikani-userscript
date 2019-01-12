@@ -45,22 +45,11 @@ async function parseKanjipedia(q: string, getFunction: (url: string) => Promise<
 }
 
 async function parseWeblio(q: string, getFunction: (url: string) => Promise<string>) {
-    const weblio = {} as IOutput;
-
     const $$ = $.load(await getFunction("https://www.weblio.jp/content/" + q));
     fixUrl($$, "https://www.weblio.jp");
 
-    weblio.vocab = $$(".NetDicBody").toArray().map((el) => $$(el).html() || "").filter((el) => el !== "");
-
-    if (q.length === 1) {
-        weblio.kanji = $$(`[title=${q}]`).toArray().map((el) => {
-            return $$(el).parent(".NetDicHead").next(".NetDicBody").html() || "";
-        }).filter((el) => el !== "");
-    }
-
-    console.log(weblio.vocab)
-
-    return weblio;
+    return $$(".NetDicBody")
+        .toArray().map((el) => $$(el).html() || "").filter((el) => el !== "");
 }
 
 export { parseJapanese };
