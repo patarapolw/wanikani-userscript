@@ -13,10 +13,10 @@ I recommend you to use UserScript's native `GM_xmlhttpRequest` and `@connect`, r
 ```javascript
 // ==UserScript==
 // [...]
-// @require      https://patarapolw.github.io/wanikani-userscript/dist/external_definition.js
+// @require      http://patarapolw.github.io/wanikani-userscript/dist/external_definition.js
 // @grant        GM_xmlhttpRequest
-// @connect      kanjipedia.jp
-// @connect      weblio.jp
+// @connect      https://www.kanjipedia.jp/
+// @connect      https://*.weblio.jp
 // ==/UserScript==
 
 (function() {
