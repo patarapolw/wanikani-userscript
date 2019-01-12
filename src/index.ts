@@ -1,7 +1,18 @@
-async function getFunction(url: string): Promise<string> {
-    return await (await fetch("https://cors-anywhere.herokuapp.com/" + url, {
-        mode: "cors",
-    })).text()
+function getFunction(url: string): Promise<string> {
+    const elLdsRingContainer = document.getElementById("lds-ring-container")!;
+    elLdsRingContainer.style.display = "block";
+
+    return new Promise((resolve, reject) => {
+        fetch("https://cors-anywhere.herokuapp.com/" + url, {
+            mode: "cors",
+        })
+        .then((r) => r.text())
+        .then(resolve)
+        .catch(reject)
+        .then(() => {
+            elLdsRingContainer.style.display = "none";
+        })
+    })
 }
 
 document.getElementById("searchQ")!.addEventListener("keyup", function (event) {
@@ -13,10 +24,10 @@ document.getElementById("searchQ")!.addEventListener("keyup", function (event) {
         }, {});
 
         (window as any).external_definition.parseJapanese(q.q, getFunction).then((r: any) => {
-            document.getElementById("kanjipedia")!.innerHTML = r.kanjipedia　|| "";
+            document.getElementById("kanjipedia")!.innerHTML = r.kanjipedia || "";
 
             const kanjipediaUrlEl = document.getElementById("kanjipedia-url") as HTMLAnchorElement;
-            if (r.kanjipediaUrl !== null) {
+            if (r.kanjipediaUrl !== undefined) {
                 kanjipediaUrlEl.href = r.kanjipediaUrl;
                 kanjipediaUrlEl.style.display = "block";
             } else {

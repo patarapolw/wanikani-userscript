@@ -18,6 +18,15 @@
 </head>
 
 <body>
+  <div id="lds-ring-container">
+    <div class="lds-ring">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+
   <div class="container">
     <div class="col-12 mt-3">
       <form id="searchForm" onsubmit="return false;">
@@ -47,9 +56,11 @@
         <div id="outputArea">
           <h3>Kanjipedia:</h3>
           <div id="kanjipedia" class="mb-3"></div>
-          <br><a href="#" style="display: none;" id="kanjipedia-url" class="float-right">Click here for full website</a>
+          <a href="#" style="display: none;" id="kanjipedia-url" class="float-right">Click here for full website</a>
 
-          <div><h3>Weblio:</h3></div>
+          <div>
+            <h3>Weblio:</h3>
+          </div>
 
           <h4>Vocab:</h4>
           <div id="weblio-vocab" class="mb-3"></div>
