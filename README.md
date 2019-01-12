@@ -12,7 +12,7 @@ I recommend you to use UserScript's native `GM_xmlhttpRequest` and `@connect`, r
 
 ```javascript
 // ==UserScript==
-// [...]
+// ...
 // @require      http://patarapolw.github.io/wanikani-userscript/dist/external_definition.js
 // @grant        GM_xmlhttpRequest
 // @connect      https://www.kanjipedia.jp/
@@ -34,7 +34,7 @@ I recommend you to use UserScript's native `GM_xmlhttpRequest` and `@connect`, r
     }
 
     external_definition.parseJapanese(word, getFunction).then(function(r) {
-        ...;
+        ...
     })
 })();
 ```
