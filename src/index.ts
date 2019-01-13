@@ -11,16 +11,16 @@ function getFunction(url: string): Promise<string> {
         .catch(reject)
         .then(() => {
             elLdsRingContainer.style.display = "none";
-        })
-    })
+        });
+    });
 }
 
-document.getElementById("searchQ")!.addEventListener("keyup", function (event) {
+document.getElementById("searchQ")!.addEventListener("keyup", (event) => {
     if (event.keyCode === 13) {
         const form = document.getElementById("searchForm")!;
         const q = Object.values(form).reduce((obj, field) => {
             obj[field.name] = field.value;
-            return obj
+            return obj;
         }, {});
 
         (window as any).external_definition.parseJapanese(q.q, getFunction).then((r: any) => {
@@ -39,6 +39,6 @@ document.getElementById("searchQ")!.addEventListener("keyup", function (event) {
             r.weblio.forEach((el: string) => {
                 weblioEl.innerHTML += el;
             });
-        })
+        });
     }
 });

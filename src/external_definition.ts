@@ -24,7 +24,7 @@ async function parseJapanese(q: string, getFunction: (url: string) => Promise<st
     }
 
     const weblio = await parseWeblio(q, getFunction);
-    
+
     result = {...result, weblio};
 
     return result;
@@ -36,11 +36,11 @@ async function parseKanjipedia(q: string, getFunction: (url: string) => Promise<
     const trueUrl = new URL($("#resultKanjiList", html).find("a").attr("href"), urlBase).href;
 
     const $$ = $.load(await getFunction(trueUrl));
-    fixUrl($$, urlBase)
+    fixUrl($$, urlBase);
 
     return {
         kanjipedia: $$("#kanjiRightSection").find("p").html(),
-        kanjipediaUrl: trueUrl
+        kanjipediaUrl: trueUrl,
     };
 }
 
