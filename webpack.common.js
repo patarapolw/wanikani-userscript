@@ -21,7 +21,7 @@ function getEntries() {
 module.exports = {
   entry: getEntries(),
   output: {
-    path: path.resolve(__dirname, 'public/js'),
+    path: path.resolve(__dirname, 'docs/js'),
     filename: '[name].min.js',
     library: ['[name]']
   },
