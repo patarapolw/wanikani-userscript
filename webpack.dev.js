@@ -6,8 +6,7 @@ module.exports = merge(common, {
   mode: 'development',
   devtool: 'inline-source-map',
   devServer: {
-    hot: true,
-    publicPath: "/docs/js/",
+    publicPath: '/js/',
     contentBase: path.resolve(__dirname, 'docs'),
     watchContentBase: true,
   }

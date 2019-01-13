@@ -25,7 +25,7 @@ async function parseJapanese(q: string, getFunction: (url: string) => Promise<st
 
     const weblio = await parseWeblio(q, getFunction);
 
-    result = {...result, weblio};
+    result = {...result, ...weblio};
 
     return result;
 }
@@ -45,11 +45,14 @@ async function parseKanjipedia(q: string, getFunction: (url: string) => Promise<
 }
 
 async function parseWeblio(q: string, getFunction: (url: string) => Promise<string>) {
-    const $$ = $.load(await getFunction("https://www.weblio.jp/content/" + q));
+    const url = "https://www.weblio.jp/content/" + q;
+    const $$ = $.load(await getFunction(url));
     fixUrl($$, "https://www.weblio.jp");
 
-    return $$(".NetDicBody")
-        .toArray().map((el) => $$(el).html() || "").filter((el) => el !== "");
+    return {
+        weblio: $$(".NetDicBody").toArray().map((el) => $$(el).html() || "").filter((el) => el !== ""),
+        weblioUrl: url,
+    };
 }
 
 export { parseJapanese };

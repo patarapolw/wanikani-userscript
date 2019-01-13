@@ -39,6 +39,13 @@ document.getElementById("searchQ")!.addEventListener("keyup", (event) => {
             r.weblio.forEach((el: string) => {
                 weblioEl.innerHTML += el;
             });
+            const weblioUrlEl = document.getElementById("weblio-url") as HTMLAnchorElement;
+            if (r.weblioUrl !== undefined) {
+                weblioUrlEl.href = r.weblioUrl;
+                weblioUrlEl.style.display = "block";
+            } else {
+                weblioUrlEl.style.display = "none";
+            }
         });
     }
 });
