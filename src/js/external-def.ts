@@ -18,8 +18,6 @@ async function parseJapanese (q: string, getFunction: (url: string) => Promise<s
   const weblio = await parseWeblio(q, getFunction)
 
   result = { ...result, ...weblio }
-  console.log(result)
-
   return result
 }
 
@@ -39,7 +37,9 @@ async function parseKanjipedia (q: string, getFunction: (url: string) => Promise
 
 async function parseWeblio (q: string, getFunction: (url: string) => Promise<string>) {
   const url = 'https://www.weblio.jp/content/' + q
-  const $$ = cheerio.load(await getFunction(url))
+  const html = await getFunction(url)
+
+  const $$ = cheerio.load(html)
   fixUrl($$, 'https://www.weblio.jp')
 
   return {
