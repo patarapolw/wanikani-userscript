@@ -1,4 +1,4 @@
-function getFunction (url: string): Promise<string> {
+function scrape (url: string): Promise<string> {
   const elLdsRingContainer = document.getElementById('lds-ring-container')!
   elLdsRingContainer.style.display = 'block'
 
@@ -23,7 +23,7 @@ document.getElementById('searchQ')!.addEventListener('keyup', (event) => {
       return obj
     }, {});
 
-    (window as any).external_definition.parseJapanese(q.q, getFunction).then((r: any) => {
+    (window as any).external_definition.parseJapanese(q.q, scrape).then((r: any) => {
             document.getElementById('kanjipedia')!.innerHTML = r.kanjipedia || ''
 
             const kanjipediaUrlEl = document.getElementById('kanjipedia-url') as HTMLAnchorElement

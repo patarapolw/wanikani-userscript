@@ -1,20 +1,16 @@
 import cheerio from 'cheerio'
 
-interface IObject {
-    [key: string]: any;
-}
-
 function fixUrl ($$: CheerioStatic, baseUrl: string) {
-  $$('a').each((i, el) => {
+  $$('a').each((_, el) => {
     $$(el).attr('href', new URL($$(el).attr('href')!, baseUrl).href)
   })
-  $$('img').each((i, el) => {
+  $$('img').each((_, el) => {
     $$(el).attr('src', new URL($$(el).attr('src')!, baseUrl).href)
   })
 }
 
 async function parseJapanese (q: string, getFunction: (url: string) => Promise<string>) {
-  let result = {} as IObject
+  let result = {} as Record<string, any>
   if (q.length === 1) {
     result = await parseKanjipedia(q, getFunction)
   }
@@ -22,6 +18,7 @@ async function parseJapanese (q: string, getFunction: (url: string) => Promise<s
   const weblio = await parseWeblio(q, getFunction)
 
   result = { ...result, ...weblio }
+  console.log(result)
 
   return result
 }
@@ -29,9 +26,9 @@ async function parseJapanese (q: string, getFunction: (url: string) => Promise<s
 async function parseKanjipedia (q: string, getFunction: (url: string) => Promise<string>) {
   const urlBase = 'https://www.kanjipedia.jp/'
   const html: string = await getFunction(`${urlBase}search?k=${q}&kt=1&sk=leftHand`)
-  const $ = cheerio.load(html)
-  const trueUrl = new URL($('#resultKanjiList a').attr('href')!, urlBase).href
-  const $$ = cheerio.load(await getFunction(trueUrl))
+  let $$ = cheerio.load(html)
+  const trueUrl = new URL($$('#resultKanjiList a').attr('href')!, urlBase).href
+  $$ = cheerio.load(await getFunction(trueUrl))
   fixUrl($$, urlBase)
 
   return {

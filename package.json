@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel src/index.html",
-    "build": "rm -r dist && parcel build --public-url /wanikani-userscript src/index.html src/scripts/*.ts",
+    "build": "rm -r dist && parcel build --public-url /wanikani-userscript src/index.html src/external/*.ts",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.18",
+    "@types/jquery": "^3.3.38",
     "@typescript-eslint/eslint-plugin": "^2.31.0",
     "@typescript-eslint/parser": "^2.31.0",
     "eslint": "^7.0.0",
