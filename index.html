@@ -10,8 +10,6 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/web/images/favicon-16x16.png">
   <link rel="shortcut icon" href="/web/images/favicon.ico" type="image/x-icon">
 
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
-    integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
   <link rel="stylesheet" href="/css/kanjipedia.css">
   <link rel="stylesheet" href="/web/css/index.css">
 
@@ -28,48 +26,56 @@
     </div>
   </div>
 
-  <div class="container">
-    <div class="col-12 mt-3">
-      <form>
-        <h6 class="col-12 mb-3">Input:</h6>
-        <div class="form-row">
-          <!-- <div class="form-inline form-group col-md-4">
-            <label class="col-auto mr-sm-2 d-inline" for="searchType">Type:</label>
-            <select class="custom-select col d-inline" id="searchType" name="type">
-              <option value="vocab">Vocab</option>
-              <option value="kanji" selected>Kanji</option>
-              <option value="radical">Radical</option>
-            </select>
-          </div> -->
+  <main>
+    <form class="Input">
+      <div class="field">
+        <label for="q">Word:</label>
+        <input type="text" name="q" id="q" lang="ja-JP" />
+      </div>
+      <div class="field">
+        <label for="reading">Reading:</label>
+        <input type="text" name="reading" id="reading" lang="ja-JP" />
+      </div>
+      <div class="field">
+        <label for="source">Search in:</label>
+        <select name="source" id="source" value="weblio">
+          <option value="kanjipedia">Kanjipedia</option>
+          <option value="weblio" selected>Weblio</option>
+          <option value="alc">ALC</option>
+          <option value="goo">goo.ne.jp</option>
+        </select>
+      </div>
+      <div class="field">
+        <button type="submit">Fetch</button>
+      </div>
+    </form>
 
-          <div class="form-group form-group col-12">
-            <label class="my-1 mr-2 sr-only" for="q">Search for:</label>
-            <input type="text" class="form-control" name="q" id="q" placeholder="Please enter your search text.">
-          </div>
-        </div>
-      </form>
+    <div class="Output" lang="ja-JP">
+      <div id="kanjipedia" class="hidden">
+        <h3>Kanjipedia:</h3>
+        <section class="mb-3"></section>
+        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
+      </div>
+
+      <div id="weblio" class="hidden">
+        <h3>Weblio:</h3>
+        <section class="mb-3"></section>
+        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
+      </div>
+
+      <div id="alc" class="hidden">
+        <h3>ALC:</h3>
+        <section class="mb-3"></section>
+        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
+      </div>
+
+      <div id="goo" class="hidden">
+        <h3>Goo:</h3>
+        <section class="mb-3"></section>
+        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
+      </div>
     </div>
-
-    <div class="col-12 mt-3">
-      <h6 class="col-12 mb-3">Output:</h6>
-
-      <figure class="highlight">
-        <div id="outputArea">
-          <div id="kanjipedia" class="hidden">
-            <h3>Kanjipedia:</h3>
-            <section class="mb-3"></section>
-            <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
-          </div>
-
-          <div id="weblio" class="hidden">
-            <h3>Weblio:</h3>
-            <section class="mb-3"></section>
-            <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
-          </div>
-        </div>
-      </figure>
-    </div>
-  </div>
+  </main>
 
   <script type="module" src="/web/main.ts"></script>
 </body>

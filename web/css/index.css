@@ -3,8 +3,37 @@ html, body {
     height: 100%;
 }
 
+main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding-top: 30px;
+}
+
+form {
+    font-size: 18px;
+}
+
+form .field {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 0.5em;
+}
+
+form .field label {
+    width: 8em;
+}
+
+form .field input {
+    flex-grow: 1;
+}
+
 .hidden {
-    display: none;
+    display: none !important;
+}
+
+.float-right {
+    float: right;
 }
 
 #lds-ring-container {
