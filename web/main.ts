@@ -1,4 +1,4 @@
-import { ExternalDefinition, IGetResult } from './js/external-def'
+import { ExternalDefinition, IGetResult } from './lib/external-def'
 
 const elLoading = document.getElementById('lds-ring-container')!
 

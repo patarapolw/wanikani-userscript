@@ -1,0 +1,22 @@
+.kanjipedia .fLeft {
+  float: left;
+  margin-right: 0.5em;
+}
+
+.kanjipedia ul#onkunList {
+  list-style: none;
+}
+
+.kanjipedia ul#onkunList li {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.kanjipedia ul#onkunList p {
+  margin: 0;
+}
+
+.kanjipedia img {
+  height: 20px;
+}

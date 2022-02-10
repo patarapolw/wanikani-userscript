@@ -8,14 +8,15 @@
   "license": "MIT",
   "main": "index.js",
   "files": [
-    "lib"
+    "css",
+    "standalone"
   ],
   "scripts": {
     "start": "node server/index.mjs",
     "dev:server": "PORT=9000 NODE_ENV=development node server/index.mjs",
     "dev:web": "vite",
     "dev": "run-p dev:*",
-    "build:lib": "esbuild src/external/external-def.ts --bundle --outfile=lib/external-def.min.js",
+    "build:lib": "esbuild web/lib/external-def.ts --bundle --outfile=standalone/external-def.js",
     "build:web": "vite build",
     "build": "yarn build:web"
   },

@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    external_definition: typeof ExternalDefinition
+    ExternalDefinition: typeof ExternalDefinition
   }
 }
 
@@ -53,9 +53,10 @@ export class ExternalDefinition {
     elHtml.innerHTML = await this.getFunction(trueUrl)
     elHtml.querySelectorAll('script').forEach((el) => el.remove())
 
-    const html =
+    const html = `<div class="kanjipedia">${
       (elHtml.querySelector('#onkunList')?.outerHTML || '') +
       (elHtml.querySelector('#kanjiRightSection')?.outerHTML || '')
+    }</div>`
 
     elHtml.remove()
 
@@ -71,10 +72,11 @@ export class ExternalDefinition {
     const elHtml = document.createElement('div')
     elHtml.innerHTML = await this.getFunction(url)
 
-    const html =
+    const html = `<div class="weblio">${
       Array.from(elHtml.querySelectorAll('.kiji')).filter((el) =>
         (el.textContent || '').trim()
       )[0]?.outerHTML || ''
+    }</div>`
 
     elHtml.remove()
 
@@ -87,4 +89,4 @@ export class ExternalDefinition {
   }
 }
 
-window.external_definition = ExternalDefinition
+window.ExternalDefinition = ExternalDefinition
