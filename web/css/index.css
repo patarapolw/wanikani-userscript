@@ -3,8 +3,11 @@ html, body {
     height: 100%;
 }
 
-#lds-ring-container {
+.hidden {
     display: none;
+}
+
+#lds-ring-container {
     position: fixed;
     top: 50%;
     left: 50%;

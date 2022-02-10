@@ -18,7 +18,7 @@
 </head>
 
 <body>
-  <div id="lds-ring-container">
+  <div id="lds-ring-container" class="hidden">
     <div class="lds-ring">
       <div></div>
       <div></div>
@@ -29,7 +29,7 @@
 
   <div class="container">
     <div class="col-12 mt-3">
-      <form id="searchForm" onsubmit="return false;">
+      <form>
         <h6 class="col-12 mb-3">Input:</h6>
         <div class="form-row">
           <!-- <div class="form-inline form-group col-md-4">
@@ -42,8 +42,8 @@
           </div> -->
 
           <div class="form-group form-group col-12">
-            <label class="my-1 mr-2 sr-only" for="searchQ">Search for:</label>
-            <input type="text" class="form-control" name="q" id="searchQ" placeholder="Please enter your search text.">
+            <label class="my-1 mr-2 sr-only" for="q">Search for:</label>
+            <input type="text" class="form-control" name="q" id="q" placeholder="Please enter your search text.">
           </div>
         </div>
       </form>
@@ -54,23 +54,22 @@
 
       <figure class="highlight">
         <div id="outputArea">
-          <div>
+          <div id="kanjipedia" class="hidden">
             <h3>Kanjipedia:</h3>
-            <div id="kanjipedia" class="mb-3"></div>
-            <a href="#" style="display: none;" id="kanjipedia-url" class="float-right">Click here for full website</a>
+            <section class="mb-3"></section>
+            <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
           </div>
 
-          <div>
+          <div id="weblio" class="hidden">
             <h3>Weblio:</h3>
-            <div id="weblio" class="mb-3"></div>
-            <a href="#" style="display: none;" id="weblio-url" class="float-right">Click here for full website</a>
+            <section class="mb-3"></section>
+            <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
           </div>
         </div>
       </figure>
     </div>
   </div>
 
-  <script type="module" src="/web/js/external-def.ts"></script>
   <script type="module" src="/web/main.ts"></script>
 </body>
 

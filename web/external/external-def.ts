@@ -1,4 +1,4 @@
-import { parseJapanese } from '../js/external-def'
+import { ExternalDefinition, IGetResult } from '../js/external-def'
 
 declare const appStoreRegistry: any
 declare const GM_info: any
@@ -16,7 +16,11 @@ declare global {
   }
 }
 
-const lookupMap = new Map()
+const lookupMap = new Map<
+  string,
+  Record<'kanjipedia' | 'weblio', IGetResult | null>
+>()
+const extDef = new ExternalDefinition(scrape)
 
 $(() => {
   updateInfo()
@@ -84,9 +88,15 @@ async function updateInfo() {
     return
   }
 
-  const { kanjipedia, kanjipediaUrl, weblio, weblioUrl } =
-    lookupMap.get(word) || (await parseJapanese(word, scrape))
-  lookupMap.set(word, { kanjipedia, kanjipediaUrl, weblio, weblioUrl })
+  const v =
+    lookupMap.get(word) ||
+    (await Promise.all([extDef.kanjipedia(word), extDef.weblio(word)]).then(
+      ([k, w]) => ({
+        kanjipedia: k,
+        weblio: w
+      })
+    ))!
+  lookupMap.set(word, v)
 
   const $dialog = $('<div id="external-def">')
   const $meanings = $(
@@ -98,37 +108,39 @@ async function updateInfo() {
     $('#information').append($dialog)
   }
 
-  if (kanjipedia) {
+  if (v.kanjipedia) {
     const $kanjipedia = $('<section class="kanjipedia"></section>')
     $dialog.append($kanjipedia)
 
-    if ($.jStorage.get('questionType') === 'reading')
+    if ($.jStorage.get('questionType') === 'reading') {
       $('.kanjipedia').css('display', 'none')
+    }
 
-    $kanjipedia.html(
-      kanjipedia +
-        '<br><a href="' +
-        kanjipediaUrl +
-        '" target="_blank">Click for full entries</a>'
+    $kanjipedia.html(v.kanjipedia.html)
+    $kanjipedia.append($('<br>'))
+    $kanjipedia.append(
+      $(
+        '<a target="_blank" rel="noopener noreferrer">Click for full entries</a>'
+      ).attr('href', v.kanjipedia.url)
     )
+
     $kanjipedia.prepend('<h2>Kanjipedia Explanation</h2>')
   }
 
-  if (weblio.length > 0) {
+  if (v.weblio) {
     const $weblio = $('<section class="weblio"></section>')
     $dialog.append($weblio)
 
-    if ($.jStorage.get('questionType') === 'reading')
+    if ($.jStorage.get('questionType') === 'reading') {
       $('.weblio').css('display', 'none')
+    }
 
-    $weblio.html('')
-    weblio.map((w: string) => {
-      $weblio.append(w)
-    })
+    $weblio.html(v.weblio.html)
+    $weblio.append($('<br>'))
     $weblio.append(
-      '<br><a href="' +
-        weblioUrl +
-        '" target="_blank">Click for full entries</a>'
+      $(
+        '<a target="_blank" rel="noopener noreferrer">Click for full entries</a>'
+      ).attr('href', v.weblio.url)
     )
 
     $weblio.prepend('<h2>Weblio Explanation</h2>')

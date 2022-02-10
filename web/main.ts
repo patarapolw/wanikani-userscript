@@ -1,6 +1,27 @@
+import { ExternalDefinition, IGetResult } from './js/external-def'
+
+const elLoading = document.getElementById('lds-ring-container')!
+
+const elForm = document.querySelector('form')!
+const elQ = elForm.querySelector('input[name="q"]') as HTMLInputElement
+
+function getSection(id: string) {
+  const parent = document.querySelector(`#${id}`)!
+
+  return {
+    parent,
+    section: parent.querySelector('section')!,
+    aBlank: parent.querySelector(
+      'a[target="_blank"]:last-child'
+    ) as HTMLAnchorElement
+  }
+}
+
+const elKanjipedia = getSection('kanjipedia')
+const elWeblio = getSection('weblio')
+
 async function scrape(url: string): Promise<string> {
-  const elLdsRingContainer = document.getElementById('lds-ring-container')!
-  elLdsRingContainer.style.display = 'block'
+  elLoading.classList.remove('hidden')
 
   return new Promise((resolve, reject) => {
     fetch(`/api/nocors?url=${encodeURIComponent(url)}`)
@@ -8,48 +29,52 @@ async function scrape(url: string): Promise<string> {
       .then(resolve)
       .catch(reject)
       .then(() => {
-        elLdsRingContainer.style.display = 'none'
+        elLoading.classList.add('hidden')
       })
   })
 }
 
-document.getElementById('searchQ')!.addEventListener('keyup', (event) => {
-  if (event.key === 'Enter') {
-    const form = document.getElementById('searchForm')!
-    const q = Object.values(form).reduce((obj, field) => {
-      obj[field.name] = field.value
-      return obj
-    }, {})
+const lookupMap = new Map<
+  string,
+  Record<'kanjipedia' | 'weblio', IGetResult | null>
+>()
+const extDef = new ExternalDefinition(scrape)
 
-    ;(window as any).external_definition
-      .parseJapanese(q.q, scrape)
-      .then((r: any) => {
-        document.getElementById('kanjipedia')!.innerHTML = r.kanjipedia || ''
+elForm.onsubmit = async (evt) => {
+  evt.preventDefault()
 
-        const kanjipediaUrlEl = document.getElementById(
-          'kanjipedia-url'
-        ) as HTMLAnchorElement
-        if (r.kanjipediaUrl !== undefined) {
-          kanjipediaUrlEl.href = r.kanjipediaUrl
-          kanjipediaUrlEl.style.display = 'block'
-        } else {
-          kanjipediaUrlEl.style.display = 'none'
-        }
+  let q = elQ.value
 
-        const weblioEl = document.getElementById('weblio')!
-        weblioEl.innerHTML = ''
-        r.weblio.forEach((el: string) => {
-          weblioEl.innerHTML += el
-        })
-        const weblioUrlEl = document.getElementById(
-          'weblio-url'
-        ) as HTMLAnchorElement
-        if (r.weblioUrl !== undefined) {
-          weblioUrlEl.href = r.weblioUrl
-          weblioUrlEl.style.display = 'block'
-        } else {
-          weblioUrlEl.style.display = 'none'
-        }
-      })
+  if (q) {
+    let v = lookupMap.get(q)
+    if (!v) {
+      v = { kanjipedia: null, weblio: null }
+
+      lookupMap.set(q, v)
+      await Promise.all([
+        q.length === 1
+          ? extDef.kanjipedia(q).then((k) => (v!.kanjipedia = k))
+          : null,
+
+        extDef.weblio(q).then((w) => (v!.weblio = w))
+      ])
+      lookupMap.set(q, v)
+    }
+
+    if (v.kanjipedia) {
+      elKanjipedia.section.innerHTML = v.kanjipedia.html
+      elKanjipedia.aBlank.href = v.kanjipedia.url
+      elKanjipedia.parent.classList.remove('hidden')
+    } else {
+      elKanjipedia.parent.classList.add('hidden')
+    }
+
+    if (v.weblio) {
+      elWeblio.section.innerHTML = v.weblio.html
+      elWeblio.aBlank.href = v.weblio.url
+      elWeblio.parent.classList.remove('hidden')
+    } else {
+      elWeblio.parent.classList.add('hidden')
+    }
   }
-})
+}

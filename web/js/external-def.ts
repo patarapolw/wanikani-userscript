@@ -1,87 +1,90 @@
 declare global {
   interface Window {
-    external_definition: {
-      parseJapanese: typeof parseJapanese
+    external_definition: typeof ExternalDefinition
+  }
+}
+
+export interface IGetResult {
+  html: string
+  url: string
+}
+
+function changeOrigin(src: string, root: string) {
+  const { origin } = new URL(root)
+  return new URL(new URL(src, origin).pathname, origin).href
+}
+
+export class ExternalDefinition {
+  getFunction: (url: string) => Promise<string>
+
+  constructor(
+    getFunction: (url: string) => Promise<string>,
+    public opts: {
+      persistence?: string
+    } = {}
+  ) {
+    this.getFunction = async (url: string) => {
+      return getFunction(url).then((s) => {
+        const { origin } = new URL(url)
+        return s.replace(/(href|src)="\/([^"]+)/gi, (p0, p1, p2) => {
+          return p2[0] === '/' ? p0 : `${p1}="${origin}/${p2}`
+        })
+      })
     }
   }
-}
 
-function fixUrl(el: HTMLElement, baseUrl: string) {
-  el.querySelectorAll('a').forEach((a) => {
-    a.href = new URL(a.href, baseUrl).href
-  })
+  async kanjipedia(q: string): Promise<IGetResult | null> {
+    const url = `https://www.kanjipedia.jp/search?k=${encodeURIComponent(
+      q
+    )}&kt=1&sk=leftHand`
 
-  el.querySelectorAll('img').forEach((img) => {
-    img.src = new URL(img.src, baseUrl).href
-  })
-}
+    const elHtml = document.createElement('div')
+    elHtml.innerHTML = await this.getFunction(url)
+    elHtml.querySelectorAll('script').forEach((el) => el.remove())
 
-async function parseJapanese(
-  q: string,
-  getFunction: (url: string) => Promise<string>
-) {
-  let result = {} as Record<string, any>
-  if (q.length === 1) {
-    result = await parseKanjipedia(q, getFunction)
-  }
+    const firstResult = elHtml.querySelector(
+      '#resultKanjiList a'
+    ) as HTMLAnchorElement
+    if (!firstResult) {
+      return null
+    }
 
-  const weblio = await parseWeblio(q, getFunction)
+    const trueUrl = changeOrigin(firstResult.href, url)
+    elHtml.innerHTML = await this.getFunction(trueUrl)
+    elHtml.querySelectorAll('script').forEach((el) => el.remove())
 
-  result = { ...result, ...weblio }
-  return result
-}
+    const html =
+      (elHtml.querySelector('#onkunList')?.outerHTML || '') +
+      (elHtml.querySelector('#kanjiRightSection')?.outerHTML || '')
 
-async function parseKanjipedia(
-  q: string,
-  getFunction: (url: string) => Promise<string>
-) {
-  const urlBase = 'https://www.kanjipedia.jp/'
-  const elHtml = document.createElement('div')
-  elHtml.innerHTML = await getFunction(
-    `${urlBase}search?k=${encodeURIComponent(q)}&kt=1&sk=leftHand`
-  )
-  const firstResult = elHtml.querySelector(
-    '#resultKanjiList a'
-  ) as HTMLAnchorElement
-  if (!firstResult) {
+    elHtml.remove()
+
     return {
-      kanjipedia: [],
-      kanjipediaUrl: ''
+      html,
+      url: trueUrl
     }
   }
 
-  const trueUrl = new URL(new URL(firstResult.href, urlBase).pathname, urlBase)
-    .href
-  elHtml.innerHTML = await getFunction(trueUrl)
-  fixUrl(elHtml, urlBase)
+  async weblio(q: string): Promise<IGetResult | null> {
+    const url = 'https://www.weblio.jp/content/' + encodeURIComponent(q)
 
-  return {
-    kanjipedia: Array.from(elHtml.querySelectorAll('#kanjiRightSection p')).map(
-      (p) => p.innerHTML
-    ),
-    kanjipediaUrl: trueUrl
+    const elHtml = document.createElement('div')
+    elHtml.innerHTML = await this.getFunction(url)
+
+    const html =
+      Array.from(elHtml.querySelectorAll('.kiji')).filter((el) =>
+        (el.textContent || '').trim()
+      )[0]?.outerHTML || ''
+
+    elHtml.remove()
+
+    if (!html) return null
+
+    return {
+      html,
+      url
+    }
   }
 }
 
-async function parseWeblio(
-  q: string,
-  getFunction: (url: string) => Promise<string>
-) {
-  const url = 'https://www.weblio.jp/content/' + encodeURIComponent(q)
-
-  const elHtml = document.createElement('div')
-  elHtml.innerHTML = await getFunction(url)
-
-  fixUrl(elHtml, 'https://www.weblio.jp')
-
-  return {
-    weblio: Array.from(elHtml.querySelectorAll('.kiji'))
-      .map((el) => el.innerHTML.trim())
-      .filter((el) => el),
-    weblioUrl: url
-  }
-}
-
-export { parseJapanese }
-
-window.external_definition = { parseJapanese }
+window.external_definition = ExternalDefinition

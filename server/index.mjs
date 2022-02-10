@@ -26,7 +26,6 @@ app.get(
   async (req) => {
     const { url } = req.query
 
-    console.log(url)
     const { data: html } = await axios.get(url)
     return html
   }
