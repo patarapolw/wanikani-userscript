@@ -4,9 +4,15 @@ declare const appStoreRegistry: any
 declare const GM_info: any
 declare const GM_xmlhttpRequest: any
 
+declare const $: any
+
 declare global {
+  interface Window {
+    appStoreRegistry: any
+  }
+
   interface JQueryStatic {
-    jStorage: any;
+    jStorage: any
   }
 }
 
@@ -25,8 +31,12 @@ const observer = new MutationObserver(function (mutations) {
 
   mutations.forEach(function (mutation) {
     mutation.addedNodes.forEach((node) => {
-      if (node instanceof HTMLElement &&
-        node.matches('#item-info-meaning-mnemonic, #supplement-voc-meaning, #supplement-kan-meaning, #information')) {
+      if (
+        node instanceof HTMLElement &&
+        node.matches(
+          '#item-info-meaning-mnemonic, #supplement-voc-meaning, #supplement-kan-meaning, #information'
+        )
+      ) {
         doUpdate = true
       }
     })
@@ -44,7 +54,7 @@ observer.observe(document.body, {
   subtree: true
 })
 
-async function scrape (url: string) {
+async function scrape(url: string) {
   return new Promise<string>((resolve, reject) => {
     GM_xmlhttpRequest({
       method: 'GET',
@@ -59,7 +69,7 @@ async function scrape (url: string) {
   })
 }
 
-async function updateInfo () {
+async function updateInfo() {
   const word = (() => {
     const m = /wanikani\.com\/(?:kanji|vocabulary)\/(.+)$/.exec(location.href)
     if (m) {
@@ -74,11 +84,14 @@ async function updateInfo () {
     return
   }
 
-  const { kanjipedia, kanjipediaUrl, weblio, weblioUrl } = lookupMap.get(word) || await parseJapanese(word, scrape)
+  const { kanjipedia, kanjipediaUrl, weblio, weblioUrl } =
+    lookupMap.get(word) || (await parseJapanese(word, scrape))
   lookupMap.set(word, { kanjipedia, kanjipediaUrl, weblio, weblioUrl })
 
   const $dialog = $('<div id="external-def">')
-  const $meanings = $('#item-info-meaning-mnemonic, #supplement-voc-meaning, #supplement-kan-meaning')
+  const $meanings = $(
+    '#item-info-meaning-mnemonic, #supplement-voc-meaning, #supplement-kan-meaning'
+  )
   if ($meanings.length > 0) {
     $meanings.prepend($dialog)
   } else {
@@ -89,11 +102,15 @@ async function updateInfo () {
     const $kanjipedia = $('<section class="kanjipedia"></section>')
     $dialog.append($kanjipedia)
 
-    if ($.jStorage.get('questionType') === 'reading') $('.kanjipedia').css('display', 'none')
+    if ($.jStorage.get('questionType') === 'reading')
+      $('.kanjipedia').css('display', 'none')
 
     $kanjipedia.html(
       kanjipedia +
-      '<br><a href="' + kanjipediaUrl + '" target="_blank">Click for full entries</a>')
+        '<br><a href="' +
+        kanjipediaUrl +
+        '" target="_blank">Click for full entries</a>'
+    )
     $kanjipedia.prepend('<h2>Kanjipedia Explanation</h2>')
   }
 
@@ -101,17 +118,30 @@ async function updateInfo () {
     const $weblio = $('<section class="weblio"></section>')
     $dialog.append($weblio)
 
-    if ($.jStorage.get('questionType') === 'reading') $('.weblio').css('display', 'none')
+    if ($.jStorage.get('questionType') === 'reading')
+      $('.weblio').css('display', 'none')
 
     $weblio.html('')
     weblio.map((w: string) => {
       $weblio.append(w)
     })
-    $weblio.append('<br><a href="' + weblioUrl + '" target="_blank">Click for full entries</a>')
+    $weblio.append(
+      '<br><a href="' +
+        weblioUrl +
+        '" target="_blank">Click for full entries</a>'
+    )
 
     $weblio.prepend('<h2>Weblio Explanation</h2>')
   }
 }
 
 // @ts-ignore
-try { $('.app-store-menu-item').remove(); $('<li class="app-store-menu-item"><a href="https://community.wanikani.com/t/there-are-so-many-user-scripts-now-that-discovering-them-is-hard/20709">App Store</a></li>').insertBefore($('.navbar .dropdown-menu .nav-header:contains("Account")')); window.appStoreRegistry = window.appStoreRegistry || {}; window.appStoreRegistry[GM_info.script.uuid] = GM_info; localStorage.appStoreRegistry = JSON.stringify(appStoreRegistry) } catch (e) {}
+try {
+  $('.app-store-menu-item').remove()
+  $(
+    '<li class="app-store-menu-item"><a href="https://community.wanikani.com/t/there-are-so-many-user-scripts-now-that-discovering-them-is-hard/20709">App Store</a></li>'
+  ).insertBefore($('.navbar .dropdown-menu .nav-header:contains("Account")'))
+  window.appStoreRegistry = window.appStoreRegistry || {}
+  window.appStoreRegistry[GM_info.script.uuid] = GM_info
+  localStorage.appStoreRegistry = JSON.stringify(appStoreRegistry)
+} catch (e) {}
