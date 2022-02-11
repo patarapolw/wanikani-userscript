@@ -34,6 +34,8 @@ export class ExternalDefinition {
   }
 
   async kanjipedia(q: string): Promise<IGetResult | null> {
+    if (!q.trim()) return null
+
     const url = `https://www.kanjipedia.jp/search?k=${encodeURIComponent(
       q
     )}&kt=1&sk=leftHand`
@@ -67,6 +69,8 @@ export class ExternalDefinition {
   }
 
   async weblio(q: string): Promise<IGetResult | null> {
+    if (!q.trim()) return null
+
     const url = 'https://www.weblio.jp/content/' + encodeURIComponent(q)
 
     const elHtml = document.createElement('div')

@@ -4,45 +4,14 @@ const elLoading = document.getElementById('lds-ring-container')!
 
 const elForm = document.querySelector('form')!
 const elQ = elForm.querySelector('input[name="q"]') as HTMLInputElement
-const elReading = elForm.querySelector(
-  'input[name="reading"]'
-) as HTMLInputElement
 const elSource = elForm.querySelector(
   'select[name="source"]'
 ) as HTMLSelectElement
-
-function hideReadingInput() {
-  let parent = elReading.parentElement
-  while (parent) {
-    if (parent.classList.contains('field')) {
-      break
-    }
-  }
-
-  if (parent) {
-    if (elSource.value === 'kanjipedia') {
-      parent.classList.add('hidden')
-    } else {
-      parent.classList.remove('hidden')
-    }
-  }
-
-  if (elSource.value === 'kanjipedia') {
-    elQ.value = elQ.value.substring(0, 1)
-  }
-}
-
-hideReadingInput()
-
-elSource.addEventListener('change', () => {
-  hideReadingInput()
-})
 
 function hideKanjiSource() {
   if (elQ.value.length > 1) {
     elSource.value = 'weblio'
   }
-  hideReadingInput()
 }
 
 hideKanjiSource()
@@ -51,7 +20,21 @@ elQ.addEventListener('input', () => {
   hideKanjiSource()
 })
 
-function getSection(id: string) {
+const lookupMap: {
+  [source: string]: {
+    [entry: string]: IGetResult | null
+  }
+} = {
+  kanjipedia: {},
+  weblio: {},
+  alc: {},
+  goo: {}
+}
+
+function getSection(
+  id: string,
+  fetch: (v0: string, ...vs: string[]) => Promise<void>
+) {
   const parent = document.querySelector(`.Output #${id}`)!
 
   return {
@@ -59,15 +42,106 @@ function getSection(id: string) {
     section: parent.querySelector('section')!,
     aBlank: parent.querySelector(
       'a[target="_blank"]:last-child'
-    ) as HTMLAnchorElement
+    ) as HTMLAnchorElement,
+    fetch
   }
 }
 
 const elOut: Record<string, ReturnType<typeof getSection>> = {
-  kanjipedia: getSection('kanjipedia'),
-  weblio: getSection('weblio'),
-  alc: getSection('alc'),
-  goo: getSection('goo')
+  kanjipedia: getSection('kanjipedia', async (v0, ...vs) => {
+    const src = 'kanjipedia'
+    let k = lookupMap[src][v0]
+
+    if (typeof k === 'undefined') {
+      lookupMap[src][v0] = null
+
+      vs = [v0, ...vs]
+      for (const v of vs) {
+        if (v.length === 1) {
+          k = await extDef.kanjipedia(v)
+          lookupMap[src][v0] = k
+          if (k) {
+            break
+          }
+        }
+      }
+    }
+
+    if (k) {
+      elOut[src].section.innerHTML = k.html
+      elOut[src].aBlank.href = k.url
+      elOut[src].parent.classList.remove('hidden')
+    }
+  }),
+  weblio: getSection('weblio', async (v0, ...vs) => {
+    const src = 'weblio'
+    let k = lookupMap[src][v0]
+
+    if (typeof k === 'undefined') {
+      lookupMap[src][v0] = null
+
+      vs = [v0, ...vs]
+      for (const v of vs) {
+        k = await extDef.weblio(v)
+        lookupMap[src][v0] = k
+        if (k) {
+          break
+        }
+      }
+    }
+
+    if (k) {
+      elOut[src].section.innerHTML = k.html
+      elOut[src].aBlank.href = k.url
+      elOut[src].parent.classList.remove('hidden')
+    }
+  }),
+  alc: getSection('alc', async (v0, ...vs) => {
+    const src = 'alc'
+    let k = lookupMap[src][v0]
+
+    if (typeof k === 'undefined') {
+      lookupMap[src][v0] = null
+
+      vs = [v0, ...vs]
+      for (const _v of vs) {
+        // k = await extDef.weblio(v)
+        lookupMap[src][v0] = k
+        if (k) {
+          break
+        }
+      }
+    }
+
+    if (k) {
+      elOut[src].section.innerHTML = k.html
+      elOut[src].aBlank.href = k.url
+      elOut[src].parent.classList.remove('hidden')
+    }
+  }),
+  goo: getSection('goo', async (v0, ...vs) => {
+    const src = 'goo'
+    let k = lookupMap[src][v0]
+
+    if (typeof k === 'undefined') {
+      lookupMap[src][v0] = null
+
+      vs = [v0, ...vs]
+      for (const _v of vs) {
+        // k = await extDef.weblio(v)
+        lookupMap[src][v0] = k
+        if (k) {
+          break
+        }
+      }
+    }
+
+    if (k) {
+      elOut[src].section.innerHTML = k.html
+      elOut[src].aBlank.href = k.url
+      elOut[src].parent.classList.remove('hidden')
+    }
+  })
 }
 
 async function scrape(url: string): Promise<string> {
@@ -84,40 +158,20 @@ async function scrape(url: string): Promise<string> {
   })
 }
 
-const lookupMap = new Map<string, Record<string, IGetResult | null>>()
 const extDef = new ExternalDefinition(scrape)
 
 elForm.onsubmit = async (evt) => {
   evt.preventDefault()
 
-  let q = elQ.value
+  const vs = elQ.value.split(' ')
 
-  if (q) {
-    const v = lookupMap.get(q) || {}
-    if (typeof v[elSource.value] === 'undefined') {
-      v[elSource.value] = null
-
-      lookupMap.set(q, v)
-
-      switch (elSource.value) {
-        case 'kanjipedia':
-          await extDef.kanjipedia(q).then((k) => (v.kanjipedia = k))
-          break
-        case 'weblio':
-          await extDef.weblio(q).then((k) => (v.weblio = k))
-      }
-
-      lookupMap.set(q, v)
-    }
-
+  if (vs[0]) {
     Object.values(elOut).map((v) => {
       v.parent.classList.add('hidden')
     })
 
-    if (v[elSource.value]) {
-      elOut[elSource.value].section.innerHTML = v[elSource.value]!.html
-      elOut[elSource.value].aBlank.href = v[elSource.value]!.url
-      elOut[elSource.value].parent.classList.remove('hidden')
+    if (elSource.value) {
+      await elOut[elSource.value].fetch(vs[0], ...vs.slice(1))
     }
   }
 }
