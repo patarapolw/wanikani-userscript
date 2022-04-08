@@ -1,7 +1,10 @@
-import fastify from 'fastify'
-import fastifyStatic from 'fastify-static'
-import axios from 'axios'
-import path from 'path'
+// @ts-check
+
+const path = require('path')
+
+const { default: axios } = require('axios')
+const { default: fastify } = require('fastify')
+const { default: fastifyStatic } = require('fastify-static')
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -24,6 +27,7 @@ app.get(
     }
   },
   async (req) => {
+    // @ts-ignore
     const { url } = req.query
 
     const { data: html } = await axios.get(url)

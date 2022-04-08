@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   build: {
-    outDir: 'public'
+    outDir: 'www-dist'
   },
   server: {
     proxy: {
