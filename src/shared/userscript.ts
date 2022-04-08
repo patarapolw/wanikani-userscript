@@ -11,4 +11,4 @@ declare function GM_xmlhttpRequest(params: {
   onerror(e: any): void
 }): void
 
-export { GM_xmlhttpRequest }
+export const GM = () => ({ GM_xmlhttpRequest })
