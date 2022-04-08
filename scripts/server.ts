@@ -1,10 +1,8 @@
-// @ts-check
+import path from 'path'
 
-const path = require('path')
-
-const { default: axios } = require('axios')
-const { default: fastify } = require('fastify')
-const { default: fastifyStatic } = require('fastify-static')
+import axios from 'axios'
+import fastify from 'fastify'
+import fastifyStatic from 'fastify-static'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -15,7 +13,11 @@ const app = fastify({
 })
 const port = process.env.PORT || 8080
 
-app.get(
+app.get<{
+  Querystring: {
+    url: string
+  }
+}>(
   '/api/nocors',
   {
     schema: {
@@ -27,7 +29,6 @@ app.get(
     }
   },
   async (req) => {
-    // @ts-ignore
     const { url } = req.query
 
     const { data: html } = await axios.get(url)

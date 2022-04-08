@@ -2,10 +2,6 @@
 
 A GitHub source for `polv`'s userscripts.
 
-## Demo
+## List of built UserScripts
 
-See <https://wk.polv.cc>
-
-## Usage
-
-See [/userscripts](/userscripts).
+See [/lib/**/*.user.js](/lib).

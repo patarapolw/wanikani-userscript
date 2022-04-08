@@ -1,4 +1,4 @@
-import { ExternalDefinition, IGetResult } from '../src/deprecated/external-def'
+import { ExternalDefinition, IGetResult } from '../src/shared/deprecated/x-def'
 
 const elLoading = document.getElementById('lds-ring-container')!
 

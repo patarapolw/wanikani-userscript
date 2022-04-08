@@ -1,28 +1,29 @@
 {
   "name": "@patarapolw/wanikani-userscript",
-  "version": "1.1.1",
+  "version": "0.2.0",
   "description": "GitHub Pages for WaniKani UserScripts",
   "repository": "https://github.com/patarapolw/wanikani-userscript",
   "homepage": "https://wk.polv.cc",
   "author": "Pacharapol Withayasakpunt",
   "license": "MIT",
-  "main": "lib/index.js",
+  "main": "index.js",
   "files": [
     "css",
-    "lib",
-    "userscripts"
+    "lib"
   ],
   "scripts": {
-    "dev:server": "PORT=9000 NODE_ENV=development node scripts/server.js",
+    "dev:server": "PORT=9000 NODE_ENV=development ts-node scripts/server.ts",
     "dev:web": "vite",
     "dev": "run-p dev:*",
-    "build:lib": "node scripts/bundle.js",
+    "build:lib": "ts-node scripts/bundle.ts",
     "build:web": "vite build",
     "prepublishOnly": "yarn build:lib",
     "prepare": "husky install"
   },
   "dependencies": {},
   "devDependencies": {
+    "@types/jquery": "^3.5.14",
+    "@types/js-yaml": "^4.0.5",
     "@types/node": "^17.0.23",
     "axios": "^0.26.1",
     "dexie": "^3.2.1",
@@ -31,8 +32,10 @@
     "fastify-static": "^4.6.1",
     "husky": "^7.0.4",
     "import-sort-parser-typescript": "^6.0.0",
+    "js-yaml": "^4.1.0",
     "npm-run-all": "^4.1.5",
     "pino-pretty": "^7.6.1",
+    "ts-node": "^10.7.0",
     "typescript": "^4.6.3",
     "vite": "^2.9.1"
   },

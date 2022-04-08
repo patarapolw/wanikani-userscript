@@ -1,9 +1,3 @@
-declare global {
-  interface Window {
-    ExternalDefinition: typeof ExternalDefinition
-  }
-}
-
 export interface IGetResult {
   html: string
   url: string
@@ -92,5 +86,3 @@ export class ExternalDefinition {
     }
   }
 }
-
-Object.assign(window, { ExternalDefinition })
