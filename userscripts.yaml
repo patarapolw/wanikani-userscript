@@ -7,7 +7,6 @@
     // @description  Keep [details] or <details> tags as open or close, and not change with edits
     // @author       polv
     // @require      https://unpkg.com/dexie@latest/dist/dexie.js
-    // @require      https://cdn.jsdelivr.net/gh/patarapolw/wanikani-userscript@0.2.0/lib/bb.js
     // @license      MIT
     // @match        https://community.wanikani.com/*
     // @icon         https://www.google.com/s2/favicons?domain=wanikani.com
@@ -34,7 +33,6 @@
     // @version      1.0
     // @description  Get External Definition from JJ Dictionaries, such as Weblio, Kanjipedia
     // @author       polv
-    // @require      https://cdn.jsdelivr.net/gh/patarapolw/wanikani-userscript@0.2.0/lib/deprecated/external-def.js
     // @grant        GM_xmlhttpRequest
     // @connect      https://www.kanjipedia.jp/
     // @connect      https://*.weblio.jp
