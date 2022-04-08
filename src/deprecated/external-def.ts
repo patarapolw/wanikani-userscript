@@ -93,4 +93,4 @@ export class ExternalDefinition {
   }
 }
 
-window.ExternalDefinition = ExternalDefinition
+Object.assign(window, { ExternalDefinition })

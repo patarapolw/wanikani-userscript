@@ -6,7 +6,7 @@
   "homepage": "https://wk.polv.cc",
   "author": "Pacharapol Withayasakpunt",
   "license": "MIT",
-  "main": "index.js",
+  "main": "lib/index.js",
   "files": [
     "css",
     "lib",
