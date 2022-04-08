@@ -9,25 +9,27 @@
   "main": "index.js",
   "files": [
     "css",
-    "lib"
+    "lib",
+    "userscripts"
   ],
   "scripts": {
-    "start": "node server/index.mjs",
     "dev:server": "PORT=9000 NODE_ENV=development node scripts/server.js",
     "dev:web": "vite",
     "dev": "run-p dev:*",
     "build:lib": "node scripts/bundle.js",
     "build:web": "vite build",
-    "build": "yarn build:lib",
-    "prepublishOnly": "yarn build:lib"
+    "prepublishOnly": "yarn build:lib",
+    "prepare": "husky install"
   },
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^17.0.23",
     "axios": "^0.26.1",
+    "dexie": "^3.2.1",
     "fast-glob": "^3.2.11",
     "fastify": "^3.28.0",
     "fastify-static": "^4.6.1",
+    "husky": "^7.0.4",
     "import-sort-parser-typescript": "^6.0.0",
     "npm-run-all": "^4.1.5",
     "pino-pretty": "^7.6.1",

@@ -17,5 +17,8 @@
     "editor.defaultFormatter": "vscode.html-language-features",
     "editor.formatOnSave": true
   },
-  "sort-imports.on-save": true
+  "sort-imports.on-save": true,
+  "files.associations": {
+    ".husky/*": "shell"
+  }
 }
