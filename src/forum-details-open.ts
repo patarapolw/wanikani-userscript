@@ -30,7 +30,7 @@ const obs = new MutationObserver((muts) => {
 obs.observe(document.body, { childList: true, subtree: true })
 
 function getDetailsKey(d: HTMLDetailsElement): string {
-  return d.querySelector('summary')?.innerHTML || d.getAttribute(':open') || ''
+  return d.querySelector('summary')?.innerHTML || ''
 }
 
 export const markdownIt = getWindow().require(
@@ -42,20 +42,39 @@ markdownIt.cook = function (raw: string, opts: any) {
   let html = oldCook.bind(this)(raw, opts)
 
   if (elPreview) {
+    const keys = new Map<string, number>()
+
     elPreview.querySelectorAll('details').forEach((details) => {
-      const key = getDetailsKey(details)
+      let key = getDetailsKey(details)
+
       if (key) {
+        const k0 = key
+        let i = keys.get(k0) || 0
+        if (i) {
+          key = key + ++i
+        }
+        keys.set(k0, i)
+
         openKeys.set(key, details.open)
       }
     })
 
+    keys.clear()
+
     const div = document.createElement('div')
     div.innerHTML = html
     div.querySelectorAll('details').forEach((details) => {
-      if (details.hasAttribute('open')) return
-
-      const key = getDetailsKey(details)
+      let key = getDetailsKey(details)
       if (key) {
+        const k0 = key
+        let i = keys.get(k0) || 0
+        if (i) {
+          key = key + ++i
+        }
+        keys.set(k0, i)
+
+        if (details.hasAttribute('open')) return
+
         const state = openKeys.get(key)
         if (typeof state === 'boolean') {
           details.open = state
