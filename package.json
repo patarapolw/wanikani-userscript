@@ -20,7 +20,9 @@
     "prepublishOnly": "yarn build:lib",
     "prepare": "husky install"
   },
-  "dependencies": {},
+  "dependencies": {
+    "htmlparser2": "^7.2.0"
+  },
   "devDependencies": {
     "@types/jquery": "^3.5.14",
     "@types/js-yaml": "^4.0.5",
@@ -32,6 +34,7 @@
     "fastify-static": "^4.6.1",
     "husky": "^7.0.4",
     "import-sort-parser-typescript": "^6.0.0",
+    "incremental-dom": "^0.7.0",
     "js-yaml": "^4.1.0",
     "npm-run-all": "^4.1.5",
     "pino-pretty": "^7.6.1",
