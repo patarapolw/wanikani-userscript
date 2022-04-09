@@ -1,7 +1,7 @@
 import { getWindow } from './shared/discourse'
 
 let elPreview: HTMLElement | null = null
-const openKeys = new Map()
+const openKeys = new Map<string, boolean>()
 
 const EDITOR_PREVIEW_CLASS = 'd-editor-preview'
 
@@ -55,8 +55,11 @@ markdownIt.cook = function (raw: string, opts: any) {
       if (details.hasAttribute('open')) return
 
       const key = getDetailsKey(details)
-      if (key && openKeys.has(key)) {
-        details.open = openKeys.get(key)
+      if (key) {
+        const state = openKeys.get(key)
+        if (typeof state === 'boolean') {
+          details.open = state
+        }
       }
     })
     html = div.innerHTML
