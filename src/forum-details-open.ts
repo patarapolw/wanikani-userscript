@@ -43,19 +43,23 @@ markdownIt.cook = function (raw: string, opts: any) {
 
   if (elPreview) {
     const keys = new Map<string, number>()
+    const makeKey = (key: string) => {
+      const k0 = key
+      let i = keys.get(k0) || 0
+      if (!i) {
+        key = JSON.stringify([key, ++i])
+      } else {
+        key = JSON.stringify(key)
+      }
+      keys.set(k0, i)
+      return key
+    }
 
     elPreview.querySelectorAll('details').forEach((details) => {
       let key = getDetailsKey(details)
 
       if (key) {
-        const k0 = key
-        let i = keys.get(k0) || 0
-        if (i) {
-          key = key + ++i
-        }
-        keys.set(k0, i)
-
-        openKeys.set(key, details.open)
+        openKeys.set(makeKey(key), details.open)
       }
     })
 
@@ -66,12 +70,7 @@ markdownIt.cook = function (raw: string, opts: any) {
     div.querySelectorAll('details').forEach((details) => {
       let key = getDetailsKey(details)
       if (key) {
-        const k0 = key
-        let i = keys.get(k0) || 0
-        if (i) {
-          key = key + ++i
-        }
-        keys.set(k0, i)
+        key = makeKey(key)
 
         if (details.hasAttribute('open')) return
 
