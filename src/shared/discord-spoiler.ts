@@ -18,7 +18,7 @@ export function makeDiscordSpoiler(
         }
       }
 
-      let isSpoiler = false
+      let isIt = false
       let current = ''
 
       const segs = p.s.split(/(\|{2,})/g)
@@ -34,11 +34,11 @@ export function makeDiscordSpoiler(
           if (current) {
             output.push({
               s: current,
-              is: isSpoiler ? is : ''
+              is: isIt ? is : ''
             })
             current = ''
           }
-          isSpoiler = !isSpoiler
+          isIt = !isIt
           return
         }
 

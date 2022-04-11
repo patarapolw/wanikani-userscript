@@ -17,27 +17,48 @@ export function makeCodeSmall(segs: ISegment[], is = 'code_small'): ISegment[] {
     .map((p) => {
       if (isCode(p)) return [p]
 
-      let out: ISegment[] = []
-      let t = false
-      let s = ''
+      const output = {
+        segs: [] as ISegment[],
+        push(seg: ISegment) {
+          this.segs.push(seg)
+        }
+      }
 
-      const segs = p.s.split('`')
-      segs.map((seg, i) => {
-        s += seg
-        const prevSeg = segs[i - 1] || ''
-        if (prevSeg[prevSeg.length - 1] !== '\\') {
-          out.push({ s, is: t ? is : '' })
-          s = ''
-          t = !t
+      let isIt = false
+      let current = ''
+
+      const segs = p.s.split(/(`{1,})/g)
+      segs.map((s, i) => {
+        let isSep = i % 2 && s === '`'
+
+        const prev = segs[i - 1] || ''
+        if (prev[prev.length - 1] === '\\') {
+          isSep = false
         }
 
-        if (i < segs.length - 1) {
-          s += '`'
+        if (isSep) {
+          if (current) {
+            if (isIt) {
+              current = '`' + current + '`'
+            }
+
+            output.push({
+              s: current,
+              is: isIt ? is : ''
+            })
+            current = ''
+          }
+          isIt = !isIt
+          return
         }
+
+        current += s
       })
-      out.push({ s, is: t ? is : '' })
+      if (current) {
+        output.push({ s: current, is: '' })
+      }
 
-      return out
+      return output.segs
     })
     .reduce((prev, c) => [...prev, ...c])
 }
