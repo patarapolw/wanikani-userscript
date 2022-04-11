@@ -38,7 +38,6 @@ textarea {
   padding: 0.5em;
 }
 
-.spoiler {
-  // filter: blur(5px);
-  color: red;
+.spoiler:not(:hover) {
+  filter: blur(5px);
 }

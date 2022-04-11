@@ -1,47 +1,64 @@
+import { isCode } from './code-block'
 import { ISegment } from './segments'
 
-export function makeSpoiler(raw: string, parser: (s: string) => string) {
-  const output = {
-    segs: [] as ISegment[],
-    push(seg: ISegment) {
-      this.segs.push(seg)
-    },
-    format() {
-      return this.segs
-        .map((seg) => (seg.s && seg.is === 'spoiler' ? parser(seg.s) : seg.s))
-        .join('')
-    }
-  }
+export type DiscordSpoilerDummy = null
 
-  let isSpoiler = false
-  let current = ''
+export function makeDiscordSpoiler(
+  segs: ISegment[],
+  is = 'spoiler'
+): ISegment[] {
+  return segs
+    .map((p) => {
+      if (isCode(p)) return [p]
 
-  const segs = raw.split(/(\|{2,})/g)
-  segs.map((s, i) => {
-    let isSep = i % 2 && s === '||'
-
-    const prev = segs[i - 1] || ''
-    if (prev[prev.length - 1] === '\\') {
-      isSep = false
-    }
-
-    if (isSep) {
-      if (current) {
-        output.push({
-          s: current,
-          is: isSpoiler ? 'spoiler' : ''
-        })
-        current = ''
+      const output = {
+        segs: [] as ISegment[],
+        push(seg: ISegment) {
+          this.segs.push(seg)
+        }
       }
-      isSpoiler = !isSpoiler
-      return
-    }
 
-    current += s
-  })
-  if (current) {
-    output.push({ s: current, is: '' })
+      let isSpoiler = false
+      let current = ''
+
+      const segs = p.s.split(/(\|{2,})/g)
+      segs.map((s, i) => {
+        let isSep = i % 2 && s === '||'
+
+        const prev = segs[i - 1] || ''
+        if (prev[prev.length - 1] === '\\') {
+          isSep = false
+        }
+
+        if (isSep) {
+          if (current) {
+            output.push({
+              s: current,
+              is: isSpoiler ? is : ''
+            })
+            current = ''
+          }
+          isSpoiler = !isSpoiler
+          return
+        }
+
+        current += s
+      })
+      if (current) {
+        output.push({ s: current, is: '' })
+      }
+
+      return output.segs
+    })
+    .reduce((prev, c) => [...prev, ...c])
+}
+
+if (typeof window !== 'undefined') {
+  Object.assign(window, { makeDiscordSpoiler })
+}
+
+declare global {
+  interface Window {
+    makeDiscordSpoiler: typeof makeDiscordSpoiler
   }
-
-  return output.format()
 }
