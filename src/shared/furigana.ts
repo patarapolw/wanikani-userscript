@@ -1,25 +1,29 @@
-import { BracketParser, bracketMatcher, parseBracketList } from './brackets'
+import { BracketParser, IBracket, parseContiguousBrackets } from './brackets'
 import { isCode } from './code-block'
 import { escapeRegExp } from './regex'
-import { ISegment } from './segments'
+import { ISegment, Renderer } from './segments'
 
-export const defaultFuriganaBrackets = {
-  base: {
-    on: '[',
-    off: ']'
-  },
-  furigana: {
-    on: '{',
-    off: '}'
-  }
+export const defaultBaseBracket: IBracket = {
+  name: 'base',
+  on: '[',
+  off: ']'
+}
+
+export const defaultFuriganaBracket: IBracket = {
+  name: 'furigana',
+  on: '{',
+  off: '}'
 }
 
 export function makeParseFurigana(
-  makeHTML: (s: string) => string,
-  brackets = defaultFuriganaBrackets
+  segs: ISegment[],
+  _: string | undefined,
+  fn: Renderer,
+  base = defaultBaseBracket,
+  furigana = defaultFuriganaBracket
 ) {
   const parser: BracketParser = (prev, c, t) => {
-    c = makeHTML(c)
+    c = fn(c)
 
     switch (t) {
       case 'furigana':
@@ -29,34 +33,24 @@ export function makeParseFurigana(
     return c
   }
 
-  return (segs: ISegment[]): ISegment[] => {
-    return parseFurigana(segs, brackets, parser)
-  }
+  return parseFurigana(segs, base, furigana, parser)
 }
 
 export function parseFurigana(
   segs: ISegment[],
-  brackets = {
-    base: {
-      on: '[',
-      off: ']'
-    },
-    furigana: {
-      on: '{',
-      off: '}'
-    }
-  },
+  base = defaultBaseBracket,
+  furigana = defaultFuriganaBracket,
   parser: BracketParser
 ) {
   const re = new RegExp(
     [
-      escapeRegExp(brackets.base.on),
+      escapeRegExp(base.on),
       '(.+)',
-      escapeRegExp(brackets.base.off),
+      escapeRegExp(base.off),
       '(?:',
-      escapeRegExp(brackets.furigana.on),
+      escapeRegExp(furigana.on),
       '(.+)',
-      escapeRegExp(brackets.furigana.off),
+      escapeRegExp(furigana.off),
       ')+'
     ].join(''),
     'g'
@@ -65,16 +59,10 @@ export function parseFurigana(
   return segs.map((p) => {
     if (!isCode(p)) {
       p.s = p.s.replace(re, (...m: string[]) => {
-        return parseBracketList(
-          bracketMatcher(m[0], [
-            { name: 'base', ...brackets.base },
-            { name: 'furigana', ...brackets.furigana }
-          ]),
-          'base',
-          'furigana',
-          parser,
-          true
-        )
+        return parseContiguousBrackets(m[0], base, furigana, parser, {
+          repeatable: true,
+          deep: true
+        })
       })
     }
 

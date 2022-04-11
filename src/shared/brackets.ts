@@ -57,44 +57,68 @@ export function bracketMatcher(raw: string, bTypes: IBracket[]) {
   return rt
 }
 
+interface BracketedString {
+  s: string
+  b: IBracket | undefined
+}
+
+function deBracket({ s, b }: BracketedString) {
+  if (!b) return s
+  return s.substring(b.on.length, s.length - b.off.length)
+}
+
+function hasBracket(s: string, b: IBracket) {
+  const i = s.indexOf(b.on)
+  const j = s.split('').reverse().join('').indexOf(b.off)
+  return i >= 0 && j >= 0 && s.length - j > i
+}
+
 export type BracketParser = (
   prev: string,
   current: string,
   type: string
 ) => string
 
-export function parseBracketList(
-  rt: {
-    s: string
-    b: IBracket | undefined
-  }[],
-  type1: string,
-  type2: string,
+export function parseContiguousBrackets(
+  raw: string,
+  b1: IBracket,
+  b2: IBracket,
   parser: BracketParser,
-  repeatable?: boolean
+  opts: {
+    repeatable?: boolean
+    deep?: boolean
+  } = {}
 ): string {
+  const deepS = (r: BracketedString) => {
+    if (r.b && opts.deep && hasBracket(r.s, r.b)) {
+      r.s = parseContiguousBrackets(deBracket(r), b1, b2, parser, opts)
+    }
+    return r.s
+  }
+
+  const rt = bracketMatcher(raw, [b1, b2])
+
   const out: string[] = []
   for (let i = 0; i < rt.length; i++) {
-    const { s, b } = rt[i]
+    const { b } = rt[i]
 
-    if (b?.name === type1 && rt[i + 1] && rt[i + 1]?.b?.name === type2) {
-      let current = parser('', s.substring(1, s.length - 1), type1)
+    if (b?.name === b1.name && rt[i + 1] && rt[i + 1]?.b?.name === b2.name) {
+      let current = parser('', deepS(rt[i]), b1.name)
 
       const pushNext = () => {
-        const s = rt[i + 1].s
-        current = parser(current, s.substring(1, s.length - 1), type2)
+        current = parser(current, deepS(rt[i + 1]), b2.name)
         i++
       }
       pushNext()
 
-      while (repeatable && rt[i + 1]?.b?.name === type2) {
+      while (opts.repeatable && rt[i + 1]?.b?.name === b2.name) {
         pushNext()
       }
 
       out.push(current)
       continue
     }
-    out.push(s)
+    out.push(deepS(rt[i]))
   }
 
   return out.join('')

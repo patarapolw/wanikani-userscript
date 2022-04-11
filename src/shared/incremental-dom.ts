@@ -12,8 +12,6 @@ export function makeIncremental(s: string): () => void {
   const { elementOpen, elementClose, text } = virtualDom
 
   const open = (name: string, attr: Record<string, string> = {}) => {
-    console.log(attr)
-
     elementOpen(
       name,
       name + '-' + cyrb53(JSON.stringify(attr)),

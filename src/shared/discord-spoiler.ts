@@ -52,13 +52,3 @@ export function makeDiscordSpoiler(
     })
     .reduce((prev, c) => [...prev, ...c])
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, { makeDiscordSpoiler })
-}
-
-declare global {
-  interface Window {
-    makeDiscordSpoiler: typeof makeDiscordSpoiler
-  }
-}
