@@ -5,19 +5,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-  <link rel="apple-touch-icon" sizes="180x180" href="/web/images/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/web/images/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/web/images/favicon-16x16.png">
-  <link rel="shortcut icon" href="/web/images/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" sizes="180x180" href="/www/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/www/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/www/images/favicon-16x16.png">
+  <link rel="shortcut icon" href="/www/images/favicon.ico" type="image/x-icon">
 
-  <link rel="stylesheet" href="/css/kanjipedia.css">
-  <link rel="stylesheet" href="/web/css/index.css">
+  <!-- <link rel="stylesheet" href="/css/kanjipedia.css"> -->
 
-  <title>WaniKani Userscript Playground</title>
+  <title>WaniKani Userscript Tester</title>
 </head>
 
 <body>
-  <div id="lds-ring-container" class="hidden">
+  <div class="fixed-center hidden">
     <div class="lds-ring">
       <div></div>
       <div></div>
@@ -27,50 +26,9 @@
   </div>
 
   <main>
-    <form class="Input">
-      <div class="field">
-        <label for="q">Word:</label>
-        <input type="text" name="q" id="q" placeholder="Space-separated for alternate forms" lang="ja-JP" />
-      </div>
-      <div class="field">
-        <label for="source">Search in:</label>
-        <select name="source" id="source" value="weblio">
-          <option value="kanjipedia">Kanjipedia</option>
-          <option value="weblio" selected>Weblio</option>
-          <option value="alc">ALC</option>
-          <option value="goo">goo.ne.jp</option>
-        </select>
-      </div>
-      <div class="field">
-        <button type="submit">Fetch</button>
-      </div>
-    </form>
-
-    <div class="Output" lang="ja-JP">
-      <div id="kanjipedia" class="hidden">
-        <h3>Kanjipedia:</h3>
-        <section class="mb-3"></section>
-        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
-      </div>
-
-      <div id="weblio" class="hidden">
-        <h3>Weblio:</h3>
-        <section class="mb-3"></section>
-        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
-      </div>
-
-      <div id="alc" class="hidden">
-        <h3>ALC:</h3>
-        <section class="mb-3"></section>
-        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
-      </div>
-
-      <div id="goo" class="hidden">
-        <h3>Goo:</h3>
-        <section class="mb-3"></section>
-        <a class="float-right" target="_blank" rel="noopener noreferrer">Click here for full website</a>
-      </div>
-    </div>
+    <h1>Discord-style spoiler</h1>
+    <textarea rows="20" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="output"></div>
   </main>
 
   <script type="module" src="/www/main.ts"></script>

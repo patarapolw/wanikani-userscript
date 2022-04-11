@@ -8,5 +8,10 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:9000'
     }
+  },
+  resolve: {
+    alias: [
+      { find: /^@\/(.+)$/, replacement: require('path').resolve('src', '$1') }
+    ]
   }
 })
