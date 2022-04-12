@@ -59,8 +59,9 @@ export function checkSpoiler(segs: ISegment[]): ISegment[] {
     if (isCode(p)) return [p]
 
     const tags = tagParser(p.s, 'html')
+    const out: ISegment[] = []
 
-    return tags.map((t, i) => {
+    tags.flatMap((t, i) => {
       if (t.b && t.b.attrs.class === 'spoiler') {
         let op = '||'
         let ed = '||'
@@ -77,10 +78,19 @@ export function checkSpoiler(segs: ISegment[]): ISegment[] {
           }
         }
 
-        t.s = op + t.b.content + ed
+        out.push({ s: op + t.b.content + ed, is: 'spoiler' })
+      } else if (t.b) {
+        console.log(t)
+        out.push(
+          { s: t.b.on, is: '' },
+          ...checkSpoiler([{ s: t.b.content, is: '' }]),
+          { s: t.b.off, is: '' }
+        )
+      } else {
+        out.push({ s: t.s, is: '' })
       }
-
-      return { s: t.s, is: t.b?.name || '' }
     })
+
+    return out
   })
 }
