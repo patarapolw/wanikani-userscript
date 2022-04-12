@@ -1,13 +1,15 @@
 import './styles/main.scss'
 
 import { makeCode } from '@/shared/code-block'
-import { makeDiscordSpoiler } from '@/shared/discord-spoiler'
-import { makeParseFurigana } from '@/shared/furigana'
-import SegmentedParser from '@/shared/segments'
+import { makeFurigana, normalizeFurigana } from '@/shared/furigana'
+import { makeInlineMarkdown } from '@/shared/inline-markdown'
+import { SegmentedParser } from '@/shared/segments'
+import { checkSpoiler, makeDiscordSpoiler } from '@/shared/spoiler'
 import MarkdownIt from 'markdown-it'
 
 const elInput = document.querySelector('textarea')!
 const elOutput = document.querySelector<HTMLDivElement>('.output')!
+const elReverted = document.querySelector<HTMLQuoteElement>('.reverted')!
 
 elInput.addEventListener('input', updateOutput)
 
@@ -18,36 +20,28 @@ const md = MarkdownIt({
 function updateOutput() {
   const format: string = 'html'
 
-  const output = new SegmentedParser(elInput.value, (s) => {
-    // const html = md.render(s)
-    // let minified = html.trim()
-    // const op = '<p>'
-    // const ed = '</p>'
-    // if (
-    //   minified.startsWith(op) &&
-    //   minified.indexOf(ed) === minified.length - ed.length
-    // ) {
-    //   return minified.substring(op.length, minified.length - ed.length)
-    // }
-
-    // return html
-    return s.includes('\n') ? md.render(s) : md.renderInline(s)
-  })
+  const output = new SegmentedParser(elInput.value)
     .doParse(makeCode)
     .doParse(makeDiscordSpoiler)
-    .doParse(makeParseFurigana)
+    .doParse(makeFurigana)
+    .doParse(makeInlineMarkdown)
     .render({
-      spoiler: (s, fn) => {
-        const tag = s.includes('\n') ? 'div' : 'span'
-        return `<${tag} class="spoiler">${fn(s)}</${tag}>`
+      'inline-markdown': (s) => {
+        return s.includes('\n') ? md.render(s) : md.renderInline(s)
       }
     })
 
   if (format === 'markdown') {
-    elOutput.innerText = output.markdown
+    elOutput.innerText = output
   } else {
-    elOutput.innerHTML = output.html()
+    elOutput.innerHTML = md.render(output)
   }
+
+  elReverted.innerText = new SegmentedParser(output)
+    .doParse(makeCode)
+    .doParse(checkSpoiler)
+    .doParse(normalizeFurigana)
+    .render()
 }
 
 updateOutput()

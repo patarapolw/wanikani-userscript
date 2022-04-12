@@ -1,6 +1,7 @@
 import { ISegment } from './segments'
 
-export function makeCodeBig(segs: ISegment[], is = 'code_big'): ISegment[] {
+export function makeCodeBig(segs: ISegment[], is = ''): ISegment[] {
+  is = is || 'code_big'
   return segs
     .map((p) => {
       if (isCode(p)) return [p]
@@ -12,7 +13,8 @@ export function makeCodeBig(segs: ISegment[], is = 'code_big'): ISegment[] {
     .reduce((prev, c) => [...prev, ...c])
 }
 
-export function makeCodeSmall(segs: ISegment[], is = 'code_small'): ISegment[] {
+export function makeCodeSmall(segs: ISegment[], is = ''): ISegment[] {
+  is = is || 'code_small'
   return segs
     .map((p) => {
       if (isCode(p)) return [p]

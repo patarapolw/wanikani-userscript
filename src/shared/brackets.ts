@@ -2,6 +2,7 @@ export interface IBracket {
   name: string
   on: string
   off: string
+  content: string
 }
 
 export function bracketMatcher(raw: string, bTypes: IBracket[]) {
@@ -10,7 +11,7 @@ export function bracketMatcher(raw: string, bTypes: IBracket[]) {
 
   const rt: {
     s: string
-    b: IBracket | undefined
+    b?: IBracket
   }[] = []
   const brackets: string[] = []
 
@@ -22,7 +23,7 @@ export function bracketMatcher(raw: string, bTypes: IBracket[]) {
 
     if ((b = onMap[c])) {
       if (!type && s) {
-        rt.push({ s, b: type })
+        rt.push({ s })
         s = ''
       }
 
@@ -57,17 +58,22 @@ export function bracketMatcher(raw: string, bTypes: IBracket[]) {
   return rt
 }
 
-interface BracketedString {
+interface BracketedString<T extends {} = {}> {
   s: string
-  b: IBracket | undefined
+  b?: IBracket & T
 }
 
-function deBracket({ s, b }: BracketedString) {
+export function enBracket({ s, b }: BracketedString) {
+  if (!b) return s
+  return b.on + s + b.off
+}
+
+export function deBracket({ s, b }: BracketedString) {
   if (!b) return s
   return s.substring(b.on.length, s.length - b.off.length)
 }
 
-function hasBracket(s: string, b: IBracket) {
+export function hasBracket(s: string, b: IBracket) {
   const i = s.indexOf(b.on)
   const j = s.split('').reverse().join('').indexOf(b.off)
   return i >= 0 && j >= 0 && s.length - j > i
@@ -122,4 +128,106 @@ export function parseContiguousBrackets(
   }
 
   return out.join('')
+}
+
+export function tagParser(s: string, tagType: 'html' | 'bb') {
+  const allowedTag = '[a-zA-Z_-]+'
+  let op = '<'
+  let ed = '>'
+
+  if (tagType === 'bb') {
+    op = '\\['
+    ed = '\\]'
+  }
+
+  const re = new RegExp(
+    [
+      `${op}(${allowedTag})`,
+      `(${tagType === 'bb' ? '[ =]' : ' '}.+?)?`, // attributes
+      `${ed}[^]*`,
+      `${op}/\\1${ed}`
+    ].join(''),
+    'g'
+  )
+
+  let m: RegExpExecArray | null
+  const out: BracketedString<{
+    attrs: Record<string, string>
+  }>[] = []
+  while ((m = re.exec(s))) {
+    out.push({ s: s.substring(0, m.index) })
+    s = s.substring(m.index)
+
+    const [, tag = '', meta = ''] = m
+
+    const openingTag = tagType === 'html' ? `<${tag}` : `[${tag}`
+    const closingTag = tagType === 'html' ? `</${tag}>` : `[/${tag}]`
+
+    const offset = openingTag.length + meta.length + 1
+
+    let nextClose = s.indexOf(closingTag, offset)
+    let nextOpen = s.indexOf(openingTag, offset)
+
+    while (nextOpen >= 0 && nextOpen < nextClose) {
+      const i = s.indexOf(closingTag, nextClose + 1)
+      if (i < 0) {
+        break
+      }
+
+      nextClose = i
+      nextOpen = s.indexOf(openingTag, nextOpen + 1)
+    }
+
+    const content = s.substring(offset, nextClose)
+
+    if (tagType === 'html') {
+      const attrs = Object.fromEntries(
+        Array.from(
+          meta.matchAll(/([a-zA-Z_-]+)(?:= *('[^']+'|"[^"]+"|[^ ]+))?/g)
+        ).map(([, k, v]) => [k, v])
+      )
+      const on = `<${tag}${meta}>`
+      const off = `</${tag}>`
+
+      out.push({
+        s: on + content + off,
+        b: {
+          name: tag,
+          on,
+          off,
+          attrs,
+          content
+        }
+      })
+    } else {
+      const attrs = Object.fromEntries(
+        Array.from(
+          ((meta[0] === '=' ? '_' : '') + meta).matchAll(
+            /([a-zA-Z_-]+)=('[^']+'|"[^"]+"|[^ ]+)/g
+          )
+        ).map(([, k, v]) => [k, v])
+      )
+
+      const on = `[${tag}${meta}]`
+      const off = `[/${tag}]`
+
+      out.push({
+        s: on + content + off,
+        b: {
+          name: tag,
+          on,
+          off,
+          attrs,
+          content
+        }
+      })
+    }
+
+    s = s.substring(offset + content.length + closingTag.length)
+    re.lastIndex = 0
+  }
+
+  out.push({ s })
+
+  return out
 }
