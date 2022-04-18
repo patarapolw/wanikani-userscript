@@ -1,5 +1,8 @@
 const FIX_LANG_HYPHEN: Record<string, string> = {
-  ja: 'JP'
+  ja: 'JP',
+  ko: 'KR',
+  zh: '',
+  vi: ''
 }
 
 if (
