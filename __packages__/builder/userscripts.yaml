@@ -29,20 +29,43 @@
     // ==UserScript==
     // @name         Lang attribute setter (prioritize Kanji font on Japanese Websites)
     // @namespace    https://github.com/patarapolw/wanikani-userscript
-    // @version      0.1.5
+    // @version      0.1.6
     // @description  Fixes Han unification, for example, for Japanese (can be edited to prioritize other langs)
     // @author       polv
     // @license      MIT
     // @match        https://community.wanikani.com/*
     // @match        https://*.goo.ne.jp/*
     // @match        https://*.weblio.jp/*
-    // @match        https://eow.alc.co.jp/*
-    // @match        https://www.kanjipedia.jp/*
-    // @match        http://yourei.jp/*
-    // @match        https://yourei.jp/*
+    // @match        https://*.alc.co.jp/*
+    // @match        https://*.kanjipedia.jp/*
+    // @match        *://yourei.jp/*
+    // @match        https://*.jitenon.jp/*
+    // @match        https://moji.tekkai.com/*
     // @match        https://youglish.com/*
     // @match        https://immersionkit.com/*
     // @match        https://*.immersionkit.com/*
+    // @icon         https://www.google.com/s2/favicons?sz=64&domain=eastasiastudent.net
+    // @grant        none
+    // ==/UserScript==
+- src: src/fix-lang-hyphen.ts
+  meta: |
+    // ==UserScript==
+    // @name         Add lang hyphen, if not exists for HTML tags
+    // @namespace    https://github.com/patarapolw/wanikani-userscript
+    // @version      0.1.0
+    // @description  Arch Linux Firefox doesn't set lang="ja" as Japanese
+    // @author       polv
+    // @license      MIT
+    // @match        https://*.wiktionary.org/*
+    // @match        https://*.wikipedia.org/*
+    // @match        https://community.wanikani.com/*
+    // @match        https://*.goo.ne.jp/*
+    // @match        https://*.weblio.jp/*
+    // @match        https://*.alc.co.jp/*
+    // @match        https://*.kanjipedia.jp/*
+    // @match        *://yourei.jp/*
+    // @match        https://*.jitenon.jp/*
+    // @match        https://moji.tekkai.com/*
     // @icon         https://www.google.com/s2/favicons?sz=64&domain=eastasiastudent.net
     // @grant        none
     // ==/UserScript==
