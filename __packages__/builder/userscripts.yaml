@@ -29,20 +29,14 @@
     // ==UserScript==
     // @name         Lang attribute setter (prioritize Kanji font on Japanese Websites)
     // @namespace    https://github.com/patarapolw/wanikani-userscript
-    // @version      0.1.6
+    // @version      0.1.7
     // @description  Fixes Han unification, for example, for Japanese (can be edited to prioritize other langs)
     // @author       polv
     // @license      MIT
     // @match        https://community.wanikani.com/*
-    // @match        https://*.goo.ne.jp/*
-    // @match        https://*.weblio.jp/*
-    // @match        https://*.alc.co.jp/*
     // @match        https://*.kanjipedia.jp/*
-    // @match        *://yourei.jp/*
-    // @match        https://*.jitenon.jp/*
     // @match        https://moji.tekkai.com/*
     // @match        https://youglish.com/*
-    // @match        https://immersionkit.com/*
     // @match        https://*.immersionkit.com/*
     // @icon         https://www.google.com/s2/favicons?sz=64&domain=eastasiastudent.net
     // @grant        none
