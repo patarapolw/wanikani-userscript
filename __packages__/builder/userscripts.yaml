@@ -52,7 +52,7 @@
     // ==UserScript==
     // @name         Add lang hyphen, if not exists for HTML tags
     // @namespace    https://github.com/patarapolw/wanikani-userscript
-    // @version      0.1.0
+    // @version      0.1.1
     // @description  Arch Linux Firefox doesn't set lang="ja" as Japanese
     // @author       polv
     // @license      MIT
