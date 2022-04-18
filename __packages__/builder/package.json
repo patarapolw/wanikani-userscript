@@ -14,7 +14,8 @@
     "dev:server": "PORT=9000 NODE_ENV=development ts-node scripts/server.ts",
     "dev:web": "vite",
     "dev": "yarn dev:web",
-    "build:lib": "ts-node scripts/bundle.ts",
+    "ts": "ts-node",
+    "build:lib": "yarn ts scripts/bundle.ts",
     "build:web": "vite build",
     "prepublishOnly": "yarn build:lib"
   },
