@@ -8,7 +8,7 @@ See [/lib/**/*.user.js](/lib).
 
 There are also some raw JavaScript:-
 
-- Forked [ime2furigana.user.js](/__packages__/noprettier/ime2furigana.js)
+- Forked [IME2Furigana](/__packages__/noprettier/IME2Furigana)
 
 ## Techniques
 
