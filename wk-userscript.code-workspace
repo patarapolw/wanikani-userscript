@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "__packages__/builder"
+    },
+    {
+      "path": "__packages__/noprettier"
+    }
+  ],
+  "settings": {
+    "sort-imports.on-save": true,
+    "files.associations": {
+      ".husky/*": "shell"
+    }
+  }
+}

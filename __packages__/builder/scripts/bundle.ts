@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'fs'
 import yaml from 'js-yaml'
 
 async function main() {
-  const dstDir = 'lib'
+  const dstDir = '../../lib'
 
   spawnSync('rm', ['-r', dstDir])
 
