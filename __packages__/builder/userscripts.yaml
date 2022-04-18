@@ -30,7 +30,7 @@
     // @name         Lang attribute setter (prioritize Kanji font on Japanese Websites)
     // @namespace    https://github.com/patarapolw/wanikani-userscript
     // @version      0.1.5
-    // @description  Fixes Han unification, for example for Japanese (can be edited to prioritize other langs)
+    // @description  Fixes Han unification, for example, for Japanese (can be edited to prioritize other langs)
     // @author       polv
     // @license      MIT
     // @match        https://community.wanikani.com/*
