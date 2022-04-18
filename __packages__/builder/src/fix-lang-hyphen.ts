@@ -1,18 +1,11 @@
 const FIX_LANG_HYPHEN: Record<string, string> = {
-  ja: 'JP',
-  ko: 'KR',
+  ja: '',
+  ko: '',
   zh: '',
   vi: ''
 }
 
-if (
-  document.documentElement.lang &&
-  FIX_LANG_HYPHEN[document.documentElement.lang]
-) {
-  document.documentElement.lang +=
-    '-' + FIX_LANG_HYPHEN[document.documentElement.lang]
-}
-
+getLang(document.documentElement)
 fixLangObserver()
 
 export function fixLangObserver(el = document.body) {
@@ -20,7 +13,7 @@ export function fixLangObserver(el = document.body) {
     for (const mut of muts) {
       mut.addedNodes.forEach((n) => {
         if (n instanceof HTMLElement) {
-          fixLang(n)
+          findAndFixLang(n)
         }
       })
     }
@@ -29,37 +22,21 @@ export function fixLangObserver(el = document.body) {
     subtree: true
   })
 
-  fixLang(el)
+  findAndFixLang(el)
 }
 
-export function fixLang(el: HTMLElement) {
-  const fixLang = (it: Element) => {
-    let aLang = it.getAttribute('lang')
-    if (aLang && FIX_LANG_HYPHEN[aLang]) {
-      return aLang + '-' + FIX_LANG_HYPHEN[aLang]
+export function findAndFixLang(el: HTMLElement) {
+  el.querySelectorAll('*').forEach((it) => getLang(it))
+}
+
+export function getLang(it: Element, fix = true) {
+  let aLang = it.getAttribute('lang')
+  if (aLang && typeof FIX_LANG_HYPHEN[aLang] === 'string') {
+    aLang += '-' + FIX_LANG_HYPHEN[aLang]
+    if (fix) {
+      it.setAttribute('lang', aLang)
     }
-    return null
+    return aLang
   }
-
-  el.querySelectorAll('*').forEach((it) => {
-    let newLang = fixLang(it)
-
-    let parent = it.parentElement
-    while (!newLang && parent) {
-      const aLang = parent.getAttribute('lang')
-      if (
-        aLang &&
-        aLang !== 'en' &&
-        parent.tagName.toLocaleUpperCase() !== 'HTML'
-      ) {
-        return
-      }
-      newLang = fixLang(parent)
-      parent = parent.parentElement
-    }
-
-    if (newLang) {
-      it.setAttribute('lang', newLang)
-    }
-  })
+  return null
 }
