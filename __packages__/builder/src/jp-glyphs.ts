@@ -9,6 +9,7 @@ if (
   typeof location !== 'undefined' &&
   /[\./]youglish\.com$/.test(location.origin)
 ) {
+  lang = 'ja-JP'
   isInject = /japanese/.test(location.pathname)
 
   if (!isInject) {
