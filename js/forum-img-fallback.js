@@ -30,7 +30,7 @@
   }
 
   function inject(el) {
-    el.querySelectorAll("img").forEach((it) => {
+    el.querySelectorAll("img.avatar").forEach((it) => {
       if (!it.onerror) {
         it.onerror = fallbackForImage(it);
       }
