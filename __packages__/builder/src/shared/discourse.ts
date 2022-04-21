@@ -1,4 +1,4 @@
-declare const unsafeWindow: Window
+declare const unsafeWindow: Window & typeof globalThis
 declare const exportFunction: (...args: any[]) => any
 
 declare global {
@@ -18,6 +18,10 @@ declare global {
 
 export function getWindow() {
   return typeof unsafeWindow === 'undefined' ? window : unsafeWindow
+}
+
+export function logger(lv: 'log' | 'error' | 'info' | 'debug', ...args: any[]) {
+  return getWindow().console[lv](...args)
 }
 
 export function getExportFunction() {

@@ -8,7 +8,20 @@
     // @author       polv
     // @license      MIT
     // @match        https://community.wanikani.com/*
-    // @icon         https://www.google.com/s2/favicons?domain=wanikani.com
+    // @icon         https://www.google.com/s2/favicons?domain=community.wanikani.com
+    // @grant        none
+    // ==/UserScript==
+- src: src/forum-shiritori.ts
+  meta: |
+    // ==UserScript==
+    // @name         WaniKani Community Shiritori Duplicate Checker
+    // @namespace    https://github.com/patarapolw/wanikani-userscript
+    // @version      0.1.0
+    // @description  Check if the vocabulary you are replying with is a duplicate
+    // @author       polv
+    // @license      MIT
+    // @match        https://community.wanikani.com/t/shiritori/16404/*
+    // @icon         https://www.google.com/s2/favicons?sz=64&domain=community.wanikani.com
     // @grant        none
     // ==/UserScript==
 - src: src/forum-jp-glyphs.ts
@@ -21,7 +34,7 @@
     // @author       polv
     // @license      MIT
     // @match        https://community.wanikani.com/*
-    // @icon         https://www.google.com/s2/favicons?domain=wanikani.com
+    // @icon         https://www.google.com/s2/favicons?domain=community.wanikani.com
     // @grant        none
     // ==/UserScript==
 - src: src/jp-glyphs.ts
