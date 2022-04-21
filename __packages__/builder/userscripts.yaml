@@ -20,7 +20,7 @@
     // @description  Check if the vocabulary you are replying with is a duplicate
     // @author       polv
     // @license      MIT
-    // @match        https://community.wanikani.com/t/shiritori/16404/*
+    // @match        https://community.wanikani.com/*
     // @icon         https://www.google.com/s2/favicons?sz=64&domain=community.wanikani.com
     // @grant        none
     // ==/UserScript==
