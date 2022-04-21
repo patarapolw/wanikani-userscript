@@ -1,7 +1,11 @@
 import { getWindow, logger } from './shared/discourse'
 
 let elPreview: HTMLElement | null
-let elPreviewThrottle: NodeJS.Timeout | null = null
+let topicId = ''
+
+function isShiritoriId(tid: string) {
+  return ['16404'].includes(String(tid))
+}
 
 const vocabMap = new Map<
   string,
@@ -23,18 +27,19 @@ const reTopic = /\/t\/[^/]+\/(\d+)(\/.*)?$/
 
 const obs = new MutationObserver((muts) => {
   const m = reTopic.exec(location.href)
-  if (!m || !['16404'].includes(m[1])) {
+  if (!m || !isShiritoriId(m[1])) {
     elPreview = null
     return
   }
+  topicId = m[1]
 
   muts.forEach((m) => {
     for (const n of m.addedNodes) {
       if (n instanceof HTMLElement) {
-        if (!elPreview) {
+        if (!elPreview && topicId) {
           elPreview = n.querySelector(`.${EDITOR_PREVIEW_CLASS}`)
           if (elPreview) {
-            fetchAll(location.href.replace(reTopic, '/t/$1')).then((posts) => {
+            fetchAll(location.origin + '/t/' + topicId).then((posts) => {
               posts.map((p) => {
                 p.cooked.split('\n').map((ln) => {
                   findAndAddJa(ln, p)
@@ -90,12 +95,21 @@ markdownIt.cook = function (raw: string, opts: any) {
     html += [
       '\n<hr/>\n',
       ...matched.sort(cmp((p) => p.post.post_number)).map((p) => {
-        const a = document.createElement('a')
-        a.className = 'mention'
-        a.href = '/u/' + p.post.username
-        a.innerText = '@' + p.post.username
-
-        return a.outerHTML + ' ' + p.line
+        const container = document.createElement('p')
+        container.append(
+          Object.assign(document.createElement('a'), {
+            href: '/t/' + topicId + '/' + p.post.post_number,
+            innerText: '#' + p.post.post_number
+          }),
+          ' ',
+          Object.assign(document.createElement('a'), {
+            className: 'mention',
+            href: '/u/' + p.post.username,
+            innerText: '@' + p.post.username
+          })
+        )
+        container.innerHTML += ' ' + p.line
+        return container.outerHTML
       })
     ].join('\n')
   }
@@ -120,12 +134,6 @@ interface IPostMatched extends IPost {
   }
 }
 
-interface ITopicPostResponse {
-  post_stream: {
-    posts: IPost[]
-  }
-}
-
 interface ITopicResponse {
   actions_summary: {}[]
   archetype: string
@@ -139,55 +147,32 @@ interface ITopicResponse {
   reply_count: number
 }
 
-export async function jsonFetch<T>(
-  url: string,
-  params?: Record<string, string>
-): Promise<T | null> {
-  if (params) {
-    const u = new URL(url)
-    Object.entries(params).map(([k, v]) => {
-      u.searchParams.set(k, v)
-    })
-  }
-
+export async function jsonFetch<T>(url: string): Promise<T | null> {
   const r = await fetch(url)
   if (r.ok) {
     return r.json()
   }
 
+  logger('error', r)
   return null
 }
 
 export async function fetchAll(urlBase: string) {
-  const vocabList = await jsonFetch<ITopicResponse>(urlBase + '.json')
-  if (!vocabList) return []
+  const r0 = await jsonFetch<ITopicResponse>(urlBase + '.json?print=true')
+  if (!r0) return []
 
-  const stream = vocabList.post_stream.stream || []
-  const chunks: number[][] = []
-  while (stream.length) {
-    chunks.push(stream.splice(0, 300))
-  }
-
-  const posts: IPost[] = []
-  while (chunks.length) {
-    const rs = await Promise.all(
-      chunks.splice(0, 10).map((ids) =>
-        jsonFetch<ITopicPostResponse>(urlBase + '/posts.json', {
-          'post_ids[]': ids.join(',')
-        })
-      )
-    ).then((rs) => rs.map((r) => (r ? r.post_stream.posts : [])))
-
-    rs.map((r) => {
-      posts.push(...r)
-    })
-
-    if (chunks.length) {
-      await new Promise((r) => setTimeout(r, 1000))
+  const posts: IPost[] = r0.post_stream.posts
+  let page = 2
+  while (posts.length < r0.posts_count) {
+    const r = await jsonFetch<ITopicResponse>(
+      urlBase + '.json?print=true&page=' + page++
+    )
+    if (!r || !r.post_stream.posts.length) {
+      break
     }
+    posts.push(...r.post_stream.posts)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
   }
-
-  posts.push(...vocabList.post_stream.posts)
 
   return posts
 }
@@ -220,7 +205,7 @@ export function findJa(ln: string) {
     line: string
   }[] = []
   for (const m of ln.matchAll(reJaWithRuby)) {
-    const line =
+    let line =
       m.index !== undefined
         ? ln.substring(0, m.index) +
           `<ins>` +
@@ -228,6 +213,11 @@ export function findJa(ln: string) {
           `</ins>` +
           ln.substring(m.index + m[0].length)
         : ln
+
+    line = line
+      .trim()
+      .replace(/^<p>/, '')
+      .replace(/<\/p>$/, '')
 
     if (m[0].includes('</ruby>')) {
       lines.push({ v: makeKanji(m[0]), line }, { v: makeReading(m[0]), line })
