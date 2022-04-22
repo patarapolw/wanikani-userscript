@@ -1,10 +1,33 @@
 import { getWindow, logger } from './shared/discourse';
 
+const SHIRITORI_IDS = ['16404'];
+const WARN_ENDING_N = true;
+
+function doCleanPostCook(p: IPost) {
+  let readStartsAt = 0;
+
+  // Current Shiritori First Post specific
+  const is16404op = p.post_number === 1 && p.topic_id === 16404;
+  if (!readStartsAt) {
+    if (is16404op) {
+      readStartsAt = p.cooked
+        .split('\n')
+        .findIndex((ln) => ln.includes('continue where we left off'));
+    }
+  }
+
+  if (readStartsAt) {
+    return p.cooked.split('\n').slice(readStartsAt).join('\n');
+  }
+
+  return p.cooked;
+}
+
 let elEditorInput: HTMLElement | null;
 let topicId = '';
 
 function isShiritoriId(tid: string) {
-  return ['16404'].includes(String(tid));
+  return SHIRITORI_IDS.includes(String(tid));
 }
 
 const vocabMap = new Map<
@@ -15,6 +38,7 @@ const vocabMap = new Map<
 >();
 
 const EDITOR_INPUT_SELECTOR = 'textarea.d-editor-input';
+const COMPOSER_POPUP_SELECTOR = '.composer-popup';
 
 const reJaStr = '[\\p{sc=Han}\\p{sc=Katakana}\\p{sc=Hiragana}ー]+';
 const reJaWithRuby = new RegExp(
@@ -84,7 +108,7 @@ markdownIt.cook = function (raw: string, opts: any) {
         return ln
           .replace(/(<p>|^)/, '$1<del>')
           .replace(/(<\/p>|$)/, '</del>$1');
-      } else if (ps.vocabs.some((v) => v.endsWith('ん'))) {
+      } else if (WARN_ENDING_N && ps.vocabs.some((v) => v.endsWith('ん'))) {
         return ln
           .replace(/(<p>|^)/, '$1<del>')
           .replace(/(<\/p>|$)/, '</del>$1');
@@ -121,6 +145,14 @@ markdownIt.cook = function (raw: string, opts: any) {
         return container.outerHTML;
       }),
     ].join('\n');
+
+    setTimeout(() => {
+      document.querySelectorAll(COMPOSER_POPUP_SELECTOR).forEach((el) => {
+        if (el instanceof HTMLElement) {
+          el.style.display = 'none';
+        }
+      });
+    });
   }
 
   return html;
@@ -133,6 +165,7 @@ markdownIt.cook = function (raw: string, opts: any) {
 interface IPost {
   id: number;
   username: string;
+  topic_id: number;
   post_number: number;
   cooked: string;
 }
@@ -180,15 +213,19 @@ export async function fetchAllAndAddToJa() {
   if (!m) return;
 
   const urlBase = location.origin + '/t/' + m[1];
-  const r0 = await jsonFetch<ITopicResponse>(urlBase + '/' + m[2] + '.json');
+  const r0 = await jsonFetch<ITopicResponse>(
+    urlBase + (m[2] ? '/' + m[2] : '') + '.json',
+  );
   if (!r0) return;
 
   const posts: IPost[] = [];
   const addAllPosts = (ps: IPost[]) => {
     ps.map((p) => {
-      p.cooked.split('\n').map((ln) => {
-        findAndAddJa(ln, p);
-      });
+      doCleanPostCook(p)
+        .split('\n')
+        .map((ln) => {
+          findAndAddJa(ln, p);
+        });
     });
     posts.push(...ps);
   };
