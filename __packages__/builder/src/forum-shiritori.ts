@@ -24,7 +24,6 @@ function doCleanPostCook(p: IPost) {
   return p.cooked;
 }
 
-let elEditorInput: HTMLElement | null;
 let topicId = '';
 
 function isShiritoriId(tid: string) {
@@ -38,8 +37,10 @@ const vocabMap = new Map<
   }
 >();
 
-const EDITOR_INPUT_SELECTOR = 'textarea.d-editor-input';
-const COMPOSER_POPUP_SELECTOR = '.composer-popup';
+const SEL_EDITOR_INPUT = 'textarea.d-editor-input';
+const SEL_POPUP = '.composer-popup';
+
+let elEditorInput: HTMLElement | null;
 
 const reJaStr = '[\\p{sc=Han}\\p{sc=Katakana}\\p{sc=Hiragana}ー]+';
 const reJaWithRuby = new RegExp(
@@ -66,7 +67,7 @@ const obs = new MutationObserver((muts) => {
     for (const n of m.addedNodes) {
       if (n instanceof HTMLElement) {
         if (!elEditorInput && topicId) {
-          elEditorInput = n.querySelector(EDITOR_INPUT_SELECTOR);
+          elEditorInput = n.querySelector(SEL_EDITOR_INPUT);
           if (elEditorInput && (!vocabMap.size || topicId !== oldTopicId)) {
             fetchAllAndAddToJa().then(() => {
               w.console.info('Vocab list loaded');
@@ -108,7 +109,7 @@ const obs = new MutationObserver((muts) => {
       }
     }
     for (const n of m.removedNodes) {
-      if (n instanceof HTMLElement && n.querySelector(EDITOR_INPUT_SELECTOR)) {
+      if (n instanceof HTMLElement && n.querySelector(SEL_EDITOR_INPUT)) {
         elEditorInput = null;
       }
     }
@@ -123,7 +124,24 @@ const oldCook = markdownIt.cook;
 markdownIt.cook = function (raw: string, opts: any) {
   let html = oldCook.bind(this)(raw, opts);
 
-  const matched: {
+  if (!elEditorInput) {
+    return html;
+  }
+
+  let editPostNumber = 0;
+  let elReplyControl = elEditorInput.parentElement;
+  while (elReplyControl && !elReplyControl.matches('#reply-control')) {
+    elReplyControl = elReplyControl.parentElement;
+  }
+
+  if (elReplyControl) {
+    const elEditing = elReplyControl.querySelector('a.post-link');
+    if (elEditing && elEditing instanceof HTMLAnchorElement) {
+      editPostNumber = Number(elEditing.href.split('/').pop());
+    }
+  }
+
+  let matched: {
     vocab: string;
     line: string[];
     post: IPost;
@@ -134,6 +152,12 @@ markdownIt.cook = function (raw: string, opts: any) {
     .split('\n')
     .map((ln) => {
       const ps = findJaPost(ln);
+      if (editPostNumber) {
+        ps.posts = ps.posts.filter(
+          (p) => p.post.post_number !== editPostNumber,
+        );
+      }
+
       let isWrong = false;
 
       if (ps.posts.length) {
@@ -168,33 +192,35 @@ markdownIt.cook = function (raw: string, opts: any) {
 
   if (matched.length) {
     html += [
-      ...matched.sort(cmp((p) => -p.post.post_number)).map((p) => {
-        const container = document.createElement('p');
-        container.append(
-          Object.assign(document.createElement('a'), {
-            href: '/t/x/' + topicId + '/' + p.post.post_number,
-            innerText: '#' + p.post.post_number,
-          }),
-          ' ',
-          Object.assign(document.createElement('a'), {
-            className: 'mention',
-            href: '/u/' + p.post.username,
-            innerText: '@' + p.post.username,
-          }),
-        );
-        container.innerHTML +=
-          ' ' +
-          p.line
-            .map((s, i) => (i % 2 ? '<ins>' + s + '</ins>' : s))
-            .join('')
-            .replace(/^<p>/, '')
-            .replace(/<\/p>$/, '');
-        return container.outerHTML;
-      }),
+      ...distinctBy(matched, (p) => p.post.post_number)
+        .sort(cmp((p) => -p.post.post_number))
+        .map((p) => {
+          const container = document.createElement('p');
+          container.append(
+            Object.assign(document.createElement('a'), {
+              href: '/t/x/' + topicId + '/' + p.post.post_number,
+              innerText: '#' + p.post.post_number,
+            }),
+            ' ',
+            Object.assign(document.createElement('a'), {
+              className: 'mention',
+              href: '/u/' + p.post.username,
+              innerText: '@' + p.post.username,
+            }),
+          );
+          container.innerHTML +=
+            ' ' +
+            p.line
+              .map((s, i) => (i % 2 ? '<ins>' + s + '</ins>' : s))
+              .join('')
+              .replace(/^<p>/, '')
+              .replace(/<\/p>$/, '');
+          return container.outerHTML;
+        }),
     ].join('\n');
 
     setTimeout(() => {
-      document.querySelectorAll(COMPOSER_POPUP_SELECTOR).forEach((el) => {
+      document.querySelectorAll(SEL_POPUP).forEach((el) => {
         if (el instanceof HTMLElement) {
           el.style.display = 'none';
         }
@@ -426,4 +452,14 @@ export function getTopicId() {
 
 export function cmp<T>(cb: (t: T) => number) {
   return (t1: T, t2: T) => cb(t1) - cb(t2);
+}
+
+export function distinctBy<T, V = any>(arr: T[], fn: (t: T) => V) {
+  const u = new Set<V>();
+  return arr.filter((a) => {
+    const v = fn(a);
+    if (u.has(v)) return false;
+    u.add(v);
+    return true;
+  });
 }
