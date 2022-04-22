@@ -1,209 +1,259 @@
-import { getWindow, logger } from './shared/discourse'
+import { getWindow, logger } from './shared/discourse';
 
-let elPreview: HTMLElement | null
-let topicId = ''
+let elEditorInput: HTMLElement | null;
+let topicId = '';
 
 function isShiritoriId(tid: string) {
-  return ['16404'].includes(String(tid))
+  return ['16404'].includes(String(tid));
 }
 
 const vocabMap = new Map<
   string,
   {
-    [id: string]: IPostMatched
+    [id: string]: IPostMatched;
   }
->()
+>();
 
-const EDITOR_PREVIEW_CLASS = 'd-editor-preview'
+const EDITOR_INPUT_SELECTOR = 'textarea.d-editor-input';
 
-const reJaWithRuby = (() => {
-  const ja = '[\\p{sc=Han}\\p{sc=Katakana}\\p{sc=Hiragana}]+'
-  return new RegExp(
-    `(${ja}|<ruby\\b[^>]*>(<rt>.*?</rt>)?${ja}.*?</ruby>)+`,
-    'gu'
-  )
-})()
-const reTopic = /\/t\/[^/]+\/(\d+)(\/.*)?$/
+const reJaStr = '[\\p{sc=Han}\\p{sc=Katakana}\\p{sc=Hiragana}]+';
+const reJaWithRuby = new RegExp(
+  `(${reJaStr}|<ruby\\b[^>]*>(<rt>.*?</rt>)?${reJaStr}.*?</ruby>)+`,
+  'gu',
+);
+const reNotJa = new RegExp(`(?!${reJaStr})`, 'gu');
+const reTopic = /\/t\/[^/]+\/(\d+)(?:\/(\d+).*)?$/;
 
 const obs = new MutationObserver((muts) => {
-  const m = reTopic.exec(location.href)
-  if (!m || !isShiritoriId(m[1])) {
-    elPreview = null
-    return
+  let oldTopicId = '';
+  const newTopicId = getTopicId();
+  if (!newTopicId) {
+    return;
   }
-  topicId = m[1]
+
+  if (topicId !== newTopicId) {
+    vocabMap.clear();
+    oldTopicId = topicId;
+    topicId = newTopicId;
+  }
 
   muts.forEach((m) => {
     for (const n of m.addedNodes) {
       if (n instanceof HTMLElement) {
-        if (!elPreview && topicId) {
-          elPreview = n.querySelector(`.${EDITOR_PREVIEW_CLASS}`)
-          if (elPreview) {
-            fetchAll(location.origin + '/t/' + topicId).then((posts) => {
-              posts.map((p) => {
-                p.cooked.split('\n').map((ln) => {
-                  findAndAddJa(ln, p)
-                })
-              })
-            })
+        if (!elEditorInput && topicId) {
+          elEditorInput = n.querySelector(EDITOR_INPUT_SELECTOR);
+          logger('info', elEditorInput);
+          if (elEditorInput && (!vocabMap.size || topicId !== oldTopicId)) {
+            fetchAllAndAddToJa().then(() => {
+              logger('info', 'Vocab list loaded');
+            });
           }
         }
       }
     }
     for (const n of m.removedNodes) {
-      if (
-        n instanceof HTMLElement &&
-        n.querySelector(`.${EDITOR_PREVIEW_CLASS}`)
-      ) {
-        elPreview = null
-        vocabMap.clear()
+      if (n instanceof HTMLElement && n.querySelector(EDITOR_INPUT_SELECTOR)) {
+        elEditorInput = null;
       }
     }
-  })
-})
+  });
+});
 
-obs.observe(document.body, { childList: true, subtree: true })
+obs.observe(document.body, { childList: true, subtree: true });
 
 export const markdownIt = getWindow().require(
-  'pretty-text/engines/discourse-markdown-it'
-)
-const oldCook = markdownIt.cook
+  'pretty-text/engines/discourse-markdown-it',
+);
+const oldCook = markdownIt.cook;
 
 markdownIt.cook = function (raw: string, opts: any) {
-  let html = oldCook.bind(this)(raw, opts)
+  let html = oldCook.bind(this)(raw, opts);
 
   const matched: {
-    vocab: string
-    line: string
-    post: IPost
-  }[] = []
+    vocab: string;
+    line: string;
+    post: IPost;
+  }[] = [];
 
   html = html
     .split('\n')
     .map((ln) => {
-      const ps = findJaPost(ln)
+      const ps = findJaPost(ln);
 
       if (ps.length) {
-        matched.push(...ps)
-        return ln.replace(/(<p>|^)/, '$1<del>').replace(/(<\/p>|$)/, '</del>$1')
+        matched.push(...ps);
+        return ln
+          .replace(/(<p>|^)/, '$1<del>')
+          .replace(/(<\/p>|$)/, '</del>$1');
       }
-      return ln
+      return ln;
     })
-    .join('\n')
+    .join('\n');
 
   if (matched.length) {
     html += [
       '\n<hr/>\n',
-      ...matched.sort(cmp((p) => p.post.post_number)).map((p) => {
-        const container = document.createElement('p')
+      ...matched.sort(cmp((p) => -p.post.post_number)).map((p) => {
+        const container = document.createElement('p');
         container.append(
           Object.assign(document.createElement('a'), {
-            href: '/t/' + topicId + '/' + p.post.post_number,
-            innerText: '#' + p.post.post_number
+            href: '/t/x/' + topicId + '/' + p.post.post_number,
+            innerText: '#' + p.post.post_number,
           }),
           ' ',
           Object.assign(document.createElement('a'), {
             className: 'mention',
             href: '/u/' + p.post.username,
-            innerText: '@' + p.post.username
-          })
-        )
-        container.innerHTML += ' ' + p.line
-        return container.outerHTML
-      })
-    ].join('\n')
+            innerText: '@' + p.post.username,
+          }),
+        );
+        container.innerHTML += ' ' + p.line;
+        return container.outerHTML;
+      }),
+    ].join('\n');
   }
 
-  return html
-}
+  return html;
+};
 
 // *********************************
 // Function declarations
 // *********************************
 
 interface IPost {
-  id: number
-  username: string
-  post_number: number
-  cooked: string
+  id: number;
+  username: string;
+  post_number: number;
+  cooked: string;
 }
 
 interface IPostMatched extends IPost {
   _lines: {
-    [vocab: string]: string
-  }
+    [vocab: string]: string;
+  };
 }
 
 interface ITopicResponse {
-  actions_summary: {}[]
-  archetype: string
-  fancy_title: string
-  title: string
+  actions_summary: {}[];
+  archetype: string;
+  fancy_title: string;
+  title: string;
   post_stream: {
-    posts: IPost[]
-    stream: number[]
-  }
-  posts_count: number
-  reply_count: number
+    posts: IPost[];
+    stream: number[];
+  };
+  posts_count: number;
+  reply_count: number;
+}
+
+interface ITopicPostResponse {
+  post_stream: {
+    posts: IPost[];
+  };
 }
 
 export async function jsonFetch<T>(url: string): Promise<T | null> {
-  const r = await fetch(url)
+  const r = await fetch(url);
   if (r.ok) {
-    return r.json()
+    const json = await r.json();
+    if (!json.errors) {
+      return json;
+    }
   }
 
-  logger('error', r)
-  return null
+  logger('error', r);
+  return null;
 }
 
-export async function fetchAll(urlBase: string) {
-  const r0 = await jsonFetch<ITopicResponse>(urlBase + '.json?print=true')
-  if (!r0) return []
+export async function fetchAllAndAddToJa() {
+  const m = reTopic.exec(location.href);
+  if (!m) return;
 
-  const posts: IPost[] = r0.post_stream.posts
-  let page = 2
-  while (posts.length < r0.posts_count) {
-    const r = await jsonFetch<ITopicResponse>(
-      urlBase + '.json?print=true&page=' + page++
-    )
-    if (!r || !r.post_stream.posts.length) {
-      break
-    }
-    posts.push(...r.post_stream.posts)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+  const urlBase = location.origin + '/t/' + m[1];
+  const r0 = await jsonFetch<ITopicResponse>(urlBase + '/' + m[2] + '.json');
+  if (!r0) return;
+
+  const posts: IPost[] = [];
+  const addAllPosts = (ps: IPost[]) => {
+    ps.map((p) => {
+      p.cooked.split('\n').map((ln) => {
+        findAndAddJa(ln, p);
+      });
+    });
+    posts.push(...ps);
+  };
+
+  addAllPosts(r0.post_stream.posts);
+
+  const stream = r0.post_stream.stream || [];
+  const chunks: number[][] = [];
+  while (stream.length) {
+    chunks.push(stream.splice(0, 300));
   }
 
-  return posts
+  let isContinue = true;
+  while (chunks.length && isContinue) {
+    const rs = await Promise.all(
+      chunks
+        .splice(0, 10)
+        .map((ids) =>
+          jsonFetch<ITopicPostResponse>(
+            urlBase +
+              '/posts.json?' +
+              ids.map((id) => `post_ids[]=${id}`).join('&'),
+          ),
+        ),
+    ).then((rs) =>
+      rs.map((r) => {
+        if (!r) {
+          isContinue = false;
+          return;
+        }
+
+        addAllPosts(r.post_stream.posts);
+      }),
+    );
+
+    // if (chunks.length) {
+    //   await new Promise((r) => setTimeout(r, 1000));
+    // }
+  }
+
+  if (!isContinue) {
+    logger(
+      'error',
+      `Total posts: ${r0.posts_count} != real count: ${posts.length}, due to Rate Limit?`,
+    );
+  }
 }
 
 export function makeKanji(html: string) {
-  const div = document.createElement('div')
-  div.innerHTML = html
+  const div = document.createElement('div');
+  div.innerHTML = html;
   div.querySelectorAll('ruby').forEach((el) => {
-    el.querySelectorAll('rt, rp').forEach((r) => r.remove())
-    el.replaceWith(el.innerText)
-  })
-  return div.innerHTML
+    el.querySelectorAll('rt, rp').forEach((r) => r.remove());
+    el.replaceWith(el.innerText);
+  });
+  return div.innerHTML;
 }
 
 export function makeReading(html: string) {
-  const div = document.createElement('div')
-  div.innerHTML = html
+  const div = document.createElement('div');
+  div.innerHTML = html;
   div.querySelectorAll('ruby').forEach((el) => {
-    const rt = el.querySelector('rt')
+    const rt = el.querySelector('rt');
     if (rt) {
-      el.replaceWith(rt)
+      el.replaceWith(rt.innerText.replace(reNotJa, ''));
     }
-  })
-  return div.innerHTML
+  });
+  return div.innerHTML;
 }
 
 export function findJa(ln: string) {
   const lines: {
-    v: string
-    line: string
-  }[] = []
+    v: string;
+    line: string;
+  }[] = [];
   for (const m of ln.matchAll(reJaWithRuby)) {
     let line =
       m.index !== undefined
@@ -212,54 +262,62 @@ export function findJa(ln: string) {
           m[0] +
           `</ins>` +
           ln.substring(m.index + m[0].length)
-        : ln
+        : ln;
 
     line = line
       .trim()
       .replace(/^<p>/, '')
-      .replace(/<\/p>$/, '')
+      .replace(/<\/p>$/, '');
 
     if (m[0].includes('</ruby>')) {
-      lines.push({ v: makeKanji(m[0]), line }, { v: makeReading(m[0]), line })
+      lines.push({ v: makeKanji(m[0]), line }, { v: makeReading(m[0]), line });
     } else {
-      lines.push({ v: m[0], line })
+      lines.push({ v: m[0], line });
     }
   }
-  return lines
+  return lines;
 }
 
 export function findAndAddJa(ln: string, p: IPost) {
   for (const { v, line } of findJa(ln)) {
-    const prev = vocabMap.get(v) || {}
-    const _lines = prev[p.id]?._lines || {}
-    _lines[v] = line
-    prev[p.id] = { ...p, _lines }
-    vocabMap.set(v, prev)
+    const prev = vocabMap.get(v) || {};
+    const _lines = prev[p.id]?._lines || {};
+    _lines[v] = line;
+    prev[p.id] = { ...p, _lines };
+    vocabMap.set(v, prev);
   }
 }
 
 export function findJaPost(ln: string) {
   const out: {
-    vocab: string
-    line: string
-    post: IPost
-  }[] = []
+    vocab: string;
+    line: string;
+    post: IPost;
+  }[] = [];
 
   findJa(ln).map(({ v }) => {
-    const ps = vocabMap.get(v)
+    const ps = vocabMap.get(v);
     if (ps) {
       Object.values(ps).map((post) => {
-        const line = post._lines[v]
+        const line = post._lines[v];
         if (line) {
-          out.push({ vocab: v, line, post })
+          out.push({ vocab: v, line, post });
         }
-      })
+      });
     }
-  })
+  });
 
-  return out
+  return out;
+}
+
+export function getTopicId() {
+  const m = reTopic.exec(location.href);
+  if (m && isShiritoriId(m[1])) {
+    return m[1];
+  }
+  return '';
 }
 
 export function cmp<T>(cb: (t: T) => number) {
-  return (t1: T, t2: T) => cb(t1) - cb(t2)
+  return (t1: T, t2: T) => cb(t1) - cb(t2);
 }

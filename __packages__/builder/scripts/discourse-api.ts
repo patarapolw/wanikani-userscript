@@ -3,12 +3,6 @@ import fs from 'fs'
 import axios from 'axios'
 import yaml from 'js-yaml'
 
-interface IPost {
-  id: string
-  username: string
-  cooked: string
-}
-
 interface ITopicPostResponse {
   post_stream: {
     posts: IPost[]
@@ -27,8 +21,6 @@ interface ITopicResponse {
   posts_count: number
   reply_count: number
 }
-
-let vocabList: ITopicResponse | undefined
 
 const urlBase = 'https://community.wanikani.com/t/shiritori/16404/9002'.replace(
   /\/t\/[^/]+\/(\d+)(\/.*)?$/,
@@ -66,11 +58,54 @@ export async function fetchAll() {
 }
 
 export async function jsonFetch<T>(url: string, data?: any): Promise<T> {
+  console.log(url)
   return axios.get(url, { params: data }).then((r) => r.data)
 }
 
-async function main() {
-  await fetchAll()
+interface IPost {
+  id: number
+  username: string
+  post_number: number
+  cooked: string
 }
 
-main()
+interface ITopicResponse {
+  actions_summary: {}[]
+  archetype: string
+  fancy_title: string
+  title: string
+  post_stream: {
+    posts: IPost[]
+    stream: number[]
+  }
+  posts_count: number
+  reply_count: number
+}
+
+export async function fetchAllPrint(urlBase: string) {
+  const r0 = await jsonFetch<ITopicResponse>(urlBase + '.json?print=true')
+  if (!r0) return []
+
+  const posts: IPost[] = r0.post_stream.posts
+  let page = 2
+  while (posts.length < r0.posts_count) {
+    const r = await jsonFetch<ITopicResponse>(
+      urlBase + '.json?print=true&page=' + page++
+    )
+    if (!r || !r.post_stream.posts.length) {
+      break
+    }
+    posts.push(...r.post_stream.posts)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
+  return posts
+}
+
+fetchAllPrint('https://community.wanikani.com/t/16404').then(console.log)
+
+// async function main() {
+//   await fetchAll()
+// }
+
+// main()
