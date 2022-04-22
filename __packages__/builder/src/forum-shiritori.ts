@@ -1,7 +1,7 @@
 import { getWindow, logger } from './shared/discourse';
 
 const SHIRITORI_IDS = ['16404'];
-const WARN_ENDING_N = true;
+const WARN_ENDING_N = '<b>You lost.</b> Shiritori is lost with ん.';
 
 function doCleanPostCook(p: IPost) {
   let readStartsAt = 0;
@@ -10,9 +10,10 @@ function doCleanPostCook(p: IPost) {
   const is16404op = p.post_number === 1 && p.topic_id === 16404;
   if (!readStartsAt) {
     if (is16404op) {
-      readStartsAt = p.cooked
-        .split('\n')
-        .findIndex((ln) => ln.includes('continue where we left off'));
+      readStartsAt =
+        p.cooked
+          .split('\n')
+          .findIndex((ln) => ln.includes('continue where we left off')) + 1;
     }
   }
 
@@ -97,18 +98,25 @@ markdownIt.cook = function (raw: string, opts: any) {
     line: string[];
     post: IPost;
   }[] = [];
+  let isN = false;
 
   html = html
     .split('\n')
     .map((ln) => {
       const ps = findJaPost(ln);
+      let isWrong = false;
 
       if (ps.posts.length) {
         matched.push(...ps.posts);
-        return ln
-          .replace(/(<p>|^)/, '$1<del>')
-          .replace(/(<\/p>|$)/, '</del>$1');
-      } else if (WARN_ENDING_N && ps.vocabs.some((v) => v.endsWith('ん'))) {
+        isWrong = true;
+      }
+
+      if (WARN_ENDING_N && ps.vocabs.some((v) => v.endsWith('ん'))) {
+        isN = true;
+        isWrong = true;
+      }
+
+      if (isWrong) {
         return ln
           .replace(/(<p>|^)/, '$1<del>')
           .replace(/(<\/p>|$)/, '</del>$1');
@@ -118,9 +126,18 @@ markdownIt.cook = function (raw: string, opts: any) {
     })
     .join('\n');
 
+  if (isN || matched.length) {
+    html += '\n<hr/>\n';
+  }
+
+  if (isN) {
+    const container = document.createElement('p');
+    container.innerHTML = WARN_ENDING_N;
+    html += container.outerHTML;
+  }
+
   if (matched.length) {
     html += [
-      '\n<hr/>\n',
       ...matched.sort(cmp((p) => -p.post.post_number)).map((p) => {
         const container = document.createElement('p');
         container.append(
