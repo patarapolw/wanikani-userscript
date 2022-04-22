@@ -73,6 +73,38 @@ const obs = new MutationObserver((muts) => {
             });
           }
         }
+
+        const SEL = 'article[data-post-id]';
+        const postEls = [...n.querySelectorAll(SEL)];
+        if (n.matches(SEL)) {
+          postEls.push(n);
+        }
+
+        postEls.map((tp) => {
+          if (tp instanceof HTMLElement) {
+            const id = Number(tp.getAttribute('data-post-id'));
+            const username = tp.querySelector('a[data-user-card]')?.textContent;
+            const topic_id = Number(topicId);
+            const post_number = Number(tp.id.split('_', 2)[1]);
+            const cooked = tp.querySelector('.cooked')?.innerHTML;
+
+            if (id && username && topic_id && post_number && cooked) {
+              const p: IPost = {
+                id,
+                username,
+                topic_id,
+                post_number,
+                cooked,
+              };
+
+              doCleanPostCook(p)
+                .split('\n')
+                .map((ln) => {
+                  findAndAddJa(ln, p);
+                });
+            }
+          }
+        });
       }
     }
     for (const n of m.removedNodes) {
@@ -255,7 +287,7 @@ export async function fetchAllAndAddToJa() {
 
   let isContinue = true;
   while (chunks.length && isContinue) {
-    const rs = await Promise.all(
+    await Promise.all(
       chunks
         .splice(0, 10)
         .map((ids) =>
