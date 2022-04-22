@@ -1,4 +1,4 @@
-import { getWindow, logger } from './shared/discourse';
+import { w } from './shared/discourse';
 
 const SHIRITORI_IDS = ['16404'];
 const WARN_ENDING_N = '<b>You lost.</b> Shiritori is lost with ん.';
@@ -69,7 +69,7 @@ const obs = new MutationObserver((muts) => {
           elEditorInput = n.querySelector(EDITOR_INPUT_SELECTOR);
           if (elEditorInput && (!vocabMap.size || topicId !== oldTopicId)) {
             fetchAllAndAddToJa().then(() => {
-              logger('info', 'Vocab list loaded');
+              w.console.info('Vocab list loaded');
             });
           }
         }
@@ -85,9 +85,7 @@ const obs = new MutationObserver((muts) => {
 
 obs.observe(document.body, { childList: true, subtree: true });
 
-export const markdownIt = getWindow().require(
-  'pretty-text/engines/discourse-markdown-it',
-);
+const markdownIt = w.require('pretty-text/engines/discourse-markdown-it');
 const oldCook = markdownIt.cook;
 
 markdownIt.cook = function (raw: string, opts: any) {
@@ -221,7 +219,7 @@ export async function jsonFetch<T>(url: string): Promise<T | null> {
     }
   }
 
-  logger('error', r);
+  w.console.error(r);
   return null;
 }
 
@@ -284,8 +282,7 @@ export async function fetchAllAndAddToJa() {
   }
 
   if (!isContinue) {
-    logger(
-      'error',
+    w.console.error(
       `Total posts: ${r0.posts_count} != real count: ${posts.length}, due to Rate Limit?`,
     );
   }
