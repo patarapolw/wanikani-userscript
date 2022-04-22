@@ -16,7 +16,7 @@ const vocabMap = new Map<
 
 const EDITOR_INPUT_SELECTOR = 'textarea.d-editor-input';
 
-const reJaStr = '[\\p{sc=Han}\\p{sc=Katakana}\\p{sc=Hiragana}]+';
+const reJaStr = '[\\p{sc=Han}\\p{sc=Katakana}\\p{sc=Hiragana}ー]+';
 const reJaWithRuby = new RegExp(
   `(${reJaStr}|<ruby\\b[^>]*>(<rt>.*?</rt>)?${reJaStr}.*?</ruby>)+`,
   'gu',
@@ -42,7 +42,6 @@ const obs = new MutationObserver((muts) => {
       if (n instanceof HTMLElement) {
         if (!elEditorInput && topicId) {
           elEditorInput = n.querySelector(EDITOR_INPUT_SELECTOR);
-          logger('info', elEditorInput);
           if (elEditorInput && (!vocabMap.size || topicId !== oldTopicId)) {
             fetchAllAndAddToJa().then(() => {
               logger('info', 'Vocab list loaded');
@@ -71,7 +70,7 @@ markdownIt.cook = function (raw: string, opts: any) {
 
   const matched: {
     vocab: string;
-    line: string;
+    line: string[];
     post: IPost;
   }[] = [];
 
@@ -80,12 +79,17 @@ markdownIt.cook = function (raw: string, opts: any) {
     .map((ln) => {
       const ps = findJaPost(ln);
 
-      if (ps.length) {
-        matched.push(...ps);
+      if (ps.posts.length) {
+        matched.push(...ps.posts);
+        return ln
+          .replace(/(<p>|^)/, '$1<del>')
+          .replace(/(<\/p>|$)/, '</del>$1');
+      } else if (ps.vocabs.some((v) => v.endsWith('ん'))) {
         return ln
           .replace(/(<p>|^)/, '$1<del>')
           .replace(/(<\/p>|$)/, '</del>$1');
       }
+
       return ln;
     })
     .join('\n');
@@ -107,7 +111,13 @@ markdownIt.cook = function (raw: string, opts: any) {
             innerText: '@' + p.post.username,
           }),
         );
-        container.innerHTML += ' ' + p.line;
+        container.innerHTML +=
+          ' ' +
+          p.line
+            .map((s, i) => (i % 2 ? '<ins>' + s + '</ins>' : s))
+            .join('')
+            .replace(/^<p>/, '')
+            .replace(/<\/p>$/, '');
         return container.outerHTML;
       }),
     ].join('\n');
@@ -129,7 +139,7 @@ interface IPost {
 
 interface IPostMatched extends IPost {
   _lines: {
-    [vocab: string]: string;
+    [vocab: string]: string[];
   };
 }
 
@@ -249,30 +259,34 @@ export function makeReading(html: string) {
   return div.innerHTML;
 }
 
+export function normalizeKana(s: string) {
+  return s.replace(/\p{sc=Katakana}/gu, (p) => {
+    const cp = p.codePointAt(0);
+    if (cp) {
+      return String.fromCodePoint(cp - 96);
+    }
+    return p;
+  });
+}
+
 export function findJa(ln: string) {
   const lines: {
     v: string;
-    line: string;
+    line: string[];
   }[] = [];
   for (const m of ln.matchAll(reJaWithRuby)) {
-    let line =
+    const line =
       m.index !== undefined
-        ? ln.substring(0, m.index) +
-          `<ins>` +
-          m[0] +
-          `</ins>` +
-          ln.substring(m.index + m[0].length)
-        : ln;
-
-    line = line
-      .trim()
-      .replace(/^<p>/, '')
-      .replace(/<\/p>$/, '');
+        ? [ln.substring(0, m.index), m[0], ln.substring(m.index + m[0].length)]
+        : [ln];
 
     if (m[0].includes('</ruby>')) {
-      lines.push({ v: makeKanji(m[0]), line }, { v: makeReading(m[0]), line });
+      lines.push(
+        { v: normalizeKana(makeKanji(m[0])), line },
+        { v: normalizeKana(makeReading(m[0])), line },
+      );
     } else {
-      lines.push({ v: m[0], line });
+      lines.push({ v: normalizeKana(m[0]), line });
     }
   }
   return lines;
@@ -290,21 +304,30 @@ export function findAndAddJa(ln: string, p: IPost) {
 
 export function findJaPost(ln: string) {
   const out: {
-    vocab: string;
     line: string;
-    post: IPost;
-  }[] = [];
+    posts: {
+      vocab: string;
+      line: string[];
+      post: IPost;
+    }[];
+    vocabs: string[];
+  } = {
+    line: ln,
+    posts: [],
+    vocabs: [],
+  };
 
-  findJa(ln).map(({ v }) => {
+  out.vocabs = findJa(ln).map(({ v }) => {
     const ps = vocabMap.get(v);
     if (ps) {
       Object.values(ps).map((post) => {
         const line = post._lines[v];
         if (line) {
-          out.push({ vocab: v, line, post });
+          out.posts.push({ vocab: v, line, post });
         }
       });
     }
+    return v;
   });
 
   return out;
