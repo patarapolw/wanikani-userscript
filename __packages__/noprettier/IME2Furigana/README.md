@@ -1,5 +1,7 @@
 ## Change Logs
 
+- 24 Apr 2022
+  - Add 々 to Kanji list (so that <ruby>久々<rt>ひさびさ</rt></ruby> works)
 - 12 Apr 2022
   - Don't autocollapse `<ruby>` tags (to `<>[]` / `<>{}`) on edit
     - It still will collapse on Initialization, on Paste, on Lose Focus (onblur), or on Save.

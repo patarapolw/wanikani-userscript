@@ -32,7 +32,7 @@
   const RUBY_TEMPLATE = "<ruby lang = 'ja-JP'>$1<rp>(</rp><rt>$2</rt><rp>)</rp></ruby>";
   const RUBY_SPOILER_TEMPLATE = "<ruby lang = 'ja-JP'>$1<rp>(</rp><rt><span class='spoiler'>$2</spoiler></rt><rp>)</rp></ruby>";
   const FURIGANA_REGEX = /^[\u3041-\u3096\u3000-\u303f\uff01-\uff5e￥]+$/;
-  const KANJI_REGEX = /([\uff66-\uff9d\u4e00-\u9faf\u3400-\u4dbf]+)/;
+  const KANJI_REGEX = /([\uff66-\uff9d\u4e00-\u9faf\u3400-\u4dbf々]+)/;
   // Don't parse exotic ruby tags, and don't force lang="ja-JP", if it is already specified.
   const RUBY_REGEX = /<ruby(?: lang ?= ?(['"])ja(?:-JP)?\1)?>([^]+?)<\/ruby>/g;
   const SPOILER_SQUARE_REGEX = /^\[spoiler\]([^]*?)\[\/spoiler\]$/;
