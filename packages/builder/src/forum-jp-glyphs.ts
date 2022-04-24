@@ -1,5 +1,4 @@
-import { injectLangObserver } from './shared/inject-lang'
+import { injectLangHTML } from './shared/inject-lang';
 
-const DEFAULT_LANG = 'ja-JP'
-
-injectLangObserver(DEFAULT_LANG)
+// lang="ja" may also works.
+injectLangHTML('ja-JP');

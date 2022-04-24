@@ -3,34 +3,46 @@ export function injectLangObserver(lang: string, el = document.body) {
     for (const mut of muts) {
       mut.addedNodes.forEach((n) => {
         if (n instanceof HTMLElement) {
-          injectLang(n, lang)
+          injectLang(n, lang);
         }
-      })
+      });
     }
   }).observe(el, {
     childList: true,
-    subtree: true
-  })
+    subtree: true,
+  });
 
-  injectLang(el, lang)
+  injectLang(el, lang);
 }
 
 export function injectLang(el: HTMLElement, lang: string) {
   el.querySelectorAll(':not([lang])').forEach((it) => {
-    let parent = it.parentElement
+    let parent = it.parentElement;
     while (parent) {
-      const lang0 = parent.getAttribute('lang')
+      const lang0 = parent.getAttribute('lang');
       if (
         lang0 &&
         lang0 !== lang &&
         lang0 !== 'en' &&
         parent.tagName.toLocaleUpperCase() !== 'HTML'
       ) {
-        return
+        return;
       }
-      parent = parent.parentElement
+      parent = parent.parentElement;
     }
 
-    it.setAttribute('lang', lang)
-  })
+    it.setAttribute('lang', lang);
+  });
+}
+
+export function injectLangHTML(lang: string) {
+  const obs = new MutationObserver(() => {
+    if (document.documentElement.lang !== lang) {
+      document.documentElement.lang = lang;
+    }
+  });
+
+  obs.observe(document.documentElement, { attributeFilter: ['lang'] });
+
+  document.documentElement.lang = lang;
 }

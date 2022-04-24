@@ -1,36 +1,35 @@
-import { injectLangObserver } from './shared/inject-lang'
+import { injectLangHTML } from './shared/inject-lang';
 
-const DEFAULT_LANG = 'ja-JP'
-
-let lang = DEFAULT_LANG
-let isInject = true
+// lang="ja" may also works.
+let lang = 'ja-JP';
+let isInject = true;
 
 if (
   typeof location !== 'undefined' &&
   /[\./]youglish\.com$/.test(location.origin)
 ) {
-  lang = 'ja-JP'
-  isInject = /japanese/.test(location.pathname)
+  lang = 'ja-JP';
+  isInject = /japanese/.test(location.pathname);
 
   if (!isInject) {
-    lang = 'ko-KR'
-    isInject = /korean/.test(location.pathname)
+    lang = 'ko-KR';
+    isInject = /korean/.test(location.pathname);
   }
 
   if (!isInject) {
-    const m = /chinese(\/([a-z]{2}))?\?$/.exec(location.pathname)
+    const m = /chinese(\/([a-z]{2}))?\?$/.exec(location.pathname);
     if (m) {
-      lang = `zh-${(m[1] || 'CN').toLocaleUpperCase()}`
-      isInject = true
+      lang = `zh-${(m[1] || 'CN').toLocaleUpperCase()}`;
+      isInject = true;
     }
   }
 
   if (!isInject) {
-    lang = 'zh-CN'
-    isInject = /chinese/.test(location.pathname)
+    lang = 'zh-CN';
+    isInject = /chinese/.test(location.pathname);
   }
 }
 
 if (isInject) {
-  injectLangObserver(lang)
+  injectLangHTML(lang);
 }

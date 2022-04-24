@@ -28,8 +28,8 @@
   meta: |
     // ==UserScript==
     // @name         WaniKani Community prioritize Japanese glyphs
-    // @namespace    https://github.com/patarapolw/wanikani-userscript
-    // @version      0.1.2
+    // @namespace    https://github.com/patarapolw
+    // @version      0.1.3
     // @description  Prioritization of Japanese glyphs for Han unification
     // @author       polv
     // @license      MIT
@@ -42,7 +42,7 @@
     // ==UserScript==
     // @name         Lang attribute setter (prioritize Kanji font on Japanese Websites)
     // @namespace    https://github.com/patarapolw/wanikani-userscript
-    // @version      0.1.8
+    // @version      0.1.9
     // @description  Fixes Han unification, for example, for Japanese (can be edited to prioritize other langs)
     // @author       polv
     // @license      MIT
