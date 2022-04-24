@@ -4,10 +4,10 @@
       "path": "."
     },
     {
-      "path": "__packages__/builder"
+      "path": "packages/builder"
     },
     {
-      "path": "__packages__/noprettier"
+      "path": "packages/noprettier"
     }
   ],
   "settings": {
