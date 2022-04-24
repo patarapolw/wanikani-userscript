@@ -7,7 +7,7 @@
     - It still will collapse on Initialization, on Paste, on Lose Focus (onblur), or on Save.
   - Don't collapse, if nested `<ruby>` tags (<ruby><ruby>危<rt>き</rt></ruby><ruby>険<rt>けん</rt></ruby><rt>、、</rt></ruby><ruby>な<rt> 、</rt></ruby><ruby><ruby>秘<rt>ひ</rt></ruby><ruby>密<rt>みつ</rt></ruby><rt>、、</rt></ruby><ruby>を<rt> 、</rt></ruby>) - https://community.wanikani.com/t/x/44555/13 (Admittedly, this is a temporary fix.)
 
-```
+```html
 <ruby><ruby>危<rt>き</rt></ruby><ruby>険<rt>けん</rt></ruby><rt>、、</rt></ruby><ruby>な<rt> 、</rt></ruby><ruby><ruby>秘<rt>ひ</rt></ruby><ruby>密<rt>みつ</rt></ruby><rt>、、</rt></ruby><ruby>を<rt> 、</rt></ruby>
 ```
 
@@ -32,7 +32,7 @@ This works `<おはよう>[Hello]` - <おはよう>[Hello].
 
 This also works - `<ruby lang = 'ja-JP'>おはよう<rp>(</rp><rt>Hello</rt><rp>)</rp></ruby>`
 
-```
+```html
 <ruby lang = 'ja-JP'>おはよう<rp>(</rp><rt>Hello</rt><rp>)</rp></ruby>
 ```
 </details>
