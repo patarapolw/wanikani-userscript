@@ -223,7 +223,7 @@
     if (!NO_OFF_MODE) {
       bMode.classList.toggle("active", mode);
     }
-    bMode.classList.toggle("auto", mode === 1);
+    bMode.classList.toggle("auto", mode === 1 || mode === 2);
     bMode.classList.toggle("blur", mode === 2);
     bMode.classList.toggle("manual", mode === 3);
     bMode.title = "IME2Furigana - " + MODES[mode];
