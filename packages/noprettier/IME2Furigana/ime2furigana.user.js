@@ -22,6 +22,7 @@
 
   const ASK_BEFORE_CONVERTING_RUBY_TO_FURIGANA_MARKUP = false;
   const NO_OFF_MODE = true;
+  const CODE_BLOCK_DETECTION = true;
 
   //////////////
 
@@ -292,6 +293,10 @@
   }
 
   function differentiateCodeBlocks(raw) {
+    if (!CODE_BLOCK_DETECTION) {
+      return [{ s: raw, is: null }];
+    }
+
     let is = 'code_big'
     let parts = raw.split(/((?:^|\n)```.*\r?\n[^]*?```(?:\r?\n|$))/g).map((s, i) => ({ s, is: i & 1 ? is: null }));
 

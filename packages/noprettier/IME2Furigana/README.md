@@ -4,6 +4,7 @@
   - Add 々 to Kanji list (so that <ruby>久々<rt>ひさびさ</rt></ruby> works)
   - Add [zero-width space](https://unicode-explorer.com/c/200B) support. Copy and paste the character just behind `<` (in `<>[]` or `<>{}`) to prevent conversion to `<ruby>` tags - <​振り仮名>[ふりがな]
     - I made it work to prevent `<ruby>` collapse as well, by putting the weird space just behind `<ruby>` - <ruby>​振り仮名<rt>ふりがな</rt></ruby>
+  - Add a settings to turn off `CODE_BLOCK_DETECTION`, in case it fails.
 - 12 Apr 2022
   - Don't autocollapse `<ruby>` tags (to `<>[]` / `<>{}`) on edit
     - It still will collapse on Initialization, on Paste, on Lose Focus (onblur), or on Save.
