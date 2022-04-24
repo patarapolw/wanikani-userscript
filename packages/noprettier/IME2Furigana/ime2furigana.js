@@ -37,7 +37,8 @@
   const RUBY_REGEX = /<ruby(?: lang ?= ?(['"])ja(?:-JP)?\1)?>([^]+?)<\/ruby>/g;
   const SPOILER_SQUARE_REGEX = /^\[spoiler\]([^]*?)\[\/spoiler\]$/;
   const SPOILER_CLASS_REGEX = /^<span class='spoiler'>([^]*?)<\/spoiler>$/;
-  const COOK_SEARCH_REGEX = /<(?!\s)((?:<\/?\b[^<>]*>(?!\[)|[^<>])*)>\[(?!spoiler\s*\])([^\]]*)\]/g;
+  // \u200b is [Zero-width space](https://unicode-explorer.com/c/200B), and might be convenient to prevent `<>[]` conversion.
+  const COOK_SEARCH_REGEX = /<(?![\s\u200b])((?:<\/?\b[^<>]*>(?!\[)|[^<>])*)>\[(?!spoiler\s*\])([^\]]*)\]/g;
   const COOK_SPOILER_SEARCH_REGEX = /<(?!\s)((?:<\/?\b[^<>]*>(?!{)|[^<>])*)>{([^}]*)}/g;
 
   // negative lookbehind might not be supported (e.g. Waterfox) - in that case use an insufficient regex and hope for the best
