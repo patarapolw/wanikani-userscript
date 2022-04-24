@@ -34,7 +34,7 @@
   const FURIGANA_REGEX = /^[\p{sc=Katakana}\p{sc=Hiragana}]+$/u;
   const KANJI_REGEX = /([\p{sc=Han}\p{N}々〆]+)/u;
   // Don't parse exotic ruby tags, and don't force lang="ja-JP", if it is already specified.
-  const RUBY_REGEX = /<ruby(?: lang ?= ?(['"])ja(?:-JP)?\1)?>([^]+?)<\/ruby>/g;
+  const RUBY_REGEX = /<ruby(?: lang ?= ?(['"])ja(?:-JP)?\1)?>(?![\u200b])([^]+?)<\/ruby>/g;
   const SPOILER_SQUARE_REGEX = /^\[spoiler\]([^]*?)\[\/spoiler\]$/;
   const SPOILER_CLASS_REGEX = /^<span class='spoiler'>([^]*?)<\/spoiler>$/;
   // \u200b is [Zero-width space](https://unicode-explorer.com/c/200B), and might be convenient to prevent `<>[]` conversion.
