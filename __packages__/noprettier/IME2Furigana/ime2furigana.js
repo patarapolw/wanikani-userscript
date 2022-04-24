@@ -470,8 +470,4 @@
   function getWindow() {
     return typeof unsafeWindow === "undefined" ? window : unsafeWindow;
   }
-
-  function logger() {
-    getWindow().console.log(...arguments)
-  }
 })();
