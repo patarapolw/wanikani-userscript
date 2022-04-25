@@ -1,5 +1,7 @@
 ## Change Logs
 
+- 25 Apr 2022
+  - Change `@name`, so that it can co-exist with the original script. Also, update `@description`.
 - 24 Apr 2022
   - Add 々 to Kanji list (so that <ruby>久々<rt>ひさびさ</rt></ruby> works)
   - Add zero-width space [`\u200b`](https://unicode-explorer.com/c/200b) ,[`\u2060`](https://unicode-explorer.com/c/2060) support. Copy and paste the character just behind `<` (in `<>[]` or `<>{}`) to prevent conversion to `<ruby>` tags - <​振り仮名>[ふりがな]

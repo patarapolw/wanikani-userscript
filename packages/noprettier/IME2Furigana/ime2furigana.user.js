@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         IME2Furigana
+// @name         IME2Furigana (modified by polv)
 // @namespace    ime2furigana
 // @version      1.8a
-// @description  Adds furigana markup functionality to Discourse. When inputting kanji with an IME, furigana markup is automatically added.
+// @description  Adds furigana markup rendering to WK Community. When inputting kanji with an IME, furigana markup can be automatically added.
 // @author       Sinyaven (modified by polv)
 // @license      MIT-0
 // @match        https://community.wanikani.com/*
