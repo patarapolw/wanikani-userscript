@@ -44,7 +44,7 @@ let elEditorInput: HTMLElement | null;
 
 const reJaStr = '[\\p{sc=Han}\\p{sc=Katakana}\\p{sc=Hiragana}ー]+';
 const reJaWithRuby = new RegExp(
-  `(${reJaStr}|<ruby\\b[^>]*>(<rt>.*?</rt>)?${reJaStr}.*?</ruby>)+`,
+  `(${reJaStr}|<ruby\\b[^>]*>.*?(<rt>.*?</rt>)?.*?</ruby>)+`,
   'gu',
 );
 const reNotJa = new RegExp(`(?!${reJaStr})`, 'gu');

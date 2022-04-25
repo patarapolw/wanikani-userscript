@@ -16,7 +16,7 @@
     // ==UserScript==
     // @name         WaniKani Community Shiritori Duplicate Checker
     // @namespace    https://github.com/patarapolw/wanikani-userscript
-    // @version      0.1.4
+    // @version      0.1.5
     // @description  Check if your vocabulary is a duplicate in Shiritori
     // @author       polv
     // @license      MIT
