@@ -1,5 +1,7 @@
 ## Change Logs
 
+- 29 Apr 2022
+  - Force update textarea for [Kiwi Browser](https://play.google.com/store/apps/details?id=com.kiwibrowser.browser) for Android (with [Violentmonkey](https://violentmonkey.github.io/)).
 - 25 Apr 2022
   - Change `@name`, so that it can co-exist with the original script. Also, update `@description`.
 - 24 Apr 2022

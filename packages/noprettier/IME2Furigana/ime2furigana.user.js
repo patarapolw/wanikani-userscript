@@ -125,10 +125,10 @@
         }
       })
     });
-    textArea.addEventListener("blur", () => {
-      updateTextArea();
-    });
+    textArea.addEventListener("blur", updateTextArea);
     injectIntoDiscourse();
+    // Force update textarea for Kiwi Browser for Android.
+    updateTextArea();
   }
 
   function updateTextArea() {
