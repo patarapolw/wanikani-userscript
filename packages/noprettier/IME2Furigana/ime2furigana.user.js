@@ -32,8 +32,8 @@
   const NO_BACK_CONVERSION_CLASS_FLAG = "ruby-to-furigana-markup-disabled";
   const RUBY_TEMPLATE = "<ruby lang = 'ja-JP'>$1<rp>(</rp><rt>$2</rt><rp>)</rp></ruby>";
   const RUBY_SPOILER_TEMPLATE = "<ruby lang = 'ja-JP'>$1<rp>(</rp><rt><span class='spoiler'>$2</spoiler></rt><rp>)</rp></ruby>";
-  const FURIGANA_REGEX = /^[\p{sc=Katakana}\p{sc=Hiragana}]+$/u;
-  const KANJI_REGEX = /([\p{sc=Han}\p{N}々〆]+)/u;
+  const FURIGANA_REGEX = /^(?:(?![ヵヶ])[\p{sc=Katakana}\p{sc=Hiragana}])+$/u;
+  const KANJI_REGEX = /([\p{sc=Han}\p{N}々〆ヵヶ]+)/u;
   // Don't parse exotic ruby tags, and don't force lang="ja-JP", if it is already specified.
   const RUBY_REGEX = /<ruby(?: lang ?= ?(['"])ja(?:-JP)?\1)?>(?![\u200b\u2060])([^]+?)<\/ruby>/g;
   const SPOILER_SQUARE_REGEX = /^\[spoiler\]([^]*?)\[\/spoiler\]$/;
