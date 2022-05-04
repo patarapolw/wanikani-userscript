@@ -29,7 +29,7 @@ wkmdnotes = {};
 
     /**
      * Fetch that can bypass CORS. Always return string
-     * @returns {string}
+     * @returns {Promise<string>}
      */
     async function fetchText(url) {
         const corsList = [
