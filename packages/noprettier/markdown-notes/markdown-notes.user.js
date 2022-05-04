@@ -14,7 +14,7 @@
 wkmdnotes = {};
 
 (function() {
-    if (!location.pathname.match(/^\/(level|radical|kanji|vocabulary|(review\/extra_study)\/session)\//)) {
+    if (!/^\/(level|radical|kanji|vocabulary|(review|extra_study)\/session)(\/|$)/.test(location.pathname)) {
         return;
     }
 
@@ -201,18 +201,21 @@ wkmdnotes = {};
     * Setup the given note field with the required callbacks.
     */
     function setupNoteField(note) {
-        // Save the markdown and render the content.
-        var html = note.html() || '';
-        note.data('noteContent', html.replace(/<br>/g,'\n'));
+        const doSetup = (val) => {
+            // Save the markdown and render the content.
+            var html = note.html() || '';
+            note.data('noteContent', typeof val !== 'undefined' ? val : html.replace(/<br>/g,'\n'));
 
-        html = md2html(html);
-        note.html(html);
-        makeHtmlAsync(html).then((newHTML) => {
-            html = newHTML;
+            html = md2html(html);
             note.html(html);
-        });
+            makeHtmlAsync(html).then((newHTML) => {
+                html = newHTML;
+                note.html(html);
+            });
 
-        activateTooltips(note);
+            activateTooltips(note);
+        };
+        doSetup();
 
         note.click(function(e) {
             if (e.target.tagName.toLowerCase() === 'textarea') {
@@ -226,13 +229,11 @@ wkmdnotes = {};
                     // So, we want to display the markdown content.
                     if (note.find('textarea')) {
                         clearInterval(interval);
-                        var noteContent = note.data('noteContent')
-
                         if (note.data('noteContent') === 'Click to add note') {
-                            noteContent = '';
+                            note.find('textarea').val('');
+                        } else {
+                            note.find('textarea').val(note.data('noteContent'));
                         }
-
-                        note.find('textarea').val(noteContent);
                     }
                 }, 50);
             }
@@ -241,24 +242,12 @@ wkmdnotes = {};
             else {
                 var textarea = note.find('textarea');
                 var str = textarea.val().replace(/\n/g,'\n');
-                textarea.html(str);
                 var interval = setInterval(function() {
                     // Keep waiting until there is no text area. Then, save the changed markdown
                     // value to the data. Also re-render the note.
                     if (note.find('textarea').length === 0) {
                         clearInterval(interval);
-
-                        var html = note.html() || '';
-                        note.data('noteContent', html.replace(/<br>/g,'\n'));
-
-                        html = md2html(html);
-                        note.html(html);
-                        makeHtmlAsync(html).then((newHTML) => {
-                            html = newHTML;
-                            note.html(html);
-                        });
-
-                        activateTooltips(note);
+                        doSetup(str);
                     }
                 }, 50);
             }
@@ -268,28 +257,35 @@ wkmdnotes = {};
     function main() {
         // Convert the text in the meaning note.
         var noteFields = ['.note-meaning', '.note-reading'];
-        $.each(noteFields, function(i, noteSelector) {
-            // During reviews, we have to wait for the field to be added to the dom first.
-            // Then, we can add a listener to the note selector.
-            $('#option-item-info').click(function() {
-                var interval = setInterval(function() {
-                    if ($(noteSelector).length !== 0) {
-                        clearInterval(interval);
-                        setupNoteField($(noteSelector));
-                    }
-                }, 50);
-            });
-
+        noteFields.map((noteSelector) => {
             // Setup the note field if it is on the page already.
             setupNoteField($(noteSelector));
         });
+
+        // During reviews, we have to wait for the field to be added to the dom first.
+        // Then, we can add a listener to the note selector.
+        const obs = new MutationObserver((muts) => {
+            muts.map((m) => {
+                m.addedNodes.forEach((n) => {
+                    noteFields.map((sel) => {
+                        if (n instanceof HTMLElement) {
+                            if (n.matches(sel)) {
+                                return setupNoteField($(sel));
+                            }
+                            return setupNoteField($(n.querySelector(sel)));
+                        }
+                    })
+                })
+            })
+        })
+
+        obs.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
     }
 
-    // Run startup() after window.onload event.
-    if (document.readyState === 'complete')
-        main();
-    else
-        window.addEventListener("load", main, false);
+    $(main);
 
     /**
      * Bracket matcher is pretty much 大変, but it works.
@@ -394,5 +390,4 @@ wkmdnotes = {};
             ruby, { singleLine: true }
         )}</rt><rp>]</rp></ruby>`
     }
-
 })(wkmdnotes);
