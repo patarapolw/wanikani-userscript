@@ -4,6 +4,7 @@
   - Add showdown options (e.g. 2-space indentation, emoji)
   - Includes preview and self-study modes
   - Add fetching external resources
+  - Add Furigana plugin (uses `[]{}` syntax)
 
 ---
 

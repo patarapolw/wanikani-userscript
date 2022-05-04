@@ -57,9 +57,12 @@ wkmdnotes = {};
     }
 
     /**
-    * Render the given markdown text.
+    * Markdown to HTML
+    * @param {string} text
+    * @param {object} [opts={}]
+    * @param {boolean} [opts.singleLine]
     */
-    function render(text) {
+    function md2html(text, opts = {}) {
         // Do some custom replacements.
         text = text.replace(/#kan#/g, '<span class="kanji-highlight highlight-kanji" rel="tooltip" data-original-title="Kanji">');
         text = text.replace(/#\/kan#/g, '</span>');
@@ -73,14 +76,46 @@ wkmdnotes = {};
         text = text.replace(/#voc#/g, '<span class="vocabulary-highlight highlight-vocabulary" rel="tooltip" data-original-title="Vocabulary">');
         text = text.replace(/#\/voc#/g, '</span>');
 
+        // markdown-it-furigana
+        text = text.replace(/\[(.+?)\]{(.+?)}/g, (...m) => {
+            return parseList(
+                bracketMatcher(m[0], [
+                    { name: 'base', on: '[', off: ']' },
+                    { name: 'furigana', on: '{', off: '}' }
+                ]),
+                'base',
+                'furigana',
+                makeFurigana
+            )
+        });
+
+        // IME2Furigana normal
+        // IME2Furigana spoiler
+        // Doesn't work yet, because of <>
+
         // Render the rest as markdown.
-        return converter.makeHtml(text);
+        text = converter.makeHtml(text);
+
+        if (opts.singleLine) {
+            const op = '<p>';
+            const ed = '</p>';
+            if (text.startsWith(op) && text.endsWith(ed)) {
+                const cleaned = text.substring(op.length, text.length - ed.length);
+                if (!cleaned.includes(ed) && !cleaned.includes(op)) {
+                    return cleaned;
+                }
+            }
+        }
+
+
+        return text;
     }
 
     /**
      * generate Random uuid Javascript
      *
      * @link https://stackoverflow.com/a/64597106/9023855
+     * @returns {string}
      */
     function uuid() {
         if (typeof crypto !== 'undefined') {
@@ -94,6 +129,12 @@ wkmdnotes = {};
         });
     }
 
+    /**
+     * Parse {{keyword}} style template, and fetch external resources
+     *
+     * @param {string} html
+     * @returns {Promise<string>}
+     */
     async function makeHtmlAsync(html) {
         const asyncMap = {};
         html = html.replace(/{{(.+?)}}/g, (_, p1) => {
@@ -129,7 +170,7 @@ wkmdnotes = {};
 
             await fetchText(p1).then((r) => {
                 if (p1.endsWith('.md')) {
-                    r = render(r);
+                    r = md2html(r);
                 }
                 html = r;
             }).catch((e) => console.error(e));
@@ -156,11 +197,10 @@ wkmdnotes = {};
     */
     function setupNoteField(note) {
         // Save the markdown and render the content.
-        var html = note.html();
-        if (typeof html === 'undefined') html = '';
+        var html = note.html() || '';
         note.data('noteContent', html.replace(/<br>/g,'\n'));
 
-        html = render(html);
+        html = md2html(html);
         note.html(html);
         makeHtmlAsync(html).then((newHTML) => {
             html = newHTML;
@@ -181,11 +221,13 @@ wkmdnotes = {};
                     // So, we want to display the markdown content.
                     if (note.find('textarea')) {
                         clearInterval(interval);
+                        var noteContent = note.data('noteContent')
+
                         if (note.data('noteContent') === 'Click to add note') {
-                            note.find('textarea').val('');
-                        } else {
-                            note.find('textarea').val(note.data('noteContent'));
+                            noteContent = '';
                         }
+
+                        note.find('textarea').val(noteContent);
                     }
                 }, 50);
             }
@@ -200,8 +242,17 @@ wkmdnotes = {};
                     // value to the data. Also re-render the note.
                     if (note.find('textarea').length === 0) {
                         clearInterval(interval);
-                        note.data('noteContent', note.html().replace(/<br>/g,'\n'));
-                        note.html(render(note.html()));
+
+                        var html = note.html() || '';
+                        note.data('noteContent', html.replace(/<br>/g,'\n'));
+
+                        html = md2html(html);
+                        note.html(html);
+                        makeHtmlAsync(html).then((newHTML) => {
+                            html = newHTML;
+                            note.html(html);
+                        });
+
                         activateTooltips(note);
                     }
                 }, 50);
@@ -234,4 +285,109 @@ wkmdnotes = {};
         main();
     else
         window.addEventListener("load", main, false);
+
+    /**
+     * Bracket matcher is pretty much 大変, but it works.
+     * Also, staggering Furigana, like [[good]{bad}]{maybe}.
+     */
+
+    function bracketMatcher(raw, bTypes) {
+        let s = ''
+        let type
+
+        const rt = []
+        const brackets = []
+
+        const onMap = Object.fromEntries(bTypes.map((v) => [v.on, v]))
+        const offMap = Object.fromEntries(bTypes.map((v) => [v.off, v]))
+
+        raw.split('').map((c) => {
+            let b
+
+            if ((b = onMap[c])) {
+                if (!type && s) {
+                    rt.push({ s, b: type })
+                    s = ''
+                }
+
+                type = type || b
+
+                if (type && type.name === b.name) {
+                    brackets.push(type.name)
+                    s += c
+                    return
+                }
+            }
+
+            s += c
+
+            if ((b = offMap[c])) {
+                if (brackets[brackets.length - 1] === b.name) {
+                    brackets.pop()
+                    if (!brackets.length) {
+                    rt.push({ s, b })
+                    s = ''
+                    type = undefined
+                    }
+                    return
+                }
+            }
+        })
+
+        if (s) {
+            rt.push({ s, b: type })
+        }
+
+        return rt
+    }
+
+    function parseList(
+        rt,
+        type1,
+        type2,
+        parser
+    ) {
+        let out = ''
+        for (let i = 0; i < rt.length; i++) {
+            const { s, b } = rt[i]
+
+            if (b?.name === type1 && rt[i + 1] && rt[i + 1]?.b?.name === type2) {
+                const s1 = rt[i + 1].s
+                out += parser(
+                    s.substring(1, s.length - 1),
+                    s1.substring(1, s1.length - 1)
+                )
+                i++
+                continue
+            }
+            out += s
+        }
+
+        return out
+    }
+
+    function makeFurigana(base, ruby) {
+        const reJaChar = /[\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}]/gu
+
+        if (ruby === '*' && reJaChar.test(base)) {
+            return base
+            .split(reJaChar)
+            .map((s, i) =>
+                i % 2
+                ? s
+                    .split('')
+                    .map(
+                        (c) =>
+                        `<ruby><rp> </rp>${c}<rp>[</rp><rt>●</rt><rp>]</rp></ruby>`
+                    )
+                : s
+            )
+            .join('')
+        }
+
+        return `<ruby><rp> </rp>${md2html(base, { singleLine: true })}<rp>[</rp><rt>${md2html(
+            ruby, { singleLine: true }
+        )}</rt><rp>]</rp></ruby>`
+    }
+
 })(wkmdnotes);
