@@ -49,11 +49,16 @@ wkmdnotes = {};
                             resolve(responseText);
                         },
                         onerror: reject
-                    })
-                })
+                    });
+                });
             }
         }
-        return fetch(url).then((r) => r.text())
+        return fetch(url).then((r) => {
+            if (!r.ok) {
+                throw r;
+            }
+            return r.text();
+        });
     }
 
     /**
