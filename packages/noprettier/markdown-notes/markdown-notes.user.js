@@ -98,6 +98,8 @@ wkmdnotes = {};
         // IME2Furigana spoiler
         // Doesn't work yet, because of <>
 
+        console.log(text)
+
         // Render the rest as markdown.
         text = converter.makeHtml(text);
 
@@ -204,7 +206,16 @@ wkmdnotes = {};
         const doSetup = (val) => {
             // Save the markdown and render the content.
             var html = note.html() || '';
-            note.data('noteContent', typeof val !== 'undefined' ? val : html.replace(/<br>/g,'\n'));
+            html = html.replace(/<br>/g,'\n');
+
+            if (typeof val === 'undefined') {
+                val = note.data('noteContent');
+            }
+            if (typeof val === 'undefined') {
+                val = html;
+            }
+
+            note.data('noteContent', val);
 
             html = md2html(html);
             note.html(html);
@@ -241,7 +252,7 @@ wkmdnotes = {};
             // Otherwise, they are going from edit --> display.
             else {
                 var textarea = note.find('textarea');
-                var str = textarea.val().replace(/\n/g,'\n');
+                var str = textarea.val();
                 var interval = setInterval(function() {
                     // Keep waiting until there is no text area. Then, save the changed markdown
                     // value to the data. Also re-render the note.
