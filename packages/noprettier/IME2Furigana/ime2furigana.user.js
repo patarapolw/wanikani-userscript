@@ -12,14 +12,6 @@
 
 (async function() {
   "use strict";
-
-  /* global require, exportFunction */
-  /* eslint no-multi-spaces: "off" */
-
-  //////////////
-  // settings //
-  //////////////
-
   // Convert back only the generated markup of <ruby lang = 'ja-JP'>. Simple <ruby> will be ignored.
   const CONVERT_ONLY_SPECIAL_MARKUP = true;
   // IME2Furigana now has 4 modes, so reducing by one might be convenient.
