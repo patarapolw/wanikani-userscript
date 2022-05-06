@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IME2Furigana (modified by polv)
 // @namespace    ime2furigana
-// @version      1.8a
+// @version      1.8plus
 // @description  Adds furigana markup rendering to WK Community. When inputting kanji with an IME, furigana markup can be automatically added.
 // @author       Sinyaven (modified by polv)
 // @license      MIT-0
@@ -20,9 +20,16 @@
   // settings //
   //////////////
 
-  const ASK_BEFORE_CONVERTING_RUBY_TO_FURIGANA_MARKUP = false;
+  // Convert back only the generated markup of <ruby lang = 'ja-JP'>. Simple <ruby> will be ignored.
+  const CONVERT_ONLY_SPECIAL_MARKUP = true;
+  // IME2Furigana now has 4 modes, so reducing by one might be convenient.
+  // In the future, others ways to disable IME2Furigana without switch off from dashboard, and refresh, will be considered.
   const NO_OFF_MODE = true;
+  // If code block detection is buggy, turn if off and use invisible characters (from https://unicode-explorer.com/c/200B) instead.
   const CODE_BLOCK_DETECTION = true;
+
+  // Original option - turn off for convenience.
+  const ASK_BEFORE_CONVERTING_RUBY_TO_FURIGANA_MARKUP = false;
 
   //////////////
 
@@ -35,7 +42,9 @@
   const FURIGANA_REGEX = /^(?:(?![ヵヶ])[\p{sc=Katakana}\p{sc=Hiragana}])+$/u;
   const KANJI_REGEX = /([\p{sc=Han}\p{N}々〆ヵヶ]+)/u;
   // Don't parse exotic ruby tags, and don't force lang="ja-JP", if it is already specified.
-  const RUBY_REGEX = /<ruby(?: lang ?= ?(['"])ja(?:-JP)?\1)?>(?![\u200b\u2060])([^]+?)<\/ruby>/g;
+  const RUBY_REGEX = new RegExp(`<ruby${
+    CONVERT_ONLY_SPECIAL_MARKUP ? ` lang = (')ja-JP\\1` : `(?: lang ?= ?(['"])ja(?:-JP)?\\1)?`
+  }>(?![\\u200b\\u2060])([^]+?)</ruby>`, 'g');
   const SPOILER_SQUARE_REGEX = /^\[spoiler\]([^]*?)\[\/spoiler\]$/;
   const SPOILER_CLASS_REGEX = /^<span class='spoiler'>([^]*?)<\/spoiler>$/;
   // \u200b is [Zero-width space](https://unicode-explorer.com/c/200B), and might be convenient to prevent `<>[]` conversion.

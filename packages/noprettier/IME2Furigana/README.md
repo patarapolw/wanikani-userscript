@@ -1,5 +1,8 @@
 ## Change Logs
 
+- 6 May 2022
+  - Add label for Options
+  - Add Option `CONVERT_ONLY_SPECIAL_MARKUP` - only exactly `<ruby lang = 'ja-JP'>` will be converted back to markup. Everything else including `<ruby>` will be ignored.
 - 1 May 2022
   - Add Furigana detection for small Kana (ヵヶ).
 - 29 Apr 2022
