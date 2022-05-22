@@ -30,8 +30,8 @@
     let observer = new MutationObserver((muts) => {
       muts.forEach((mut) => {
         mut.addedNodes.forEach((n) => {
-          setupForTextArea(n)
-        })
+          setupForTextArea(n);
+        });
 
         mut.removedNodes.forEach((n) => {
           if (
@@ -64,7 +64,7 @@
     let isInjected = false;
 
     if (!(p instanceof HTMLElement)) {
-      return isInjected
+      return isInjected;
     }
 
     p.querySelectorAll('textarea').forEach((n) => {
@@ -72,14 +72,14 @@
       isInjected = true;
 
       tText.addEventListener('paste', (ev) => {
-        const oldValue = ev.clipboardData.getData('text')
-        let newValue = oldValue
+        const oldValue = ev.clipboardData.getData('text');
+        let newValue = oldValue;
 
         if (REMOVE_FRONTMATTER) {
           if (newValue.startsWith('---\n')) {
-            const segs = newValue.substring(4).split(/\n---\n/)
+            const segs = newValue.substring(4).split(/\n---\n/);
             if (segs[1] !== undefined) {
-              newValue = segs[1].replace(/^\n+/, '')
+              newValue = segs[1].replace(/^\n+/, '');
             }
           }
         }
@@ -92,27 +92,30 @@
         );
 
         if (newValue !== oldValue) {
-          console.log(oldValue)
+          console.log(oldValue);
 
           setTimeout(() => {
-            let position = -1
-            let lastIndex = -1
-            const { value } = tText
+            let position = -1;
+            let lastIndex = -1;
+            const { value } = tText;
 
             while ((lastIndex = value.indexOf(oldValue, lastIndex + 1)) > -1) {
-              position = lastIndex
+              position = lastIndex;
             }
 
             if (position > -1) {
-              tText.value = value.substring(0, position) + newValue + value.substring(position + oldValue.length)
+              tText.value =
+                value.substring(0, position) +
+                newValue +
+                value.substring(position + oldValue.length);
               tText.dispatchEvent(
                 new Event('change', { bubbles: true, cancelable: true }),
               );
             }
-          })
+          });
         }
       });
-    })
+    });
 
     return isInjected;
   }
