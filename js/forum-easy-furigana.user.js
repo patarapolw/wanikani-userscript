@@ -77,9 +77,9 @@
 
         if (REMOVE_FRONTMATTER) {
           if (newValue.startsWith('---\n')) {
-            const segs = newValue.substring(4).split(/\n---\n/);
+            const segs = newValue.substring(4).split(/\n---\n+/);
             if (segs[1] !== undefined) {
-              newValue = segs[1].replace(/^\n+/, '');
+              newValue = segs[1];
             }
           }
         }
@@ -92,8 +92,6 @@
         );
 
         if (newValue !== oldValue) {
-          console.log(oldValue);
-
           setTimeout(() => {
             let position = -1;
             let lastIndex = -1;
