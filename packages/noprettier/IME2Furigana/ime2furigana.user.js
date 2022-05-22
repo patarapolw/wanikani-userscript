@@ -19,6 +19,8 @@
   const NO_OFF_MODE = true;
   // If code block detection is buggy, turn if off and use invisible characters (from https://unicode-explorer.com/c/200B) instead.
   const CODE_BLOCK_DETECTION = true;
+  // Hide buttons for generating a blank <>[] and <>{}
+  const HIDE_MARKUP_BUTTONS = true;
 
   // Original option - turn off for convenience.
   const ASK_BEFORE_CONVERTING_RUBY_TO_FURIGANA_MARKUP = false;
@@ -111,7 +113,7 @@
     if (!textArea) return;
     tText = textArea;
     isTextInit = false;
-    textArea.addEventListener("compositionupdate", update);
+    textArea.addEventListener("compositionupdate", updateFurigana);
     textArea.addEventListener("compositionend", addFurigana);
     textArea.addEventListener("paste", () => {
       const from = textArea.selectionStart;
@@ -179,8 +181,10 @@
       div.appendChild(bMode);
     }
 
-    addInsertButton(div, 1);
-    addInsertButton(div, 2);
+    if (!HIDE_MARKUP_BUTTONS) {
+      addInsertButton(div, 1);
+      addInsertButton(div, 2);
+    }
 
     if (bMode) {
       updateButton()
@@ -232,9 +236,11 @@
     updateTextArea();
   }
 
-  function update(event) {
+  function updateFurigana(event) {
     if (FURIGANA_REGEX.test(event.data)) {
       furigana = event.data;
+    } else if (!/[A-ZA-ZＡ-Ｚ]/iu.test(event.data)) {
+      furigana = ''
     }
   }
 

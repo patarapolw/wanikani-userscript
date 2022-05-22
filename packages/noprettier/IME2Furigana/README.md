@@ -1,5 +1,8 @@
 ## Change Logs
 
+- 22 May 2022
+  - The two new buttons can now be hidden
+  - Furigana should be cleared when IME isn't active.
 - 6 May 2022
   - Add label for Options
   - Add Option `CONVERT_ONLY_SPECIAL_MARKUP` - only exactly `<ruby lang = 'ja-JP'>` will be converted back to markup. Everything else including `<ruby>` will be ignored.
