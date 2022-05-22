@@ -239,8 +239,6 @@
   function updateFurigana(event) {
     if (FURIGANA_REGEX.test(event.data)) {
       furigana = event.data;
-    } else if (!/[A-ZA-ZＡ-Ｚ]/iu.test(event.data)) {
-      furigana = ''
     }
   }
 
