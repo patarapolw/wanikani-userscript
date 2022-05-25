@@ -20,28 +20,28 @@
     "prepublishOnly": "yarn build:lib"
   },
   "dependencies": {
-    "htmlparser2": "^7.2.0"
+    "htmlparser2": "^8.0.1"
   },
   "devDependencies": {
     "@types/jquery": "^3.5.14",
     "@types/js-yaml": "^4.0.5",
     "@types/markdown-it": "^12.2.3",
-    "@types/node": "^17.0.23",
-    "axios": "^0.26.1",
-    "dexie": "^3.2.1",
+    "@types/node": "^17.0.35",
+    "axios": "^0.27.2",
+    "dexie": "^3.2.2",
     "fast-glob": "^3.2.11",
-    "fastify": "^3.28.0",
-    "fastify-static": "^4.6.1",
+    "fastify": "^3.29.0",
+    "fastify-static": "^4.7.0",
     "import-sort-parser-typescript": "^6.0.0",
     "incremental-dom": "^0.7.0",
     "js-yaml": "^4.1.0",
-    "markdown-it": "^12.3.2",
+    "markdown-it": "^13.0.1",
     "npm-run-all": "^4.1.5",
     "pino-pretty": "^7.6.1",
-    "sass": "^1.50.0",
-    "ts-node": "^10.7.0",
-    "typescript": "^4.6.3",
-    "vite": "^2.9.1"
+    "sass": "^1.52.1",
+    "ts-node": "^10.8.0",
+    "typescript": "^4.7.2",
+    "vite": "^2.9.9"
   },
   "importSort": {
     ".js, .ts": {
