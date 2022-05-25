@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Community Preprocess (EasyFurigana)
 // @namespace    https://github.com/patarapolw/wanikani-userscript
-// @version      0.1
+// @version      0.1.1
 // @description  New syntax for Furigana, this is roughly equivalent to furigana-markdown-it plugin
 // @author       polv
 // @license      MIT
@@ -77,9 +77,9 @@
 
         if (REMOVE_FRONTMATTER) {
           if (newValue.startsWith('---\n')) {
-            const segs = newValue.substring(4).split(/\n---\n+/);
-            if (segs[1] !== undefined) {
-              newValue = segs[1];
+            const index = newValue.indexOf('\n---\n', 4);
+            if (index > 4) {
+              newValue = newValue.substring(index + 5).replace(/^\n+/, '');
             }
           }
         }
