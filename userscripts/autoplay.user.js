@@ -7,7 +7,7 @@
 // @match        *://www.wanikani.com/review/session*
 // @match        *://www.wanikani.com/extra_study/session*
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
-// @require      https://raw.githubusercontent.com/patarapolw/wanikani-userscript/master/userscripts/types/ankiconnect.js
+// @require      https://raw.githubusercontent.com/patarapolw/wanikani-userscript/master/userscripts/shared/ankiconnect.js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @grant        none
 // ==/UserScript==
@@ -31,7 +31,7 @@
   /**
    * @type {ScriptOptions}
    *
-   * Remove Anki keys to disable lookup
+   * Remove Anki key to disable lookup
    */
   const OPTS = {
     RANDOMIZE_VOCABULARY_AUDIO: true,
@@ -41,15 +41,15 @@
     ANKI: {
       model: 'yomichan-terms',
       searchFields: {
-        vocabulary: ['JapaneseWaniKani', 'Japanese'],
+        vocabulary: ['JapaneseWanikani', 'Japanese'],
         reading: ['Reading'],
       },
       outFields: {
         sentence: [
           {
-            ja: 'Japanese',
-            audio: 'JapaneseAudio',
-            en: 'JapaneseMeaning',
+            ja: 'Sentence',
+            audio: 'SentenceAudio',
+            en: 'SentenceMeaning',
           },
         ],
       },
@@ -76,7 +76,7 @@
     Object.assign(document.createElement('style'), {
       className: 'style--' + HTML_CLASS,
       innerHTML: `
-    .${HTML_CLASS}.${HIDDEN_UNTIL_HOVER_CLASS}:not(:hover) {
+    .${HTML_CLASS} .${HIDDEN_UNTIL_HOVER_CLASS}:not(:hover) {
       background-color:#ccc;
       color:#ccc;
       text-shadow:none;
@@ -85,117 +85,128 @@
   );
 
   /**
+   *
+   * @type {import("./types/wanikani").WKCurrent<'vocabulary'> | undefined}
+   */
+  let current;
+  /**
    * @type {ISentence[]}
    */
   let sentences = [];
 
-  wkItemInfo
-    .on('lesson,lessonQuiz,review,extraStudy')
-    .forType('vocabulary')
-    .notify((state) => {
-      sentences = [];
+  const onNewVocabulary = () => {
+    sentences = [];
 
-      if (OPTS.ANKI) {
-        const { model: noteType, searchFields, outFields } = OPTS.ANKI;
-        const { characters, reading } = state;
+    const c = $.jStorage.get('currentItem');
+    if (!c || !('voc' in c)) {
+      current = undefined;
+      return;
+    }
+    current = c;
 
-        ankiconnect
-          .send('findNotes', {
-            query: [
-              `note:"${noteType}"`,
-              `(${searchFields.vocabulary
-                .map((f) => `"${f}:${characters}"`)
-                .join(' OR ')})`,
-              `(${reading
-                .flatMap((r) => searchFields.reading.map((f) => `"${f}:${r}"`))
-                .join(' OR ')})`,
-            ].join(' '),
-          })
-          .then((notes) => ankiconnect.send('notesInfo', { notes }))
-          .then((notes) => {
-            /**
-             * @param {Pick<INote, 'fields'>} note
-             * @param {string} fieldName
-             */
-            function getField(note, fieldName) {
-              let { value = '' } = note.fields[fieldName] || {};
+    if (OPTS.ANKI) {
+      const { model: noteType, searchFields, outFields } = OPTS.ANKI;
+      const { voc, kana } = c;
 
-              if (FURIGANA_FIELDS.has(fieldName)) {
-                value = value
-                  .replace(/(\[.+?\])(.)/g, '$1 $2')
-                  .replace(
-                    /(^| )([^ \[]+)\[([^\]]+)\]/g,
-                    '<ruby>$1<rt>$2</rt></ruby>',
-                  );
+      ankiconnect
+        .send('findNotes', {
+          query: [
+            `"note:${noteType}"`,
+            `(${searchFields.vocabulary
+              .map((f) => `"${f}:${voc}"`)
+              .join(' OR ')})`,
+            `(${kana
+              .flatMap((r) => searchFields.reading.map((f) => `"${f}:${r}"`))
+              .join(' OR ')})`,
+          ].join(' '),
+        })
+        .then((notes) => ankiconnect.send('notesInfo', { notes }))
+        .then((notes) => {
+          /**
+           * @param {Pick<INote, 'fields'>} note
+           * @param {string} fieldName
+           */
+          function getField(note, fieldName) {
+            let { value = '' } = note.fields[fieldName] || {};
+
+            if (FURIGANA_FIELDS.has(fieldName)) {
+              value = value
+                .replace(/(\[.+?\])(.)/g, '$1 $2')
+                .replace(
+                  /(^| )([^ \[]+)\[([^\]]+)\]/g,
+                  '<ruby>$1<rt>$2</rt></ruby>',
+                );
+            }
+
+            return value;
+          }
+
+          const filteredNotes = notes
+            .sort((n1, n2) =>
+              [n1, n2]
+                .map((n1) =>
+                  searchFields.vocabulary.findIndex((f) => getField(n1, f)),
+                )
+                .reduce((prev, c) => prev - c),
+            )
+            .filter((n) =>
+              searchFields.reading
+                .flatMap((f) => getField(n, f).split('\n'))
+                .some((r) => kana.includes(r.trim())),
+            );
+
+          const n =
+            filteredNotes.find((n) =>
+              outFields.sentence.map((f) => getField(n, f.audio)),
+            ) || filteredNotes[0];
+
+          if (n) {
+            sentences = outFields.sentence.map((f) => {
+              const out = {
+                ja: f.ja ? getField(n, f.ja) : undefined,
+                en: f.en ? getField(n, f.en) : undefined,
+                audio: '',
+              };
+
+              const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
+              if (m) {
+                const filename = m[1];
+
+                // [sound:https://...] works in AnkiDroid
+                if (/:\/\//.exec(filename)) {
+                  out.audio = m[1];
+                } else {
+                  ankiconnect
+                    .send('retrieveMediaFile', { filename })
+                    .then((r) => {
+                      let mimeType = 'audio/mpeg';
+                      const ext = m[1].replace(/^.+\./, '');
+                      switch (ext) {
+                        default:
+                          mimeType = `audio/${ext}`;
+                      }
+
+                      out.audio = `data:${mimeType};base64,${r}`;
+                    });
+                }
               }
 
-              return value;
-            }
+              return out;
+            });
+          }
+        });
+    }
+  };
 
-            const filteredNotes = notes
-              .sort((n1, n2) =>
-                [n1, n2]
-                  .map((n1) =>
-                    searchFields.vocabulary.findIndex((f) => getField(n1, f)),
-                  )
-                  .reduce((prev, c) => prev - c),
-              )
-              .filter((n) =>
-                searchFields.reading
-                  .flatMap((f) => getField(n, f).split('\n'))
-                  .some((r) => reading.includes(r.trim())),
-              );
-
-            const n =
-              filteredNotes.find((n) =>
-                outFields.sentence.map((f) => getField(n, f.audio)),
-              ) || filteredNotes[0];
-
-            if (n) {
-              sentences = outFields.sentence.map((f) => {
-                const out = {
-                  ja: f.ja ? getField(n, f.ja) : undefined,
-                  en: f.en ? getField(n, f.en) : undefined,
-                  audio: '',
-                };
-
-                const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
-                if (m) {
-                  const filename = m[1];
-
-                  // [sound:https://...] works in AnkiDroid
-                  if (/:\/\//.exec(filename)) {
-                    out.audio = m[1];
-                  } else {
-                    ankiconnect
-                      .send('retrieveMediaFile', { filename })
-                      .then((r) => {
-                        let mimeType = 'audio/mpeg';
-                        const ext = m[1].replace(/^.+\./, '');
-                        switch (ext) {
-                          default:
-                            mimeType = `audio/${ext}`;
-                        }
-
-                        out.audio = `data:${mimeType};base64,${r}`;
-                      });
-                  }
-                }
-
-                return out;
-              });
-            }
-          });
-      }
-    });
+  $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
+  onNewVocabulary();
 
   wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy')
     .forType('vocabulary')
     .under('reading')
-    .appendAtTop('WaniKani Autoplay', (state) => {
-      const current = $.jStorage.get('currentItem');
-      if (!current || !('voc' in current)) {
+    .appendAtTop('WaniKani Autoplay', () => {
+      if (!current) {
         return;
       }
 
@@ -216,7 +227,6 @@
           let audioEl = vocabAudioEls[identifier];
           if (!audioEl) {
             audioEl = document.createElement('audio');
-            audioEl.className = HTML_CLASS;
             audioEl.style.display = 'none';
 
             vocabAudioEls[identifier] = audioEl;
@@ -232,9 +242,10 @@
         const vocabAudioElArray = Object.values(vocabAudioEls);
         const n = Math.floor(vocabAudioElArray.length * Math.random());
         outputDiv.append(vocabAudioElArray[n]);
-        vocabAudioElArray.map((el, i) => (i === n ? el.remove() : null));
+        vocabAudioElArray.map((el, i) => (i !== n ? el.remove() : null));
       }
 
+      let hasSentences = false;
       sentences.map((s) => {
         const section = document.createElement('section');
 
@@ -267,9 +278,14 @@
           p.innerText = s.en;
           section.append(p);
         }
+
+        if (section.innerHTML) {
+          outputDiv.append(section);
+          hasSentences = true;
+        }
       });
 
-      if (outputDiv.textContent) {
+      if (outputDiv.innerHTML) {
         const audioEls = Array.from(outputDiv.querySelectorAll('audio'));
         if (audioEls[0]) {
           audioEls[0].autoplay = true;
@@ -283,12 +299,12 @@
           });
         }
 
-        if (!outputDiv.querySelector(':not(audio)')) {
-          document.body.append(outputDiv);
-          return;
+        if (hasSentences) {
+          return outputDiv;
         }
 
-        return outputDiv;
+        document.body.append(outputDiv);
+        return;
       }
       return;
     });
