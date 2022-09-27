@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         WaniKani Autoplay Audio
+// @name         WaniKani Autoplay Sentence Audio
 // @namespace    polv/wanikani
 // @version      0.1
-// @description  Autoplay audio with customizability (via Anki-Connect). Also with sentences (via ImmersionKit.com).
+// @description  Autoplay audio sentences (via ImmersionKit.com), with customizability (via Anki-Connect)
 // @author       polv
 // @match        *://www.wanikani.com/review/session*
 // @match        *://www.wanikani.com/extra_study/session*
@@ -20,6 +20,7 @@
 /// <reference path="./types/wanikani.d.ts" />
 /// <reference path="./types/item-info.d.ts" />
 /// <reference path="./types/ankiconnect.d.ts" />
+/// <reference path="./types/immersion-kit.d.ts" />
 
 /// <reference path="./types/autoplay.user.d.ts" />
 (function () {
@@ -34,10 +35,21 @@
    * Remove Anki key to disable lookup
    */
   const OPTS = {
-    RANDOMIZE_VOCABULARY_AUDIO: true,
+    // RANDOMIZE_VOCABULARY_AUDIO: true,
     AUTOPLAY_AUDIO_IN_LESSONS: false,
     HIDE_SENTENCE_JA: true,
     HIDE_SENTENCE_EN: 'remove',
+    IMMERSION_KIT: {
+      nSentences: 3,
+      priority: [
+        'Death Note',
+        'Hunter x Hunter',
+        'Fullmetal Alchemist Brotherhood',
+        "Kino's Journey",
+        'Your Name',
+        'Bakemonogatari',
+      ],
+    },
     ANKI: {
       model: 'yomichan-terms',
       searchFields: {
@@ -193,6 +205,65 @@
 
               return out;
             });
+            return sentences;
+          }
+        })
+        .then((ss = []) => {
+          if (!ss.length) {
+            fetch(
+              `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
+            )
+              .then((r) => r.json())
+              .then((r) => {
+                const {
+                  data: [{ examples }],
+                } = /** @type {ImmersionKitResult} */ (r);
+
+                /** @type {(typeof examples)[]} */
+                const sortedExamples = [];
+                /** @type {typeof examples} */
+                let remainingExamples = examples;
+
+                for (const p of OPTS.IMMERSION_KIT.priority) {
+                  /** @type {typeof examples} */
+                  const currentExamples = [];
+                  /** @type {typeof examples} */
+                  const nextRemainingExamples = [];
+
+                  for (const ex of remainingExamples) {
+                    if (ex.deck_name === p) {
+                      currentExamples.push(ex);
+                    } else {
+                      nextRemainingExamples.push(ex);
+                    }
+                  }
+
+                  sortedExamples.push(currentExamples);
+                  remainingExamples = nextRemainingExamples;
+                }
+
+                sortedExamples.push(remainingExamples);
+
+                for (const ss of sortedExamples) {
+                  if (sentences.length >= OPTS.IMMERSION_KIT.nSentences) {
+                    break;
+                  }
+
+                  while (ss.length > 0) {
+                    const i = Math.floor(Math.random() * ss.length);
+                    sentences.push({
+                      ja: ss[i].sentence,
+                      audio: ss[i].sound_url,
+                      en: ss[i].translation,
+                    });
+                    ss.splice(i, 1);
+
+                    if (sentences.length >= OPTS.IMMERSION_KIT.nSentences) {
+                      break;
+                    }
+                  }
+                }
+              });
           }
         });
     }

@@ -1,8 +1,12 @@
 interface ScriptOptions {
-  RANDOMIZE_VOCABULARY_AUDIO: boolean;
+  // RANDOMIZE_VOCABULARY_AUDIO: boolean;
   AUTOPLAY_AUDIO_IN_LESSONS: boolean;
   HIDE_SENTENCE_JA: HidingOptions;
   HIDE_SENTENCE_EN: HidingOptions;
+  IMMERSION_KIT: {
+    priority: string[];
+    nSentences: number;
+  };
   ANKI?: {
     model: string;
     searchFields: {
