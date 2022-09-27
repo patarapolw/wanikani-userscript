@@ -135,16 +135,7 @@
 
     /**
      *
-     * @type {{
-     * id: number;
-     * slug: string;
-     * kan?: string | {kan: string}[];
-     * aud?: { content_type: string; pronunciation: string; url: string; voice_actor_id: number }[]
-     * voc?: string;
-     * rad?: string;
-     * kana?: string[];
-     * en: string[];
-     * }}
+     * @type {import("./types/wanikani").WKCurrent<'vocabulary'> | undefined}
      */
     let current;
     const sentence = {
@@ -154,13 +145,18 @@
     };
 
     function getCurrentItem() {
-      current = $.jStorage.get('currentItem');
+      const c = $.jStorage.get('currentItem');
+      if (!c || !('voc' in c)) {
+        current = undefined;
+        return;
+      }
+      current = c;
     }
 
     const onNewVocabulary = () => {
       getCurrentItem();
 
-      if (!current || !current.voc) return;
+      if (!current) return;
 
       sentence.ja = '';
       sentence.audio = '';

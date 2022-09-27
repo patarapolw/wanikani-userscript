@@ -3,10 +3,8 @@
   "version": "0.2.0",
   "author": "polv",
   "license": "MIT",
-  "scripts": {
-    "prepare": "husky install"
-  },
   "devDependencies": {
-    "husky": "^7.0.4"
+    "@types/jquery": "^3.5.14",
+    "prettier": "^2.7.1"
   }
 }
