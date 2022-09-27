@@ -5,14 +5,21 @@ interface IMedia {
   fields: string[];
 }
 
-interface INote {
+interface INote<T extends INoteField = INoteFieldFull> {
   deckName: string;
   modelName: string;
-  fields: Record<string, string>;
+  fields: Record<string, T>;
   tags: string[];
   audio?: IMedia[];
   video?: IMedia[];
   picture?: IMedia[];
+}
+
+type INoteField = string | INoteFieldFull;
+
+interface INoteFieldFull {
+  value: string;
+  order: number;
 }
 
 type IAddNoteOptions =
@@ -29,7 +36,7 @@ type IAddNoteOptions =
       };
     };
 
-type INoteWithOptions = INote & {
+type INoteWithOptions<T extends INoteField> = INote<T> & {
   options: IAddNoteOptions;
 };
 
@@ -193,21 +200,21 @@ interface AnkiConnectActions
 
   addNote: {
     params: {
-      note: INoteWithOptions;
+      note: INoteWithOptions<string>;
     };
     /** NoteId */
     result: string;
   };
   addNotes: {
     params: {
-      notes: INoteWithOptions[];
+      notes: INoteWithOptions<string>[];
     };
     /** NoteId[], will be `null` if failed */
     result: (string | null)[];
   };
   canAddNotes: {
     params: {
-      notes: INoteWithOptions[];
+      notes: INoteWithOptions<string>[];
     };
     /** boolean[] */
     result: boolean[];
@@ -216,7 +223,7 @@ interface AnkiConnectActions
     params: {
       note: Partial<INote> & {
         id: number;
-        fields: INote['fields'];
+        fields: INote<string>['fields'];
         options: IAddNoteOptions;
       };
     };
@@ -254,15 +261,8 @@ interface AnkiConnectActions
     params: {
       notes: number[];
     };
-    result: (Omit<INote, 'deckName' | 'fields'> & {
+    result: (Omit<INote, 'deckName'> & {
       noteId: number;
-      fields: Record<
-        string,
-        {
-          value: string;
-          order: number;
-        }
-      >;
       cards: number[];
     })[];
   };
@@ -271,32 +271,32 @@ interface AnkiConnectActions
 interface AnkiConnectChain {
   add<A extends keyof AnkiConnectActions>(
     action: A,
-    params: AnkiConnectActions[A]['params']
-  ): AnkiConnectChain
-  commit(): AnkiConnect['send']
+    params: AnkiConnectActions[A]['params'],
+  ): AnkiConnectChain;
+  commit(): AnkiConnect['send'];
 }
 
 class AnkiConnect {
-  public baseURL: string
-  public version: number
+  public baseURL: string;
+  public version: number;
 
-  constructor(baseURL?: string, version?: number)
+  constructor(baseURL?: string, version?: number);
 
   send<A extends keyof AnkiConnectActions>(
     action: A,
     params: AnkiConnectActions[A]['params'],
-    version?: number
-  ): Promise<AnkiConnectActions[A]['result']>
+    version?: number,
+  ): Promise<AnkiConnectActions[A]['result']>;
 
   chain<A extends keyof AnkiConnectActions>(
     action: A,
     params: AnkiConnectActions[A]['params'],
-    version?: number
-  ): AnkiConnectChain
+    version?: number,
+  ): AnkiConnectChain;
 }
 
 declare global {
   interface Window {
-    AnkiConnect: typeof AnkiConnect
+    AnkiConnect: typeof AnkiConnect;
   }
 }

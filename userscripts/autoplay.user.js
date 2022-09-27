@@ -20,6 +20,8 @@
 /// <reference path="./types/wanikani.d.ts" />
 /// <reference path="./types/item-info.d.ts" />
 /// <reference path="./types/ankiconnect.d.ts" />
+
+/// <reference path="./types/autoplay.user.d.ts" />
 (function () {
   'use strict';
 
@@ -37,53 +39,44 @@
     HIDE_SENTENCE_JA: true,
     HIDE_SENTENCE_EN: 'remove',
     ANKI: {
-      yomichan: {
-        model: 'yomichan-terms',
-        fields: {
-          Japanese: { lang: 'ja' },
-          JapaneseWaniKani: { lang: 'ja', furigana: false },
-          Reading: {},
-          Sentence: { lang: 'ja' },
-          SentenceAudio: {},
-          SentenceMeaning: {},
-        },
+      model: 'yomichan-terms',
+      searchFields: {
+        vocabulary: ['JapaneseWaniKani', 'Japanese'],
+        reading: ['Reading'],
+      },
+      outFields: {
+        sentence: [
+          {
+            ja: 'Japanese',
+            audio: 'JapaneseAudio',
+            en: 'JapaneseMeaning',
+          },
+        ],
       },
     },
   };
   deepFreeze(OPTS);
 
-  /**
-   * @typedef {{
-   * RANDOMIZE_VOCABULARY_AUDIO: boolean
-   * AUTOPLAY_AUDIO_IN_LESSONS: boolean
-   * HIDE_SENTENCE_JA: HidingOptions
-   * HIDE_SENTENCE_EN: HidingOptions
-   * ANKI?: { [type in 'yomichan']?: NoteType }
-   * }} ScriptOptions
-   *
-   * @typedef {boolean | 'remove'} HidingOptions
-   *
-   * @typedef {{
-   * model: string,
-   * fields: Record<string, FieldMeta>
-   * }} NoteType
-   *
-   * @typedef {{
-   * lang?: string
-   * furigana?: boolean
-   * }} FieldMeta
-   */
-
   // SCRIPT START
 
   const HTML_CLASS = 'wk-autoplay';
+  const FURIGANA_FIELDS = new Set(
+    OPTS.ANKI
+      ? [
+          ...OPTS.ANKI.searchFields.vocabulary,
+          ...OPTS.ANKI.outFields.sentence.map((s) => s.ja).filter((f) => f),
+        ]
+      : undefined,
+  );
   const ankiconnect = new AnkiConnect();
+
+  const HIDDEN_UNTIL_HOVER_CLASS = 'hidden-until-hover';
 
   document.head.append(
     Object.assign(document.createElement('style'), {
-      className: HTML_CLASS,
+      className: 'style--' + HTML_CLASS,
       innerHTML: `
-    .${HTML_CLASS}.hidden-until-hover:not(:hover) {
+    .${HTML_CLASS}.${HIDDEN_UNTIL_HOVER_CLASS}:not(:hover) {
       background-color:#ccc;
       color:#ccc;
       text-shadow:none;
@@ -91,23 +84,213 @@
     }),
   );
 
-  const sentence = {
-    ja: '',
-    audio: '',
-    en: '',
-  };
+  /**
+   * @type {ISentence[]}
+   */
+  let sentences = [];
 
   wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy')
     .forType('vocabulary')
-    .notify((state) => {});
+    .notify((state) => {
+      sentences = [];
+
+      if (OPTS.ANKI) {
+        const { model: noteType, searchFields, outFields } = OPTS.ANKI;
+        const { characters, reading } = state;
+
+        ankiconnect
+          .send('findNotes', {
+            query: [
+              `note:"${noteType}"`,
+              `(${searchFields.vocabulary
+                .map((f) => `"${f}:${characters}"`)
+                .join(' OR ')})`,
+              `(${reading
+                .flatMap((r) => searchFields.reading.map((f) => `"${f}:${r}"`))
+                .join(' OR ')})`,
+            ].join(' '),
+          })
+          .then((notes) => ankiconnect.send('notesInfo', { notes }))
+          .then((notes) => {
+            /**
+             * @param {Pick<INote, 'fields'>} note
+             * @param {string} fieldName
+             */
+            function getField(note, fieldName) {
+              let { value = '' } = note.fields[fieldName] || {};
+
+              if (FURIGANA_FIELDS.has(fieldName)) {
+                value = value
+                  .replace(/(\[.+?\])(.)/g, '$1 $2')
+                  .replace(
+                    /(^| )([^ \[]+)\[([^\]]+)\]/g,
+                    '<ruby>$1<rt>$2</rt></ruby>',
+                  );
+              }
+
+              return value;
+            }
+
+            const filteredNotes = notes
+              .sort((n1, n2) =>
+                [n1, n2]
+                  .map((n1) =>
+                    searchFields.vocabulary.findIndex((f) => getField(n1, f)),
+                  )
+                  .reduce((prev, c) => prev - c),
+              )
+              .filter((n) =>
+                searchFields.reading
+                  .flatMap((f) => getField(n, f).split('\n'))
+                  .some((r) => reading.includes(r.trim())),
+              );
+
+            const n =
+              filteredNotes.find((n) =>
+                outFields.sentence.map((f) => getField(n, f.audio)),
+              ) || filteredNotes[0];
+
+            if (n) {
+              sentences = outFields.sentence.map((f) => {
+                const out = {
+                  ja: f.ja ? getField(n, f.ja) : undefined,
+                  en: f.en ? getField(n, f.en) : undefined,
+                  audio: '',
+                };
+
+                const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
+                if (m) {
+                  const filename = m[1];
+
+                  // [sound:https://...] works in AnkiDroid
+                  if (/:\/\//.exec(filename)) {
+                    out.audio = m[1];
+                  } else {
+                    ankiconnect
+                      .send('retrieveMediaFile', { filename })
+                      .then((r) => {
+                        let mimeType = 'audio/mpeg';
+                        const ext = m[1].replace(/^.+\./, '');
+                        switch (ext) {
+                          default:
+                            mimeType = `audio/${ext}`;
+                        }
+
+                        out.audio = `data:${mimeType};base64,${r}`;
+                      });
+                  }
+                }
+
+                return out;
+              });
+            }
+          });
+      }
+    });
 
   wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy')
     .forType('vocabulary')
     .under('reading')
     .appendAtTop('WaniKani Autoplay', (state) => {
-      return undefined;
+      const current = $.jStorage.get('currentItem');
+      if (!current || !('voc' in current)) {
+        return;
+      }
+
+      Array.from(document.querySelectorAll('.' + HTML_CLASS)).map((it) =>
+        it.remove(),
+      );
+
+      const outputDiv = document.createElement('div');
+      outputDiv.className = HTML_CLASS;
+
+      if (current.aud) {
+        /**
+         * @type {Record<string, HTMLAudioElement>}
+         */
+        const vocabAudioEls = {};
+        current.aud.map((a) => {
+          const identifier = `${a.pronunciation}:${a.voice_actor_id}`;
+          let audioEl = vocabAudioEls[identifier];
+          if (!audioEl) {
+            audioEl = document.createElement('audio');
+            audioEl.className = HTML_CLASS;
+            audioEl.style.display = 'none';
+
+            vocabAudioEls[identifier] = audioEl;
+          }
+
+          const source = document.createElement('source');
+          source.type = a.content_type;
+          source.src = a.url;
+
+          audioEl.append(source);
+        });
+
+        const vocabAudioElArray = Object.values(vocabAudioEls);
+        const n = Math.floor(vocabAudioElArray.length * Math.random());
+        outputDiv.append(vocabAudioElArray[n]);
+        vocabAudioElArray.map((el, i) => (i === n ? el.remove() : null));
+      }
+
+      sentences.map((s) => {
+        const section = document.createElement('section');
+
+        if (s.ja) {
+          const p = document.createElement('p');
+          if (OPTS.HIDE_SENTENCE_JA) {
+            p.className = HIDDEN_UNTIL_HOVER_CLASS;
+          }
+          p.lang = 'ja';
+          p.innerText = s.ja;
+          section.append(p);
+        }
+
+        if (s.audio) {
+          const audio = document.createElement('audio');
+          audio.src = s.audio;
+          audio.controls = true;
+
+          const p = document.createElement('p');
+          p.append(audio);
+          section.append(p);
+        }
+
+        if (s.en) {
+          const p = document.createElement('p');
+          if (OPTS.HIDE_SENTENCE_EN) {
+            p.className = HIDDEN_UNTIL_HOVER_CLASS;
+          }
+          p.lang = 'ja';
+          p.innerText = s.en;
+          section.append(p);
+        }
+      });
+
+      if (outputDiv.textContent) {
+        const audioEls = Array.from(outputDiv.querySelectorAll('audio'));
+        if (audioEls[0]) {
+          audioEls[0].autoplay = true;
+          audioEls.map((el, i) => {
+            const nextEl = audioEls[i + 1];
+            if (nextEl) {
+              el.onended = () => {
+                nextEl.play();
+              };
+            }
+          });
+        }
+
+        if (!outputDiv.querySelector(':not(audio)')) {
+          document.body.append(outputDiv);
+          return;
+        }
+
+        return outputDiv;
+      }
+      return;
     });
 
   /**
