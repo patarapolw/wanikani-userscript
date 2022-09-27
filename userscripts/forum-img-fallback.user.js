@@ -64,10 +64,10 @@
     if (src !== DEFAULT_IMG) {
       el.onerror = () => {
         el.src = DEFAULT_IMG;
-        el.onerror = () => {};
+        el.onerror = () => { };
       }
     } else {
-      el.onerror = () => {};
+      el.onerror = () => { };
     }
 
     el.src = src;

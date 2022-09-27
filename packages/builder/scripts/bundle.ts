@@ -1,10 +1,12 @@
 import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
+import path from 'path';
 
 import yaml from 'js-yaml';
 
 async function main() {
-  const dstDir = '../../lib';
+  const ROOT = '../..';
+  const dstDir = path.join(ROOT, 'userscripts/built');
 
   spawnSync('rm', ['-r', dstDir]);
 

@@ -9,6 +9,8 @@
 // @grant        none
 // ==/UserScript==
 
+// !buggy
+
 (function () {
   'use strict';
 
