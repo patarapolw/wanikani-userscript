@@ -1,31 +1,44 @@
-import 'jquery'
-import 'jStorage'
+import 'jquery';
+import 'jStorage';
 
-type WKType = 'radical' | 'kanji' | 'vocabulary'
+type WKType = 'radical' | 'kanji' | 'vocabulary';
+type WKQuestionType = 'reading' | 'meaning';
 
 type WKCurrent<T extends WKType> = {
   id: number;
   slug: string;
   en: string[];
-} & (T extends 'radical' ? {
-  rad: string
-} : {}) & (T extends 'kanji' ? {
-  kan: string;
-} : {}) & (T extends 'vocabulary' ? {
-  kan: {kan: string}[];
-  aud: {
-    content_type: string;
-    pronunciation: string;
-    url: string;
-    voice_actor_id: number
-  }[]
-  voc: string
-  kana: string[]
-} : {})
+} & (T extends 'radical'
+  ? {
+      rad: string;
+    }
+  : {}) &
+  (T extends 'kanji'
+    ? {
+        kan: string;
+      }
+    : {}) &
+  (T extends 'vocabulary'
+    ? {
+        kan: { kan: string }[];
+        aud: {
+          content_type: string;
+          pronunciation: string;
+          url: string;
+          voice_actor_id: number;
+        }[];
+        voc: string;
+        kana: string[];
+      }
+    : {});
 
 declare global {
   interface JStorageStatic {
-    get(key: 'currentItem'): WKCurrent<any> | undefined
+    get(key: 'currentItem'): WKCurrent<any> | undefined;
+    get(key: 'activeQueue'): WKCurrent<any> | undefined;
+    get(key: 'questionCount'): number | undefined;
+    get(key: 'completedCount'): number | undefined;
+    get(key: 'questionType'): WKQuestionType | undefined;
   }
 
   interface Window {

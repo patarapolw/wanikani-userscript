@@ -34,6 +34,10 @@
       return;
     }
 
+    if ($.jStorage.get('questionType') !== 'reading') {
+      return;
+    }
+
     const targetEl = document.querySelector('#character');
     if (!(targetEl instanceof HTMLElement)) {
       return;
@@ -69,7 +73,10 @@
       vocabAudioElArray.map((el) => el.remove());
       style.show();
     };
-    audioEl.play();
+    audioEl.play().catch((e) => {
+      style.show();
+      throw e;
+    });
   };
 
   $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
