@@ -34,7 +34,7 @@
       return;
     }
 
-    if ($.jStorage.get('questionType') !== 'reading') {
+    if ($.jStorage.get('questionType') === 'reading') {
       return;
     }
 
