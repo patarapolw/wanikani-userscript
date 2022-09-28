@@ -43,9 +43,6 @@
       if (!audioEl) {
         audioEl = document.createElement('audio');
         audioEl.style.display = 'none';
-        audioEl.autoplay = true;
-        audioEl.onended = () => {};
-
         audioEl.setAttribute(`data-${IDENTIFIER}`, '');
 
         vocabAudioEls[identifier] = audioEl;
