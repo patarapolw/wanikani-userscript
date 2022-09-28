@@ -6,6 +6,7 @@
 // @author       polv
 // @match        *://www.wanikani.com/review/session*
 // @match        *://www.wanikani.com/extra_study/session*
+// @match        *://www.wanikani.com/lesson/session*
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
 // @require      https://raw.githubusercontent.com/patarapolw/wanikani-userscript/master/userscripts/shared/ankiconnect.js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
@@ -13,7 +14,6 @@
 // ==/UserScript==
 
 // TODO:
-// @match        *://www.wanikani.com/lesson/session*
 // @match        *://www.wanikani.com/*vocabulary/*
 
 // @ts-check
@@ -70,7 +70,6 @@
       immersionKit: false,
     },
   };
-  deepFreeze(OPTS);
 
   // SCRIPT START
 
@@ -104,15 +103,7 @@
     }),
   );
 
-  function getCurrent() {
-    const c = $.jStorage.get('currentItem');
-    if (!c || !('voc' in c)) {
-      return;
-    }
-    return c;
-  }
-
-  /** @type {ReturnType<typeof getCurrent>} */
+  /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */
   let current;
   /** @type {ISentence[]} */
   let sentences = [];
@@ -128,7 +119,25 @@
     isAutoplayVocab = true;
     isAutoplaySentence = true;
     sentences = [];
-    current = getCurrent();
+
+    let key = 'currentItem';
+    if (document.URL.includes('/lesson/session')) {
+      key = $.jStorage.get('l/quizActive')
+        ? 'l/currentQuizItem'
+        : 'l/currentLesson';
+    }
+
+    const c =
+      /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */ (
+        $.jStorage.get(key)
+      );
+
+    (window.unsafeWindow || window).console.log(c);
+    if (!c || !('voc' in c)) {
+      return;
+    }
+    current = c;
+
     if (!current) return;
 
     if (OPTS.ANKI) {
@@ -307,7 +316,7 @@
     .under('reading')
     .spoiling('reading')
     .appendAtTop('Autoplay Sentences', (state) => {
-      (window.unsafeWindow || window).console.log(state);
+      (window.unsafeWindow || window).console.log(state, current);
       if (outputDiv) {
         outputDiv.remove();
       }
@@ -320,6 +329,8 @@
 
       if (current.id !== state.id) return;
 
+      /** @type {HTMLAudioElement | null} */
+      let vocabAudioEl = null;
       if (current.aud) {
         /**
          * @type {Record<string, HTMLAudioElement>}
@@ -344,11 +355,15 @@
 
         const vocabAudioElArray = Object.values(vocabAudioEls);
         const n = Math.floor(vocabAudioElArray.length * Math.random());
-        outputDiv.append(vocabAudioElArray[n]);
+        vocabAudioEl = vocabAudioElArray[n];
+        outputDiv.append(vocabAudioEl);
         vocabAudioElArray.map((el, i) => (i !== n ? el.remove() : null));
       }
 
       let hasSentences = false;
+      /** @type {HTMLAudioElement[]} */
+      const sentenceAudioElArray = [];
+
       /**
        *
        * @param {HTMLElement} target
@@ -375,13 +390,13 @@
             audio.preload = 'none';
             audio.src = s.audio;
 
-            audio.setAttribute('data-type', 'external');
-
             const activateAudio = () => {
               if (!audio.src) {
                 audio.src = s.audio;
               }
             };
+
+            sentenceAudioElArray.push(audio);
 
             const p = document.createElement('p');
             p.append(audio);
@@ -417,9 +432,29 @@
 
       let isSetAutoplay = false;
 
-      const audioEls = Array.from(outputDiv.querySelectorAll('audio'));
-      for (let i = 0; i < audioEls.length; i++) {
-        const el = audioEls[i];
+      if (vocabAudioEl) {
+        isSetAutoplay = true;
+        if (isAutoplayVocab) {
+          vocabAudioEl.autoplay = true;
+          const [nextEl] = sentenceAudioElArray;
+          if (nextEl) {
+            vocabAudioEl.onended = () => {
+              const src = nextEl.getAttribute('data-src');
+              if (src) {
+                nextEl.src = src;
+              }
+
+              nextEl.play();
+              if (vocabAudioEl) vocabAudioEl.onended = null;
+            };
+          }
+        }
+
+        isAutoplayVocab = false;
+      }
+
+      for (let i = 0; i < sentenceAudioElArray.length; i++) {
+        const el = sentenceAudioElArray[i];
 
         el.preload = '';
         const src = el.getAttribute('data-src');
@@ -427,34 +462,7 @@
           el.src = src;
         }
 
-        if (isAutoplayVocab || isAutoplaySentence) {
-          const dataType = el.getAttribute('data-type');
-
-          if (!isAutoplayVocab) {
-            if (!dataType) continue;
-          }
-
-          if (dataType) {
-            isAutoplaySentence = false;
-          }
-
-          if (!isSetAutoplay) el.autoplay = true;
-          isSetAutoplay = true;
-          isAutoplayVocab = false;
-
-          const nextEl = audioEls[i + 1];
-          if (!dataType && nextEl) {
-            el.onended = () => {
-              const src = nextEl.getAttribute('data-src');
-              if (src) {
-                nextEl.src = src;
-              }
-
-              nextEl.play();
-              el.onended = null;
-            };
-          }
-        }
+        isAutoplaySentence = false;
       }
 
       if (sentences.length > OPTS.NUMBER_OF_SENTENCES) {
@@ -485,29 +493,9 @@
   let isAutoplaySentence = true;
 
   $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
+  $.jStorage.listenKeyChange('l/currentLesson', onNewVocabulary);
+  $.jStorage.listenKeyChange('l/currentQuizItem', onNewVocabulary);
   onNewVocabulary();
-
-  /**
-   * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
-   *
-   * @type {<T>(object: T) => T}
-   */
-  function deepFreeze(object) {
-    // Retrieve the property names defined on object
-    const propNames = Object.getOwnPropertyNames(object);
-
-    // Freeze properties before freezing self
-
-    for (const name of propNames) {
-      const value = object[name];
-
-      if (value && typeof value === 'object') {
-        deepFreeze(value);
-      }
-    }
-
-    return Object.freeze(object);
-  }
 
   /**
    * Fisher-Yates (aka Knuth) Shuffle

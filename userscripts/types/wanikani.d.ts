@@ -39,6 +39,8 @@ declare global {
     get(key: 'questionCount'): number | undefined;
     get(key: 'completedCount'): number | undefined;
     get(key: 'questionType'): WKQuestionType | undefined;
+
+    get(key: 'l/currentLesson'): WKCurrent<any> | undefined;
   }
 
   interface Window {
