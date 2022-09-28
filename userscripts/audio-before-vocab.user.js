@@ -16,6 +16,17 @@
   'use strict';
 
   const IDENTIFIER = 'wk-audio-b4-vocab';
+  const style = {
+    el: document.createElement('style'),
+    hide() {
+      this.el.innerHTML = `#character [lang="ja"] { visibility: hidden }`;
+    },
+    show() {
+      this.el.innerHTML = '';
+    },
+  };
+  style.el.setAttribute(`data-${IDENTIFIER}`, '');
+  document.head.append(style.el);
 
   const onNewVocabulary = () => {
     const c = $.jStorage.get('currentItem');
@@ -27,11 +38,7 @@
     if (!(targetEl instanceof HTMLElement)) {
       return;
     }
-    targetEl.querySelectorAll('[lang="ja"]').forEach((el) => {
-      if (el instanceof HTMLElement) {
-        el.style.visibility = 'hidden';
-      }
-    });
+    style.hide();
 
     /**
      * @type {Record<string, HTMLAudioElement>}
@@ -57,14 +64,12 @@
 
     const vocabAudioElArray = Object.values(vocabAudioEls);
     const n = Math.floor(vocabAudioElArray.length * Math.random());
-    vocabAudioElArray[n].play().then(() => {
+    const audioEl = vocabAudioElArray[n];
+    audioEl.onended = () => {
       vocabAudioElArray.map((el) => el.remove());
-      targetEl.querySelectorAll('[lang="ja"]').forEach((el) => {
-        if (el instanceof HTMLElement) {
-          el.style.visibility = 'visible';
-        }
-      });
-    });
+      style.show();
+    };
+    audioEl.play();
   };
 
   $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
