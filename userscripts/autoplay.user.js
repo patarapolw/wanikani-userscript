@@ -30,17 +30,17 @@
   // TODO: Use wkof's dialog
 
   /**
+   * See https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/types/autoplay.user.d.ts for typing
+   *
    * @type {ScriptOptions}
    *
-   * Remove Anki key to disable lookup
+   * Remove IMMERSION_KIT or ANKI key to disable lookup
    */
   const OPTS = {
-    // RANDOMIZE_VOCABULARY_AUDIO: true,
-    AUTOPLAY_AUDIO_IN_LESSONS: false,
     HIDE_SENTENCE_JA: true,
     HIDE_SENTENCE_EN: 'remove',
+    NUMBER_OF_SENTENCES: 3,
     IMMERSION_KIT: {
-      nSentences: 3,
       priority: [
         'Death Note',
         'Hunter x Hunter',
@@ -65,6 +65,9 @@
           },
         ],
       },
+    },
+    LOG: {
+      immersionKit: true,
     },
   };
   deepFreeze(OPTS);
@@ -92,33 +95,44 @@
       background-color:#ccc;
       color:#ccc;
       text-shadow:none;
-    }`,
+    }
+
+    .${HTML_CLASS} summary {
+      display: revert;
+    }
+    `,
     }),
   );
 
-  /**
-   *
-   * @type {import("./types/wanikani").WKCurrent<'vocabulary'> | undefined}
-   */
-  let current;
-  /**
-   * @type {ISentence[]}
-   */
-  let sentences = [];
-
-  const onNewVocabulary = () => {
-    sentences = [];
-
+  function getCurrent() {
     const c = $.jStorage.get('currentItem');
     if (!c || !('voc' in c)) {
-      current = undefined;
       return;
     }
-    current = c;
+    return c;
+  }
+
+  /** @type {ReturnType<typeof getCurrent>} */
+  let current;
+  /** @type {ISentence[]} */
+  let sentences = [];
+  /** @type {HTMLElement | null} */
+  let outputDiv = null;
+
+  const onNewVocabulary = () => {
+    if (outputDiv) {
+      outputDiv.remove();
+      outputDiv = null;
+    }
+
+    isAutoplay = true;
+    sentences = [];
+    current = getCurrent();
+    if (!current) return;
 
     if (OPTS.ANKI) {
       const { model: noteType, searchFields, outFields } = OPTS.ANKI;
-      const { voc, kana } = c;
+      const { voc, kana } = current;
 
       ankiconnect
         .send('findNotes', {
@@ -173,43 +187,51 @@
             ) || filteredNotes[0];
 
           if (n) {
-            sentences = outFields.sentence.map((f) => {
-              const out = {
-                ja: f.ja ? getField(n, f.ja) : undefined,
-                en: f.en ? getField(n, f.en) : undefined,
-                audio: '',
-              };
+            sentences = outFields.sentence
+              .map((f) => {
+                const out = {
+                  ja: f.ja ? getField(n, f.ja) : undefined,
+                  en: f.en ? getField(n, f.en) : undefined,
+                  audio: '',
+                };
 
-              const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
-              if (m) {
-                const filename = m[1];
+                const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
+                if (m) {
+                  const filename = m[1];
 
-                // [sound:https://...] works in AnkiDroid
-                if (/:\/\//.exec(filename)) {
-                  out.audio = m[1];
-                } else {
-                  ankiconnect
-                    .send('retrieveMediaFile', { filename })
-                    .then((r) => {
-                      let mimeType = 'audio/mpeg';
-                      const ext = m[1].replace(/^.+\./, '');
-                      switch (ext) {
-                        default:
-                          mimeType = `audio/${ext}`;
-                      }
+                  // [sound:https://...] works in AnkiDroid
+                  if (/:\/\//.exec(filename)) {
+                    out.audio = m[1];
+                  } else {
+                    ankiconnect
+                      .send('retrieveMediaFile', { filename })
+                      .then((r) => {
+                        let mimeType = 'audio/mpeg';
+                        const ext = m[1].replace(/^.+\./, '');
+                        switch (ext) {
+                          default:
+                            mimeType = `audio/${ext}`;
+                        }
 
-                      out.audio = `data:${mimeType};base64,${r}`;
-                    });
+                        out.audio = `data:${mimeType};base64,${r}`;
+                      });
+                  }
                 }
-              }
 
-              return out;
-            });
-            return sentences;
+                return out;
+              })
+              .filter(
+                (s) =>
+                  (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
+                  s.audio,
+              );
+
+            renewSection();
           }
         })
-        .then((ss = []) => {
-          if (!ss.length) {
+        .then(() => {
+          const { IMMERSION_KIT } = OPTS;
+          if (IMMERSION_KIT) {
             fetch(
               `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
             )
@@ -219,12 +241,12 @@
                   data: [{ examples }],
                 } = /** @type {ImmersionKitResult} */ (r);
 
-                /** @type {(typeof examples)[]} */
-                const sortedExamples = [];
+                /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
+                const sortedExamples = {};
                 /** @type {typeof examples} */
                 let remainingExamples = examples;
 
-                for (const p of OPTS.IMMERSION_KIT.priority) {
+                for (const p of IMMERSION_KIT.priority) {
                   /** @type {typeof examples} */
                   const currentExamples = [];
                   /** @type {typeof examples} */
@@ -238,55 +260,61 @@
                     }
                   }
 
-                  sortedExamples.push(currentExamples);
+                  sortedExamples[p] = currentExamples;
                   remainingExamples = nextRemainingExamples;
                 }
 
-                sortedExamples.push(remainingExamples);
+                sortedExamples[''] = remainingExamples.reduce((prev, c) => {
+                  prev[c.deck_name] = prev[c.deck_name] || [];
+                  prev[c.deck_name].push(c);
+                  return prev;
+                }, {});
 
-                for (const ss of sortedExamples) {
-                  if (sentences.length >= OPTS.IMMERSION_KIT.nSentences) {
-                    break;
-                  }
+                if (OPTS.LOG.immersionKit)
+                  (window.unsafeWindow || window).console.log(sortedExamples);
 
-                  while (ss.length > 0) {
-                    const i = Math.floor(Math.random() * ss.length);
+                for (const ss of [
+                  ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
+                  Object.values(sortedExamples['']).reduce(
+                    (prev, c) => [...prev, ...c],
+                    [],
+                  ),
+                ]) {
+                  for (const s of shuffleArray(ss)) {
                     sentences.push({
-                      ja: ss[i].sentence,
-                      audio: ss[i].sound_url,
-                      en: ss[i].translation,
+                      ja: `${s.sentence} (${s.deck_name})`,
+                      audio: s.sound_url,
+                      en: s.translation,
                     });
-                    ss.splice(i, 1);
-
-                    if (sentences.length >= OPTS.IMMERSION_KIT.nSentences) {
-                      break;
-                    }
                   }
                 }
+
+                renewSection();
               });
           }
         });
     }
   };
 
-  $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
-  onNewVocabulary();
-
-  wkItemInfo
+  const appender = wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy')
     .forType('vocabulary')
     .under('reading')
-    .appendAtTop('WaniKani Autoplay', () => {
-      if (!current) {
-        return;
+    .spoiling('reading')
+    .appendAtTop('Autoplay Examples', (state) => {
+      (window.unsafeWindow || window).console.log(state);
+      if (outputDiv) {
+        outputDiv.remove();
       }
 
-      Array.from(document.querySelectorAll('.' + HTML_CLASS)).map((it) =>
-        it.remove(),
-      );
-
-      const outputDiv = document.createElement('div');
+      outputDiv = document.createElement('div');
       outputDiv.className = HTML_CLASS;
+
+      if (!outputDiv) return;
+      if (!current) return;
+
+      const newCurrent = getCurrent();
+      if (!newCurrent || current.id !== newCurrent.id) return;
 
       if (current.aud) {
         /**
@@ -317,67 +345,117 @@
       }
 
       let hasSentences = false;
-      sentences.map((s) => {
-        const section = document.createElement('section');
+      /**
+       *
+       * @param {HTMLElement} target
+       * @param {ISentence[]} ss
+       */
+      const createSentenceSection = (target, ss) => {
+        return ss.map((s) => {
+          const section = document.createElement('section');
 
-        if (s.ja) {
-          const p = document.createElement('p');
-          if (OPTS.HIDE_SENTENCE_JA) {
-            p.className = HIDDEN_UNTIL_HOVER_CLASS;
-          }
-          p.lang = 'ja';
-          p.innerText = s.ja;
-          section.append(p);
-        }
-
-        if (s.audio) {
-          const audio = document.createElement('audio');
-          audio.src = s.audio;
-          audio.controls = true;
-          audio.setAttribute('data-type', 'external');
-
-          const p = document.createElement('p');
-          p.append(audio);
-          section.append(p);
-        }
-
-        if (s.en) {
-          const p = document.createElement('p');
-          if (OPTS.HIDE_SENTENCE_EN) {
-            p.className = HIDDEN_UNTIL_HOVER_CLASS;
-          }
-          p.lang = 'ja';
-          p.innerText = s.en;
-          section.append(p);
-        }
-
-        if (section.innerHTML) {
-          outputDiv.append(section);
-          hasSentences = true;
-        }
-      });
-
-      if (outputDiv.innerHTML) {
-        const audioEls = Array.from(outputDiv.querySelectorAll('audio'));
-        for (let i = 0; i < audioEls.length; i++) {
-          const el = audioEls[i];
-
-          if (i === 0) {
-            el.autoplay = true;
+          if (s.ja && OPTS.HIDE_SENTENCE_JA !== 'remove') {
+            const p = document.createElement('p');
+            if (OPTS.HIDE_SENTENCE_JA) {
+              p.className = HIDDEN_UNTIL_HOVER_CLASS;
+            }
+            p.lang = 'ja';
+            p.innerText = s.ja;
+            section.append(p);
           }
 
-          if (el.hasAttribute('data-type')) {
-            break;
-          } else {
+          if (s.audio) {
+            const audio = document.createElement('audio');
+            audio.controls = true;
+
+            audio.preload = 'none';
+            audio.src = s.audio;
+
+            audio.setAttribute('data-type', 'external');
+
+            const activateAudio = () => {
+              if (!audio.src) {
+                audio.src = s.audio;
+              }
+            };
+
+            const p = document.createElement('p');
+            p.append(audio);
+
+            p.addEventListener('click', activateAudio);
+            p.addEventListener('mouseenter', activateAudio);
+            p.addEventListener('touchstart', activateAudio);
+
+            section.append(p);
+          }
+
+          if (s.en && OPTS.HIDE_SENTENCE_EN !== 'remove') {
+            const p = document.createElement('p');
+            if (OPTS.HIDE_SENTENCE_EN) {
+              p.className = HIDDEN_UNTIL_HOVER_CLASS;
+            }
+            p.lang = 'ja';
+            p.innerText = s.en;
+            section.append(p);
+          }
+
+          if (section.innerHTML) {
+            hasSentences = true;
+            target.append(section);
+          }
+        });
+      };
+
+      createSentenceSection(
+        outputDiv,
+        sentences.slice(0, OPTS.NUMBER_OF_SENTENCES),
+      );
+
+      const audioEls = Array.from(outputDiv.querySelectorAll('audio'));
+      for (let i = 0; i < audioEls.length; i++) {
+        const el = audioEls[i];
+
+        el.preload = '';
+        const src = el.getAttribute('data-src');
+        if (src) {
+          el.src = src;
+        }
+
+        if (isAutoplay) {
+          if (i === 0) el.autoplay = true;
+
+          if (!el.hasAttribute('data-type')) {
             const nextEl = audioEls[i + 1];
             if (nextEl) {
               el.onended = () => {
+                const src = nextEl.getAttribute('data-src');
+                if (src) {
+                  nextEl.src = src;
+                }
+
                 nextEl.play();
+                el.onended = null;
               };
             }
           }
         }
+      }
 
+      if (sentences.length > OPTS.NUMBER_OF_SENTENCES) {
+        const details = document.createElement('details');
+
+        const summary = document.createElement('summary');
+        summary.innerText = 'Additional Examples';
+        details.append(summary);
+
+        createSentenceSection(
+          details,
+          sentences.slice(OPTS.NUMBER_OF_SENTENCES),
+        );
+        outputDiv.append(details);
+      }
+
+      if (outputDiv.innerHTML) {
         if (hasSentences) {
           return outputDiv;
         }
@@ -385,8 +463,17 @@
         document.body.append(outputDiv);
         return;
       }
-      return;
     });
+
+  let isAutoplay = true;
+  const renewSection = () => {
+    isAutoplay = false;
+    appender.renew();
+    isAutoplay = true;
+  };
+
+  $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
+  onNewVocabulary();
 
   /**
    * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
@@ -408,5 +495,32 @@
     }
 
     return Object.freeze(object);
+  }
+
+  /**
+   * Fisher-Yates (aka Knuth) Shuffle
+   *
+   * https://stackoverflow.com/a/2450976/9023855
+   *
+   * @type {<T>(arr: T[]) => T[]}
+   */
+  function shuffleArray(array) {
+    let currentIndex = array.length;
+    let randomIndex;
+
+    // While there remain elements to shuffle.
+    while (currentIndex != 0) {
+      // Pick a remaining element.
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+
+      // And swap it with the current element.
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex],
+        array[currentIndex],
+      ];
+    }
+
+    return array;
   }
 })();
