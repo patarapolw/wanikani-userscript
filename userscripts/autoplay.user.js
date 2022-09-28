@@ -334,6 +334,7 @@
           const audio = document.createElement('audio');
           audio.src = s.audio;
           audio.controls = true;
+          audio.setAttribute('data-type', 'external');
 
           const p = document.createElement('p');
           p.append(audio);
@@ -358,16 +359,23 @@
 
       if (outputDiv.innerHTML) {
         const audioEls = Array.from(outputDiv.querySelectorAll('audio'));
-        if (audioEls[0]) {
-          audioEls[0].autoplay = true;
-          audioEls.map((el, i) => {
+        for (let i = 0; i < audioEls.length; i++) {
+          const el = audioEls[i];
+
+          if (i === 0) {
+            el.autoplay = true;
+          }
+
+          if (el.hasAttribute('data-type')) {
+            break;
+          } else {
             const nextEl = audioEls[i + 1];
             if (nextEl) {
               el.onended = () => {
                 nextEl.play();
               };
             }
-          });
+          }
         }
 
         if (hasSentences) {
