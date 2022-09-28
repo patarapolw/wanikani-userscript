@@ -67,7 +67,7 @@
       },
     },
     LOG: {
-      immersionKit: true,
+      immersionKit: false,
     },
   };
   deepFreeze(OPTS);
@@ -125,7 +125,8 @@
       outputDiv = null;
     }
 
-    isAutoplay = true;
+    isAutoplayVocab = true;
+    isAutoplaySentence = true;
     sentences = [];
     current = getCurrent();
     if (!current) return;
@@ -226,7 +227,11 @@
                   s.audio,
               );
 
-            renewSection();
+            if (sentences.length) {
+              appender.renew();
+            } else {
+              isAutoplaySentence = true;
+            }
           }
         })
         .then(() => {
@@ -289,7 +294,7 @@
                   }
                 }
 
-                renewSection();
+                appender.renew();
               });
           }
         });
@@ -301,7 +306,7 @@
     .forType('vocabulary')
     .under('reading')
     .spoiling('reading')
-    .appendAtTop('Autoplay Examples', (state) => {
+    .appendAtTop('Autoplay Sentences', (state) => {
       (window.unsafeWindow || window).console.log(state);
       if (outputDiv) {
         outputDiv.remove();
@@ -313,8 +318,7 @@
       if (!outputDiv) return;
       if (!current) return;
 
-      const newCurrent = getCurrent();
-      if (!newCurrent || current.id !== newCurrent.id) return;
+      if (current.id !== state.id) return;
 
       if (current.aud) {
         /**
@@ -411,6 +415,8 @@
         sentences.slice(0, OPTS.NUMBER_OF_SENTENCES),
       );
 
+      let isSetAutoplay = false;
+
       const audioEls = Array.from(outputDiv.querySelectorAll('audio'));
       for (let i = 0; i < audioEls.length; i++) {
         const el = audioEls[i];
@@ -421,22 +427,32 @@
           el.src = src;
         }
 
-        if (isAutoplay) {
-          if (i === 0) el.autoplay = true;
+        if (isAutoplayVocab || isAutoplaySentence) {
+          const dataType = el.getAttribute('data-type');
 
-          if (!el.hasAttribute('data-type')) {
-            const nextEl = audioEls[i + 1];
-            if (nextEl) {
-              el.onended = () => {
-                const src = nextEl.getAttribute('data-src');
-                if (src) {
-                  nextEl.src = src;
-                }
+          if (!isAutoplayVocab) {
+            if (!dataType) continue;
+          }
 
-                nextEl.play();
-                el.onended = null;
-              };
-            }
+          if (dataType) {
+            isAutoplaySentence = false;
+          }
+
+          if (!isSetAutoplay) el.autoplay = true;
+          isSetAutoplay = true;
+          isAutoplayVocab = false;
+
+          const nextEl = audioEls[i + 1];
+          if (!dataType && nextEl) {
+            el.onended = () => {
+              const src = nextEl.getAttribute('data-src');
+              if (src) {
+                nextEl.src = src;
+              }
+
+              nextEl.play();
+              el.onended = null;
+            };
           }
         }
       }
@@ -465,12 +481,8 @@
       }
     });
 
-  let isAutoplay = true;
-  const renewSection = () => {
-    isAutoplay = false;
-    appender.renew();
-    isAutoplay = true;
-  };
+  let isAutoplayVocab = true;
+  let isAutoplaySentence = true;
 
   $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
   onNewVocabulary();
