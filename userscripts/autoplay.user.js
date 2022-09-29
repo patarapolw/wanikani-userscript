@@ -107,17 +107,13 @@
   let current;
   /** @type {ISentence[]} */
   let sentences = [];
-  /** @type {HTMLElement | null} */
-  let outputDiv = null;
+  /** @type {HTMLElement[]} */
+  const autoplayDivArray = [];
 
   const onNewVocabulary = () => {
-    if (outputDiv) {
-      outputDiv.remove();
-      outputDiv = null;
-    }
+    autoplayDivArray.map((el) => el.remove());
+    autoplayDivArray.splice(0, autoplayDivArray.length);
 
-    isAutoplayVocab = true;
-    isAutoplaySentence = true;
     sentences = [];
 
     setTimeout(() => {
@@ -236,8 +232,6 @@
 
               if (sentences.length) {
                 appender.renew();
-              } else {
-                isAutoplaySentence = true;
               }
             }
           })
@@ -315,17 +309,11 @@
     .under('reading')
     .spoiling('reading')
     .appendAtTop('Autoplay Sentences', (state) => {
-      if (outputDiv) {
-        outputDiv.remove();
-      }
-
-      outputDiv = document.createElement('div');
-      outputDiv.className = HTML_CLASS;
-
-      if (!outputDiv) return;
       if (!current) return;
-
       if (current.id !== state.id) return;
+
+      const outputDiv = document.createElement('div');
+      outputDiv.className = HTML_CLASS;
 
       /** @type {HTMLAudioElement | null} */
       let vocabAudioEl = null;
@@ -383,6 +371,7 @@
 
           if (s.audio) {
             const audio = document.createElement('audio');
+            audio.setAttribute('data-sentence', '');
             audio.controls = true;
 
             audio.preload = 'none';
@@ -428,44 +417,53 @@
         sentences.slice(0, OPTS.NUMBER_OF_SENTENCES),
       );
 
-      let isSetAutoplay = false;
+      let needAutoplay = true;
 
-      if (vocabAudioEl) {
-        isSetAutoplay = true;
-        if (isAutoplayVocab) {
-          vocabAudioEl.autoplay = true;
-          const [nextEl] = sentenceAudioElArray;
-          if (nextEl) {
-            vocabAudioEl.onended = () => {
-              const src = nextEl.getAttribute('data-src');
-              if (src) {
-                nextEl.src = src;
-              }
+      if (autoplayDivArray[0]) {
+        if (autoplayDivArray[0].querySelector('audio[data-sentence]')) {
+          needAutoplay = false;
+        }
+      }
+      if (autoplayDivArray[1]) {
+        needAutoplay = false;
+      }
 
-              nextEl.play();
-              if (vocabAudioEl) vocabAudioEl.onended = null;
+      if (needAutoplay) {
+        const autoplayDiv = document.createElement('div');
+        autoplayDiv.style.display = 'none';
+
+        if (!autoplayDivArray[0] && vocabAudioEl) {
+          const el1 = /** @type {HTMLAudioElement} */ (
+            vocabAudioEl.cloneNode(true)
+          );
+          el1.autoplay = true;
+          autoplayDiv.append(el1);
+
+          const firstSent = sentenceAudioElArray[0];
+          if (firstSent) {
+            const el2 = /** @type {HTMLAudioElement} */ (
+              firstSent.cloneNode(true)
+            );
+            autoplayDiv.append(el2);
+            el1.onended = () => {
+              el2.play();
+              el1.onended = null;
             };
+          }
+        } else {
+          const firstSent = sentenceAudioElArray[0];
+          if (firstSent) {
+            const el2 = /** @type {HTMLAudioElement} */ (
+              firstSent.cloneNode(true)
+            );
+            autoplayDiv.append(el2);
+
+            el2.autoplay = true;
           }
         }
 
-        isAutoplayVocab = false;
-      }
-
-      for (let i = 0; i < sentenceAudioElArray.length; i++) {
-        const el = sentenceAudioElArray[i];
-
-        el.preload = '';
-        const src = el.getAttribute('data-src');
-        if (src) {
-          el.src = src;
-        }
-
-        if (isAutoplaySentence && !isSetAutoplay) {
-          el.autoplay = true;
-          isSetAutoplay = true;
-        }
-
-        isAutoplaySentence = false;
+        autoplayDivArray.push(autoplayDiv);
+        document.body.append(autoplayDiv);
       }
 
       if (sentences.length > OPTS.NUMBER_OF_SENTENCES) {
@@ -482,18 +480,12 @@
         outputDiv.append(details);
       }
 
-      if (outputDiv.innerHTML) {
-        if (hasSentences) {
-          return outputDiv;
-        }
-
-        document.body.append(outputDiv);
-        return;
+      if (outputDiv.innerHTML && hasSentences) {
+        return outputDiv;
+      } else {
+        outputDiv.remove();
       }
     });
-
-  let isAutoplayVocab = true;
-  let isAutoplaySentence = true;
 
   // $.jStorage.listenKeyChange('*', (key, state) =>
   //   (window.unsafeWindow || window).console.log(
