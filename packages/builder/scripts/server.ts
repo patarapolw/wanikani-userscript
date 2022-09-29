@@ -1,22 +1,22 @@
-import path from 'path'
+import axios from 'axios';
+import fastify from 'fastify';
+import path from 'path';
 
-import axios from 'axios'
-import fastify from 'fastify'
-import fastifyStatic from 'fastify-static'
+import fastifyStatic from '@fastify/static';
 
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = process.env.NODE_ENV === 'development';
 
 const app = fastify({
   logger: {
-    prettyPrint: isDev
-  }
-})
-const port = process.env.PORT || 8080
+    prettyPrint: isDev,
+  },
+});
+const port = process.env.PORT || 8080;
 
 app.get<{
   Querystring: {
-    url: string
-  }
+    url: string;
+  };
 }>(
   '/api/nocors',
   {
@@ -24,20 +24,20 @@ app.get<{
       querystring: {
         type: 'object',
         required: ['url'],
-        url: { type: 'string' }
-      }
-    }
+        url: { type: 'string' },
+      },
+    },
   },
   async (req) => {
-    const { url } = req.query
+    const { url } = req.query;
 
-    const { data: html } = await axios.get(url)
-    return html
-  }
-)
+    const { data: html } = await axios.get(url);
+    return html;
+  },
+);
 
 app.register(fastifyStatic, {
-  root: path.resolve('public')
-})
+  root: path.resolve('public'),
+});
 
-app.listen(port, isDev ? 'localhost' : '0.0.0.0')
+app.listen(port, isDev ? 'localhost' : '0.0.0.0');

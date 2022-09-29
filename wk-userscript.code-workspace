@@ -11,9 +11,9 @@
     }
   ],
   "settings": {
-    "sort-imports.on-save": true,
     "files.associations": {
       ".husky/*": "shell"
-    }
+    },
+    "importSorter.generalConfiguration.sortOnBeforeSave": true
   }
 }
