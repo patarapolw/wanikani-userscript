@@ -5,6 +5,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jquery": "^3.5.14",
+    "@types/jstorage": "^0.3.30",
     "prettier": "^2.7.1"
   }
 }
