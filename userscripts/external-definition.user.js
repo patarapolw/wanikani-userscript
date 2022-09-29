@@ -68,30 +68,61 @@
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
   // Updating the kanji and vocab we are looking for
+  /** @type {string | undefined} */
   let kanji;
+  /** @type {string | undefined} */
   let vocab;
 
-  $.jStorage.listenKeyChange('currentItem', function () {
+  function getOnReview() {
     const current = $.jStorage.get('currentItem');
+    // @ts-ignore
     kanji = current.kan;
-    vocab = current.voc ? current.voc.replace(/する|〜/, '') : undefined;
-  });
+    // @ts-ignore
+    vocab = current.voc ? fixVocab(current.voc) : undefined;
+  }
 
-  $.jStorage.listenKeyChange('l/currentLesson', function () {
+  $.jStorage.listenKeyChange('currentItem', getOnReview);
+
+  function getOnLesson() {
     const current = $.jStorage.get('l/currentLesson');
+    // @ts-ignore
     kanji = current.kan;
-    vocab = current.voc ? current.voc.replace(/する|〜/, '') : undefined;
-  });
+    // @ts-ignore
+    vocab = current.voc ? fixVocab(current.voc) : undefined;
+  }
+
+  $.jStorage.listenKeyChange('l/currentLesson', getOnLesson);
 
   const urlParts = document.URL.split('/');
   const pageType = urlParts[urlParts.length - 2];
-  if (pageType === 'kanji') {
-    kanji = urlParts[urlParts.length - 1];
-    updateInfo();
+
+  switch (pageType) {
+    case 'kanji': {
+      kanji = urlParts[urlParts.length - 1];
+      updateInfo();
+      break;
+    }
+    case 'vocabulary': {
+      vocab = fixVocab(decodeURIComponent(urlParts[urlParts.length - 1]));
+      updateInfo();
+      break;
+    }
+    case 'lesson': {
+      getOnLesson();
+      break;
+    }
+    default: {
+      getOnReview();
+    }
   }
-  if (pageType === 'vocabulary') {
-    vocab = urlParts[urlParts.length - 1].replace(/する|〜/, '');
-    updateInfo();
+
+  /**
+   *
+   * @param {string} v
+   * @returns
+   */
+  function fixVocab(v) {
+    return v.replace(/する|〜/, '').replace(/(.)々/g, '$1$1');
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -122,9 +153,9 @@
         '</section>';
 
       if (['kanji', 'vocabulary', 'review', 'extra_study'].includes(pageType)) {
-        const noteMeaning = $('#note-meaning:visible');
+        const noteMeaning = $('#item-info-meaning-mnemonic:visible');
         if (noteMeaning.length) {
-          noteMeaning.after(newHtml);
+          noteMeaning.before(newHtml);
           return;
         }
       }
@@ -245,7 +276,9 @@
                 const vs = [
                   ...rawResponseNode.find('#kanjiOyaji'),
                   ...rawResponseNode.find('.subKanji'),
-                ].filter((n) => $(n).text() !== decodeURIComponent(kanji));
+                ].filter(
+                  (n) => $(n).text() !== decodeURIComponent(kanji || ''),
+                );
 
                 if (!vs.length) return '';
 
@@ -264,7 +297,8 @@
 
               if (STORE_IN_ANKI.kanjipedia) {
                 const ankiOpts = STORE_IN_ANKI.kanjipedia;
-                const k = decodeURIComponent(kanji);
+                const k = decodeURIComponent(kanji || '');
+                if (!k) return;
 
                 AnkiConnect('findNotes', {
                   query: `"note:${ankiOpts.model}" "${ankiOpts.fields.kanji}:${k}"`,
