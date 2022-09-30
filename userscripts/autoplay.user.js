@@ -1,15 +1,16 @@
 // ==UserScript==
 // @name         WaniKani Autoplay Sentence Audio
 // @namespace    polv/wanikani
-// @version      0.1.1
+// @version      0.1.2
 // @description  Autoplay audio sentences (via ImmersionKit.com), with customizability (via Anki-Connect)
 // @author       polv
 // @match        *://www.wanikani.com/review/session*
 // @match        *://www.wanikani.com/extra_study/session*
 // @match        *://www.wanikani.com/lesson/session*
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
-// @require      https://raw.githubusercontent.com/patarapolw/wanikani-userscript/master/userscripts/shared/ankiconnect.js
+// @require      https://greasyfork.org/scripts/452285-ankiconnect/code/ankiconnect.js?version=1099556
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
+// @license      MIT
 // @grant        none
 // ==/UserScript==
 
@@ -27,12 +28,12 @@
   'use strict';
 
   // OPTIONS
-  // TODO: Use wkof's dialog
+  // TODO: Use OPTIONS dialog, like from wkof
 
   /**
    * See https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/types/autoplay.user.d.ts for typing
    *
-   * @type {ScriptOptions}
+   * @type {WKAutoplayOptions}
    *
    * Remove IMMERSION_KIT or ANKI key to disable lookup
    */
@@ -64,14 +65,136 @@
         ],
       },
     },
-    LOG: {
-      immersionKit: false,
-    },
   };
 
   // SCRIPT START
 
   (window.unsafeWindow || window).audioAutoplay = false;
+
+  /**
+   * Configurable object, accessible via JavaScript console
+   *
+   * @type {WKAutoplayObject}
+   */
+  let OB;
+
+  const makeOB = () => {
+    const KEY_OB = 'wkAutoplaySentence';
+    const KEY_IMMERSION_KIT = KEY_OB + '--' + 'IMMERSION_KIT';
+    const KEY_ANKI = KEY_OB + '--' + 'ANKI';
+
+    const imLookup = OB?.IMMERSION_KIT?._lookup || {};
+
+    /** @type {WKAutoplayObject} */
+    const obj = {
+      ...clone(OPTS),
+      load(s) {
+        const { IMMERSION_KIT: vImkit, ANKI: vAnki, ...vOB } = s || {};
+
+        /** @type {WKAutoplayImmersionKit} */
+        const IMMERSION_KIT = deepAssign(
+          OB.IMMERSION_KIT,
+          vImkit || lsGet(KEY_IMMERSION_KIT),
+        );
+
+        const ANKI = deepAssign(OB.ANKI, vAnki || lsGet(KEY_ANKI));
+
+        deepAssign(OB, Object.keys(vOB).length ? vOB : lsGet(KEY_OB));
+
+        if (IMMERSION_KIT && Object.keys(IMMERSION_KIT).length) {
+          OB.IMMERSION_KIT = IMMERSION_KIT;
+
+          IMMERSION_KIT.availableDecks = IMMERSION_KIT.availableDecks || [];
+          IMMERSION_KIT.user = IMMERSION_KIT.user || {};
+
+          Object.entries(IMMERSION_KIT.user).map(([k, v]) => {
+            imLookup[k] = imLookup[k] || v;
+          });
+          IMMERSION_KIT._lookup = imLookup;
+
+          IMMERSION_KIT.list = (vocab) => {
+            vocab = vocab || current?.voc;
+            if (!vocab) return [];
+
+            const ls = Array.from(IMMERSION_KIT.user[vocab] || []);
+            let lookup = Array.from(imLookup[vocab] || []);
+
+            for (const deck of IMMERSION_KIT.priority) {
+              lookup = lookup.filter((s) => {
+                if (s.deck_name === deck) {
+                  ls.push(s);
+                  return false;
+                }
+                return true;
+              });
+            }
+
+            return ls;
+          };
+
+          IMMERSION_KIT.set = (sentence_id, vocab) => {
+            vocab = vocab || current?.voc;
+            if (!vocab) return null;
+
+            const s = (imLookup[vocab] || []).find(
+              (s0) => s0.sentence_id === sentence_id,
+            );
+            if (s) {
+              const ss = IMMERSION_KIT.user[vocab] || [];
+              if (!ss.find((s0) => s0.id === s.id)) {
+                ss.push(s);
+                IMMERSION_KIT.user[vocab] = ss;
+                return s;
+              }
+            }
+            return null;
+          };
+
+          IMMERSION_KIT.autoplay = (sentence_id, vocab) => {
+            vocab = vocab || current?.voc;
+            if (!vocab) return null;
+
+            const s = (imLookup[vocab] || []).find(
+              (s0) => s0.sentence_id === sentence_id,
+            );
+            if (s) {
+              IMMERSION_KIT.user[vocab] = [
+                s,
+                ...(IMMERSION_KIT.user[vocab] || []).filter(
+                  (s0) => s0.id !== s.id,
+                ),
+              ];
+              return s;
+            }
+            return null;
+          };
+        }
+
+        if (ANKI && Object.keys(ANKI).length) {
+          OB.ANKI = ANKI;
+        }
+
+        return OB;
+      },
+      save() {
+        const { IMMERSION_KIT, ANKI, ...others } = OB;
+        lsSet(KEY_IMMERSION_KIT, IMMERSION_KIT);
+        lsSet(KEY_ANKI, ANKI);
+        lsSet(KEY_OB, others);
+      },
+      reset: makeOB,
+      dump() {
+        return JSON.parse(cleanStringify(OB));
+      },
+    };
+
+    return obj;
+  };
+
+  OB = makeOB();
+  OB.load();
+
+  Object.assign(window.unsafeWindow || window, { wkAutoplaySentence: OB });
 
   const HTML_CLASS = 'wk-autoplay-sentence';
   const FURIGANA_FIELDS = new Set(
@@ -110,10 +233,12 @@
 
   /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */
   let current;
-  /** @type {ISentence[]} */
+  /** @type {WKAutoplaySentence[]} */
   let sentences = [];
   /** @type {HTMLElement[]} */
   const autoplayDivArray = [];
+
+  let isAnkiConnect = !!OB.ANKI;
 
   const onNewVocabulary = async () => {
     autoplayDivArray.map((el) => el.remove());
@@ -161,8 +286,9 @@
     current = c;
     const { voc, kana } = current;
 
-    if (OPTS.ANKI) {
-      const { query, searchFields, outFields } = OPTS.ANKI;
+    const { ANKI } = OB;
+    if (isAnkiConnect && ANKI) {
+      const { query, searchFields, outFields } = ANKI;
 
       const noteIds = await ankiconnect
         .send('findNotes', {
@@ -181,6 +307,7 @@
           console.error(
             'Cannot findNotes. Did you forget to install Anki and enable Anki-Connect (https://foosoft.net/projects/anki-connect/)?',
           );
+          isAnkiConnect = false;
           return [];
         });
 
@@ -230,7 +357,7 @@
               sentences = outFields.sentence
                 .map((f) => {
                   const out = {
-                    id: `anki--${f.audio}`,
+                    id: (f.id ? getField(n, f.id) : '') || `anki--${f.audio}`,
                     ja: f.ja ? getField(n, f.ja) : undefined,
                     en: f.en ? getField(n, f.en) : undefined,
                     audio: '',
@@ -278,8 +405,25 @@
       }
     }
 
-    const { IMMERSION_KIT } = OPTS;
+    const { IMMERSION_KIT } = OB;
     if (IMMERSION_KIT) {
+      /**
+       *
+       * @param {ImmersionKitExample} s
+       * @returns {Required<WKAutoplaySentence>}
+       */
+      const formatImKit = (s) => ({
+        id: s.sentence_id,
+        ja: `${s.sentence} (${s.deck_name})`,
+        audio: s.sound_url,
+        en: s.translation,
+      });
+
+      sentences.push(
+        ...(IMMERSION_KIT.user[voc] || []).map((s) => formatImKit(s)),
+      );
+      const existingIds = new Set(sentences.map((s) => s.id));
+
       await fetch(
         `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
       )
@@ -288,6 +432,14 @@
           const {
             data: [{ examples }],
           } = /** @type {ImmersionKitResult} */ (r);
+
+          IMMERSION_KIT._lookup[voc] = examples;
+          IMMERSION_KIT.availableDecks = [
+            ...new Set([
+              ...IMMERSION_KIT.availableDecks,
+              ...examples.map((s) => s.deck_name),
+            ]),
+          ].sort();
 
           /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
           const sortedExamples = {};
@@ -318,28 +470,25 @@
             return prev;
           }, {});
 
-          if (OPTS.LOG.immersionKit)
-            (window.unsafeWindow || window).console.log(sortedExamples);
-
-          for (const ss of [
+          IMMERSION_KIT._lookup[voc] = [
             ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
             Object.values(sortedExamples['']).reduce(
               (prev, c) => [...prev, ...c],
               [],
             ),
-          ]) {
-            for (const s of shuffleArray(ss)) {
-              sentences.push({
-                id: s.sentence_id,
-                ja: `${s.sentence} (${s.deck_name})`,
-                audio: s.sound_url,
-                en: s.translation,
-              });
-            }
-          }
+          ]
+            .flatMap((ss) =>
+              shuffleArray(ss.filter((s) => !existingIds.has(s.sentence_id))),
+            )
+            .map((s) => {
+              sentences.push(formatImKit(s));
+              return s;
+            });
 
           appender.renew();
         });
+
+      OB.save();
     }
   };
 
@@ -393,7 +542,7 @@
       /**
        *
        * @param {HTMLElement} target
-       * @param {ISentence[]} ss
+       * @param {WKAutoplaySentence[]} ss
        */
       const createSentenceSection = (target, ss) => {
         return ss.map((s) => {
@@ -636,5 +785,64 @@
 
   function noscroll() {
     window.scrollTo(0, 0);
+  }
+
+  function deepAssign(dst, src) {
+    if (!dst) return src;
+    if (src && typeof src === 'object') {
+      if (Array.isArray(dst || []) && Array.isArray(src)) {
+        dst = dst || [];
+        const length = Math.max(dst.length, src.length);
+        return Array.from({ length }, (_, i) => deepAssign(dst[i], src[i]));
+      }
+
+      return src;
+    }
+    return dst;
+  }
+
+  function clone(o) {
+    if (o && typeof o === 'object') {
+      if (Array.isArray(o)) {
+        return o.map((_, i) => clone(o[i]));
+      }
+
+      return Object.fromEntries(
+        Object.entries(o).map(([k, v]) => [k, clone(v)]),
+      );
+    }
+    return o;
+  }
+
+  function lsGet(k) {
+    try {
+      return JSON.parse(localStorage.getItem(k) || '{}');
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function lsSet(k, o) {
+    if (o) {
+      localStorage.setItem(k, cleanStringify(o));
+    } else {
+      localStorage.removeItem(k);
+    }
+  }
+
+  /**
+   *
+   * @param {*} o
+   * @param {number} [indent]
+   * @returns
+   */
+  function cleanStringify(o, indent) {
+    return JSON.stringify(
+      o,
+      function (k, v) {
+        if (k[0] !== '_' && typeof v !== 'function') return v;
+      },
+      indent,
+    );
   }
 })();

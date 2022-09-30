@@ -1,0 +1,94 @@
+{
+  "HIDE_SENTENCE_JA": true,
+  "HIDE_SENTENCE_EN": "remove",
+  "NUMBER_OF_SENTENCES": 3,
+  "IMMERSION_KIT": {
+      "priority": [
+          "Death Note",
+          "Hunter x Hunter",
+          "Kino's Journey",
+          "Fullmetal Alchemist Brotherhood"
+      ],
+      "availableDecks": [
+          "1 Litre of Tears",
+          "Angel Beats!",
+          "Anohana the flower we saw that day",
+          "Assassination Classroom Season 1",
+          "Bakemonogatari",
+          "Boku no Hero Academia Season 1",
+          "Border",
+          "Cardcaptor Sakura",
+          "Chobits",
+          "Clannad",
+          "Clannad After Story",
+          "Code Geass Season 1",
+          "Cyberpunk 2077",
+          "Death Note",
+          "Durarara!!",
+          "Fairy Tail",
+          "Fate Stay Night Unlimited Blade Works",
+          "Fate Zero",
+          "From Up on Poppy Hill",
+          "From the New World",
+          "Fruits Basket Season 1",
+          "Fullmetal Alchemist Brotherhood",
+          "God's Blessing on this Wonderful World!",
+          "Good Morning Call Season 1",
+          "Haruhi Suzumiya",
+          "Hunter × Hunter",
+          "I am Mita, Your Housekeeper",
+          "Inuno Itazura",
+          "Is The Order a Rabbit",
+          "K-On!",
+          "Kanon (2006)",
+          "Kill la Kill",
+          "Kinno Kubikazari",
+          "Kokoro Connect",
+          "Little Witch Academia",
+          "Lucky Star",
+          "Mahou Shoujo Madoka Magica",
+          "My Little Sister Can't Be This Cute",
+          "Nisekoi",
+          "Noragami",
+          "One Week Friends",
+          "Overprotected Kahoko",
+          "Psycho Pass",
+          "Quartet",
+          "Re Zero − Starting Life in Another World",
+          "Sailor Suit and Machine Gun (2006)",
+          "Saruno Koshikake",
+          "Shirokuma Cafe",
+          "Skyrim",
+          "Steins Gate",
+          "The World God Only Knows",
+          "Toradora!",
+          "Weakest Beast",
+          "Whisper of the Heart",
+          "Witcher 3",
+          "Your Lie in April",
+          "Your Name"
+      ],
+      "user": {}
+  },
+  "ANKI": {
+      "query": "note:yomichan-terms",
+      "searchFields": {
+          "vocabulary": [
+              "JapaneseWanikani",
+              "Japanese"
+          ],
+          "reading": [
+              "Reading"
+          ]
+      },
+      "outFields": {
+          "sentence": [
+              {
+                  "ja": "Sentence",
+                  "audio": "SentenceAudio",
+                  "en": "SentenceMeaning"
+              }
+          ]
+      }
+  }
+}

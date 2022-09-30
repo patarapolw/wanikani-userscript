@@ -32,7 +32,7 @@ class AnkiConnect {
         }
       });
 
-      xhr.open('POST', 'http://127.0.0.1:8765');
+      xhr.open('POST', this.baseURL);
       xhr.send(JSON.stringify({ action, version, params }));
     });
   }
