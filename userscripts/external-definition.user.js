@@ -21,6 +21,9 @@
 (function () {
   'use strict';
 
+  const MAX_ENTRIES = 3;
+  const HTML_MAX_CHAR = 10000;
+
   const STORE_IN_ANKI = {
     weblio: false,
     // Just change to `: false` to disable
@@ -72,6 +75,10 @@
   let kanji;
   /** @type {string | undefined} */
   let vocab;
+
+  let isSuru = false;
+
+  let isSuffix = false;
   /** @type {string[]} */
   let reading = [];
 
@@ -142,7 +149,19 @@
    * @returns
    */
   function fixVocab(v) {
-    return v.replace(/する|〜/, '').replace(/(.)々/g, '$1$1');
+    const suru = 'する';
+    isSuru = v.endsWith(suru);
+    if (isSuru) {
+      v = v.substring(0, v.length - suru.length);
+    }
+
+    const extMark = '〜';
+    isSuffix = v.startsWith(extMark);
+    if (isSuffix) {
+      v = v.substring(extMark.length);
+    }
+
+    return v.replace(/(.)々/g, '$1$1');
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +173,7 @@
       const h2_style =
         pageType === 'lesson' ? ' style="margin-top: 1.25em;" ' : '';
       const newHtml =
-        '<section class="' +
+        '<section lang="ja" class="' +
         entryClazz +
         '">' +
         '<h2' +
@@ -407,13 +426,16 @@
           const div = document.createElement('div');
           div.innerHTML = data.responseText;
 
-          const vocabDefinition = Array.from(
-            div.querySelectorAll('.kiji > div'),
-          )
+          const vocabDefinition = Array.from(div.querySelectorAll('.kiji'))
+            .flatMap((el) => {
+              return Array.from(el.children).filter(
+                (el) => el instanceof HTMLDivElement,
+              );
+            })
             .map((el) => {
               if (el instanceof HTMLElement) {
                 if (el.querySelector('script')) return '';
-                el.innerHTML = el.innerHTML.substring(0, 1000);
+                el.innerHTML = el.innerHTML.substring(0, HTML_MAX_CHAR);
                 return el.innerHTML;
               }
               return '';
@@ -426,20 +448,30 @@
                * @returns {number}
                */
               const fn = (t) => {
-                if (/［[音訓]］/.exec(t)) return 2;
+                if (/［[音訓]］/.exec(t)) return 10;
 
                 const m = /読み方：([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/u.exec(
                   t,
                 );
                 if (m) {
-                  if (reading.length && !reading.includes(m[1])) return 1;
+                  if (reading.length && !reading.includes(m[1])) return 5;
+
+                  if (isSuffix) {
+                    if (t.includes('接尾')) return -1;
+                  }
+
+                  if (isSuru) {
+                    if (t.includes('スル')) return -1;
+                  }
+
+                  return 0;
                 }
 
-                return 0;
+                return 1000;
               };
               return fn(t1) - fn(t2);
             })
-            .slice(0, 3)
+            .slice(0, MAX_ENTRIES)
             .join('<hr>');
 
           insertDefinition(
