@@ -42,29 +42,9 @@
     HIDE_SENTENCE_EN: 'remove',
     NUMBER_OF_SENTENCES: 3,
     IMMERSION_KIT: {
-      priority: [
-        'Death Note',
-        'Hunter x Hunter',
-        "Kino's Journey",
-        'Fullmetal Alchemist Brotherhood',
-      ],
+      priority: [],
     },
-    ANKI: {
-      query: 'note:yomichan-terms',
-      searchFields: {
-        vocabulary: ['JapaneseWanikani', 'Japanese'],
-        reading: ['Reading'],
-      },
-      outFields: {
-        sentence: [
-          {
-            ja: 'Sentence',
-            audio: 'SentenceAudio',
-            en: 'SentenceMeaning',
-          },
-        ],
-      },
-    },
+    ANKI: undefined,
   };
 
   // SCRIPT START
@@ -117,7 +97,7 @@
             if (!vocab) return [];
 
             const ls = Array.from(IMMERSION_KIT.user[vocab] || []);
-            let lookup = Array.from(imLookup[vocab] || []);
+            let lookup = Array.from(IMMERSION_KIT._lookup[vocab] || []);
 
             for (const deck of IMMERSION_KIT.priority) {
               lookup = lookup.filter((s) => {
@@ -128,6 +108,8 @@
                 return true;
               });
             }
+
+            ls.push(...lookup);
 
             return ls;
           };
@@ -144,6 +126,8 @@
               if (!ss.find((s0) => s0.id === s.id)) {
                 ss.push(s);
                 IMMERSION_KIT.user[vocab] = ss;
+
+                OB.save();
                 return s;
               }
             }
@@ -164,6 +148,8 @@
                   (s0) => s0.id !== s.id,
                 ),
               ];
+
+              OB.save();
               return s;
             }
             return null;
@@ -234,7 +220,7 @@
   /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */
   let current;
   /** @type {WKAutoplaySentence[]} */
-  let sentences = [];
+  const sentences = [];
   /** @type {HTMLElement[]} */
   const autoplayDivArray = [];
 
@@ -244,7 +230,7 @@
     autoplayDivArray.map((el) => el.remove());
     autoplayDivArray.splice(0, autoplayDivArray.length);
 
-    sentences = [];
+    sentences.splice(0, sentences.length);
 
     await new Promise((resolve) => setTimeout(resolve, 50));
 
@@ -354,45 +340,47 @@
               ) || filteredNotes[0];
 
             if (n) {
-              sentences = outFields.sentence
-                .map((f) => {
-                  const out = {
-                    id: (f.id ? getField(n, f.id) : '') || `anki--${f.audio}`,
-                    ja: f.ja ? getField(n, f.ja) : undefined,
-                    en: f.en ? getField(n, f.en) : undefined,
-                    audio: '',
-                  };
+              sentences.push(
+                ...outFields.sentence
+                  .map((f) => {
+                    const out = {
+                      id: (f.id ? getField(n, f.id) : '') || `anki--${f.audio}`,
+                      ja: f.ja ? getField(n, f.ja) : undefined,
+                      en: f.en ? getField(n, f.en) : undefined,
+                      audio: '',
+                    };
 
-                  const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
-                  if (m) {
-                    const filename = m[1];
+                    const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
+                    if (m) {
+                      const filename = m[1];
 
-                    // [sound:https://...] works in AnkiDroid
-                    if (/:\/\//.exec(filename)) {
-                      out.audio = m[1];
-                    } else {
-                      ankiconnect
-                        .send('retrieveMediaFile', { filename })
-                        .then((r) => {
-                          let mimeType = 'audio/mpeg';
-                          const ext = m[1].replace(/^.+\./, '');
-                          switch (ext) {
-                            default:
-                              mimeType = `audio/${ext}`;
-                          }
+                      // [sound:https://...] works in AnkiDroid
+                      if (/:\/\//.exec(filename)) {
+                        out.audio = m[1];
+                      } else {
+                        ankiconnect
+                          .send('retrieveMediaFile', { filename })
+                          .then((r) => {
+                            let mimeType = 'audio/mpeg';
+                            const ext = m[1].replace(/^.+\./, '');
+                            switch (ext) {
+                              default:
+                                mimeType = `audio/${ext}`;
+                            }
 
-                          out.audio = `data:${mimeType};base64,${r}`;
-                        });
+                            out.audio = `data:${mimeType};base64,${r}`;
+                          });
+                      }
                     }
-                  }
 
-                  return out;
-                })
-                .filter(
-                  (s) =>
-                    (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
-                    s.audio,
-                );
+                    return out;
+                  })
+                  .filter(
+                    (s) =>
+                      (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
+                      s.audio,
+                  ),
+              );
 
               if (sentences.length) {
                 appender.renew();
@@ -429,11 +417,12 @@
       )
         .then((r) => r.json())
         .then((r) => {
+          if (!current || current.voc !== voc) return;
+
           const {
             data: [{ examples }],
           } = /** @type {ImmersionKitResult} */ (r);
 
-          IMMERSION_KIT._lookup[voc] = examples;
           IMMERSION_KIT.availableDecks = [
             ...new Set([
               ...IMMERSION_KIT.availableDecks,
@@ -447,21 +436,14 @@
           let remainingExamples = examples;
 
           for (const p of IMMERSION_KIT.priority) {
-            /** @type {typeof examples} */
-            const currentExamples = [];
-            /** @type {typeof examples} */
-            const nextRemainingExamples = [];
-
-            for (const ex of remainingExamples) {
+            sortedExamples[p] = [];
+            remainingExamples = remainingExamples.filter((ex) => {
               if (ex.deck_name === p) {
-                currentExamples.push(ex);
-              } else {
-                nextRemainingExamples.push(ex);
+                sortedExamples[p].push(ex);
+                return false;
               }
-            }
-
-            sortedExamples[p] = currentExamples;
-            remainingExamples = nextRemainingExamples;
+              return true;
+            });
           }
 
           sortedExamples[''] = remainingExamples.reduce((prev, c) => {
@@ -669,14 +651,6 @@
         outputDiv.remove();
       }
     });
-
-  // $.jStorage.listenKeyChange('*', (key, state) =>
-  //   (window.unsafeWindow || window).console.log(
-  //     key,
-  //     state,
-  //     $.jStorage.get(key),
-  //   ),
-  // );
 
   $.jStorage.listenKeyChange('questionCount', onNewVocabulary);
   $.jStorage.listenKeyChange('l/currentLesson', onNewVocabulary);
