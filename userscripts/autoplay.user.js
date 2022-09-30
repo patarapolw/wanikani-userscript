@@ -115,199 +115,198 @@
   /** @type {HTMLElement[]} */
   const autoplayDivArray = [];
 
-  const onNewVocabulary = () => {
+  const onNewVocabulary = async () => {
     autoplayDivArray.map((el) => el.remove());
     autoplayDivArray.splice(0, autoplayDivArray.length);
 
     sentences = [];
 
-    setTimeout(() => {
-      let key = 'currentItem';
-      if (document.URL.includes('/lesson/session')) {
-        key = $.jStorage.get('l/quizActive')
-          ? 'l/currentQuizItem'
-          : 'l/currentLesson';
-      }
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const c =
-        /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */ (
-          $.jStorage.get(key)
-        );
+    let key = 'currentItem';
+    if (document.URL.includes('/lesson/session')) {
+      key = $.jStorage.get('l/quizActive')
+        ? 'l/currentQuizItem'
+        : 'l/currentLesson';
+    }
 
-      if (!c || !('voc' in c)) {
-        return;
-      }
-      current = c;
+    const c =
+      /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */ (
+        $.jStorage.get(key)
+      );
 
-      if (OPTS.ANKI) {
-        const { model: noteType, searchFields, outFields } = OPTS.ANKI;
-        const { voc, kana } = current;
+    if (!c || !('voc' in c)) {
+      return;
+    }
+    current = c;
+    const { voc, kana } = current;
 
-        ankiconnect
-          .send('findNotes', {
-            query: [
-              `"note:${noteType}"`,
-              `(${searchFields.vocabulary
-                .map((f) => `"${f}:${voc}"`)
-                .join(' OR ')})`,
-              `(${kana
-                .flatMap((r) => searchFields.reading.map((f) => `"${f}:${r}"`))
-                .join(' OR ')})`,
-            ].join(' '),
-          })
-          .then((notes) => ankiconnect.send('notesInfo', { notes }))
-          .then((notes) => {
-            /**
-             * @param {Pick<INote, 'fields'>} note
-             * @param {string} fieldName
-             */
-            function getField(note, fieldName) {
-              let { value = '' } = note.fields[fieldName] || {};
+    if (OPTS.ANKI) {
+      const { model: noteType, searchFields, outFields } = OPTS.ANKI;
 
-              if (FURIGANA_FIELDS.has(fieldName)) {
-                value = value
-                  .replace(/(\[.+?\])(.)/g, '$1 $2')
-                  .replace(
-                    /(^| )([^ \[]+)\[([^\]]+)\]/g,
-                    '<ruby>$1<rt>$2</rt></ruby>',
-                  );
-              }
+      await ankiconnect
+        .send('findNotes', {
+          query: [
+            `"note:${noteType}"`,
+            `(${searchFields.vocabulary
+              .map((f) => `"${f}:${voc}"`)
+              .join(' OR ')})`,
+            `(${kana
+              .flatMap((r) => searchFields.reading.map((f) => `"${f}:${r}"`))
+              .join(' OR ')})`,
+          ].join(' '),
+        })
+        .then((notes) => ankiconnect.send('notesInfo', { notes }))
+        .then((notes) => {
+          /**
+           * @param {Pick<INote, 'fields'>} note
+           * @param {string} fieldName
+           */
+          function getField(note, fieldName) {
+            let { value = '' } = note.fields[fieldName] || {};
 
-              return value;
+            if (FURIGANA_FIELDS.has(fieldName)) {
+              value = value
+                .replace(/(\[.+?\])(.)/g, '$1 $2')
+                .replace(
+                  /(^| )([^ \[]+)\[([^\]]+)\]/g,
+                  '<ruby>$1<rt>$2</rt></ruby>',
+                );
             }
 
-            const filteredNotes = notes
-              .sort((n1, n2) =>
-                [n1, n2]
-                  .map((n1) =>
-                    searchFields.vocabulary.findIndex((f) => getField(n1, f)),
-                  )
-                  .reduce((prev, c) => prev - c),
-              )
-              .filter((n) =>
-                searchFields.reading
-                  .flatMap((f) => getField(n, f).split('\n'))
-                  .some((r) => kana.includes(r.trim())),
+            return value;
+          }
+
+          const filteredNotes = notes
+            .sort((n1, n2) =>
+              [n1, n2]
+                .map((n1) =>
+                  searchFields.vocabulary.findIndex((f) => getField(n1, f)),
+                )
+                .reduce((prev, c) => prev - c),
+            )
+            .filter((n) =>
+              searchFields.reading
+                .flatMap((f) => getField(n, f).split('\n'))
+                .some((r) => kana.includes(r.trim())),
+            );
+
+          const n =
+            filteredNotes.find((n) =>
+              outFields.sentence.map((f) => getField(n, f.audio)),
+            ) || filteredNotes[0];
+
+          if (n) {
+            sentences = outFields.sentence
+              .map((f) => {
+                const out = {
+                  id: `anki--${f.audio}`,
+                  ja: f.ja ? getField(n, f.ja) : undefined,
+                  en: f.en ? getField(n, f.en) : undefined,
+                  audio: '',
+                };
+
+                const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
+                if (m) {
+                  const filename = m[1];
+
+                  // [sound:https://...] works in AnkiDroid
+                  if (/:\/\//.exec(filename)) {
+                    out.audio = m[1];
+                  } else {
+                    ankiconnect
+                      .send('retrieveMediaFile', { filename })
+                      .then((r) => {
+                        let mimeType = 'audio/mpeg';
+                        const ext = m[1].replace(/^.+\./, '');
+                        switch (ext) {
+                          default:
+                            mimeType = `audio/${ext}`;
+                        }
+
+                        out.audio = `data:${mimeType};base64,${r}`;
+                      });
+                  }
+                }
+
+                return out;
+              })
+              .filter(
+                (s) =>
+                  (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
+                  s.audio,
               );
 
-            const n =
-              filteredNotes.find((n) =>
-                outFields.sentence.map((f) => getField(n, f.audio)),
-              ) || filteredNotes[0];
+            if (sentences.length) {
+              appender.renew();
+            }
+          }
+        });
+    }
 
-            if (n) {
-              sentences = outFields.sentence
-                .map((f) => {
-                  const out = {
-                    id: `anki--${f.audio}`,
-                    ja: f.ja ? getField(n, f.ja) : undefined,
-                    en: f.en ? getField(n, f.en) : undefined,
-                    audio: '',
-                  };
+    const { IMMERSION_KIT } = OPTS;
+    if (IMMERSION_KIT) {
+      await fetch(
+        `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
+      )
+        .then((r) => r.json())
+        .then((r) => {
+          const {
+            data: [{ examples }],
+          } = /** @type {ImmersionKitResult} */ (r);
 
-                  const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
-                  if (m) {
-                    const filename = m[1];
+          /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
+          const sortedExamples = {};
+          /** @type {typeof examples} */
+          let remainingExamples = examples;
 
-                    // [sound:https://...] works in AnkiDroid
-                    if (/:\/\//.exec(filename)) {
-                      out.audio = m[1];
-                    } else {
-                      ankiconnect
-                        .send('retrieveMediaFile', { filename })
-                        .then((r) => {
-                          let mimeType = 'audio/mpeg';
-                          const ext = m[1].replace(/^.+\./, '');
-                          switch (ext) {
-                            default:
-                              mimeType = `audio/${ext}`;
-                          }
+          for (const p of IMMERSION_KIT.priority) {
+            /** @type {typeof examples} */
+            const currentExamples = [];
+            /** @type {typeof examples} */
+            const nextRemainingExamples = [];
 
-                          out.audio = `data:${mimeType};base64,${r}`;
-                        });
-                    }
-                  }
-
-                  return out;
-                })
-                .filter(
-                  (s) =>
-                    (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
-                    s.audio,
-                );
-
-              if (sentences.length) {
-                appender.renew();
+            for (const ex of remainingExamples) {
+              if (ex.deck_name === p) {
+                currentExamples.push(ex);
+              } else {
+                nextRemainingExamples.push(ex);
               }
             }
-          })
-          .then(() => {
-            const { IMMERSION_KIT } = OPTS;
-            if (IMMERSION_KIT) {
-              fetch(
-                `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
-              )
-                .then((r) => r.json())
-                .then((r) => {
-                  const {
-                    data: [{ examples }],
-                  } = /** @type {ImmersionKitResult} */ (r);
 
-                  /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
-                  const sortedExamples = {};
-                  /** @type {typeof examples} */
-                  let remainingExamples = examples;
+            sortedExamples[p] = currentExamples;
+            remainingExamples = nextRemainingExamples;
+          }
 
-                  for (const p of IMMERSION_KIT.priority) {
-                    /** @type {typeof examples} */
-                    const currentExamples = [];
-                    /** @type {typeof examples} */
-                    const nextRemainingExamples = [];
+          sortedExamples[''] = remainingExamples.reduce((prev, c) => {
+            prev[c.deck_name] = prev[c.deck_name] || [];
+            prev[c.deck_name].push(c);
+            return prev;
+          }, {});
 
-                    for (const ex of remainingExamples) {
-                      if (ex.deck_name === p) {
-                        currentExamples.push(ex);
-                      } else {
-                        nextRemainingExamples.push(ex);
-                      }
-                    }
+          if (OPTS.LOG.immersionKit)
+            (window.unsafeWindow || window).console.log(sortedExamples);
 
-                    sortedExamples[p] = currentExamples;
-                    remainingExamples = nextRemainingExamples;
-                  }
-
-                  sortedExamples[''] = remainingExamples.reduce((prev, c) => {
-                    prev[c.deck_name] = prev[c.deck_name] || [];
-                    prev[c.deck_name].push(c);
-                    return prev;
-                  }, {});
-
-                  if (OPTS.LOG.immersionKit)
-                    (window.unsafeWindow || window).console.log(sortedExamples);
-
-                  for (const ss of [
-                    ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
-                    Object.values(sortedExamples['']).reduce(
-                      (prev, c) => [...prev, ...c],
-                      [],
-                    ),
-                  ]) {
-                    for (const s of shuffleArray(ss)) {
-                      sentences.push({
-                        id: s.sentence_id,
-                        ja: `${s.sentence} (${s.deck_name})`,
-                        audio: s.sound_url,
-                        en: s.translation,
-                      });
-                    }
-                  }
-
-                  appender.renew();
-                });
+          for (const ss of [
+            ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
+            Object.values(sortedExamples['']).reduce(
+              (prev, c) => [...prev, ...c],
+              [],
+            ),
+          ]) {
+            for (const s of shuffleArray(ss)) {
+              sentences.push({
+                id: s.sentence_id,
+                ja: `${s.sentence} (${s.deck_name})`,
+                audio: s.sound_url,
+                en: s.translation,
+              });
             }
-          });
-      }
-    }, 50);
+          }
+
+          appender.renew();
+        });
+    }
   };
 
   const appender = wkItemInfo

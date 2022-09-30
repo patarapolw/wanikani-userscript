@@ -414,7 +414,7 @@
             .map((el) => {
               if (el instanceof HTMLElement) {
                 if (el.querySelector('script')) return '';
-                el.innerHTML = el.innerHTML.substring(0, 500);
+                el.innerHTML = el.innerHTML.substring(0, 1000);
                 return el.innerHTML;
               }
               return '';
@@ -442,12 +442,15 @@
             })
             .slice(0, 3)
             .join('<hr>');
+
           insertDefinition(
             vocabDefinition,
             vocabPageURL,
             'Weblio',
             '#supplement-voc-meaning-exp',
           );
+
+          div.remove();
         },
       });
     }
