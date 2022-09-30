@@ -44,10 +44,8 @@
       priority: [
         'Death Note',
         'Hunter x Hunter',
-        'Fullmetal Alchemist Brotherhood',
         "Kino's Journey",
-        'Your Name',
-        'Bakemonogatari',
+        'Fullmetal Alchemist Brotherhood',
       ],
     },
     ANKI: {
@@ -138,6 +136,26 @@
     if (!c || !('voc' in c)) {
       return;
     }
+
+    const qType =
+      key === 'currentItem' ? $.jStorage.get('questionType') : undefined;
+
+    if (qType) {
+      if (qType === 'reading') {
+        // expand item info
+        setTimeout(function () {
+          window.addEventListener('scroll', noscroll);
+          $('#option-item-info').click();
+          // Remove listener to disable scroll
+          setTimeout(function () {
+            window.removeEventListener('scroll', noscroll);
+          }, 1000);
+        }, 100);
+      } else {
+        return;
+      }
+    }
+
     current = c;
     const { voc, kana } = current;
 
@@ -598,5 +616,9 @@
     }
 
     return array;
+  }
+
+  function noscroll() {
+    window.scrollTo(0, 0);
   }
 })();

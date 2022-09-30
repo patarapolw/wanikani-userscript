@@ -5,8 +5,7 @@
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
-// @match        *://www.wanikani.com/review/session*
-// @match        *://www.wanikani.com/lesson/session*
+// @match        *://www.wanikani.com/*/session*
 // @match        *://www.wanikani.com/*vocabulary/*
 // @match        *://www.wanikani.com/*kanji/*
 // @match        *://www.wanikani.com/*radical/*
