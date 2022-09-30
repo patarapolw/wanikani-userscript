@@ -1,15 +1,16 @@
 // ==UserScript==
-// @name         WaniKani External Definition
+// @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
 // @version      0.11
-// @description  Get External Definition from Weblio, Kanjipedia
-// @author       polv (original script and current)
+// @description  Get JJ External Definition from Weblio, Kanjipedia
+// @author       polv
 // @author       NicoleRauch
 // @match        *://www.wanikani.com/review/session*
 // @match        *://www.wanikani.com/lesson/session*
 // @match        *://www.wanikani.com/*vocabulary/*
 // @match        *://www.wanikani.com/*kanji/*
 // @match        *://www.wanikani.com/*radical/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
@@ -72,23 +73,43 @@
   let kanji;
   /** @type {string | undefined} */
   let vocab;
+  /** @type {string[]} */
+  let reading = [];
 
   function getOnReview() {
     const current = $.jStorage.get('currentItem');
-    // @ts-ignore
-    kanji = current.kan;
-    // @ts-ignore
-    vocab = current.voc ? fixVocab(current.voc) : undefined;
+    if (!current) return;
+
+    if ('kan' in current && typeof current.kan === 'string') {
+      kanji = current.kan;
+      vocab = undefined;
+      reading = [];
+    }
+
+    if ('voc' in current) {
+      kanji = undefined;
+      vocab = fixVocab(current.voc);
+      reading = current.kana;
+    }
   }
 
   $.jStorage.listenKeyChange('currentItem', getOnReview);
 
   function getOnLesson() {
     const current = $.jStorage.get('l/currentLesson');
-    // @ts-ignore
-    kanji = current.kan;
-    // @ts-ignore
-    vocab = current.voc ? fixVocab(current.voc) : undefined;
+    if (!current) return;
+
+    if ('kan' in current && typeof current.kan === 'string') {
+      kanji = current.kan;
+      vocab = undefined;
+      reading = [];
+    }
+
+    if ('voc' in current) {
+      kanji = undefined;
+      vocab = fixVocab(current.voc);
+      reading = current.kana;
+    }
   }
 
   $.jStorage.listenKeyChange('l/currentLesson', getOnLesson);
@@ -384,13 +405,43 @@
           // First, remove any already existing entries to avoid displaying entries for other items:
           $('.' + entryClazz).remove();
 
-          const vocabDefinition = $('<div />')
-            .append(data.responseText)
-            .find('.kiji > div')
-            .filter(function () {
-              return $('script', this).length === 0;
+          const div = document.createElement('div');
+          div.innerHTML = data.responseText;
+
+          const vocabDefinition = Array.from(
+            div.querySelectorAll('.kiji > div'),
+          )
+            .map((el) => {
+              if (el instanceof HTMLElement) {
+                if (el.querySelector('script')) return '';
+                el.innerHTML = el.innerHTML.substring(0, 500);
+                return el.innerHTML;
+              }
+              return '';
             })
-            .html();
+            .filter((s) => s)
+            .sort((t1, t2) => {
+              /**
+               *
+               * @param {string} t
+               * @returns {number}
+               */
+              const fn = (t) => {
+                if (/［[音訓]］/.exec(t)) return 2;
+
+                const m = /読み方：([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/u.exec(
+                  t,
+                );
+                if (m) {
+                  if (reading.length && !reading.includes(m[1])) return 1;
+                }
+
+                return 0;
+              };
+              return fn(t1) - fn(t2);
+            })
+            .slice(0, 3)
+            .join('<hr>');
           insertDefinition(
             vocabDefinition,
             vocabPageURL,
