@@ -73,7 +73,7 @@
 
   // SCRIPT START
 
-  const HTML_CLASS = 'wk-autoplay';
+  const HTML_CLASS = 'wk-autoplay-sentence';
   const FURIGANA_FIELDS = new Set(
     OPTS.ANKI
       ? [
@@ -94,6 +94,11 @@
       background-color:#ccc;
       color:#ccc;
       text-shadow:none;
+    }
+
+    .${HTML_CLASS} .audio-player {
+      width: 2em;
+      display: inline-block;
     }
 
     .${HTML_CLASS} summary {
@@ -194,6 +199,7 @@
               sentences = outFields.sentence
                 .map((f) => {
                   const out = {
+                    id: `anki--${f.audio}`,
                     ja: f.ja ? getField(n, f.ja) : undefined,
                     en: f.en ? getField(n, f.en) : undefined,
                     audio: '',
@@ -288,6 +294,7 @@
                   ]) {
                     for (const s of shuffleArray(ss)) {
                       sentences.push({
+                        id: s.sentence_id,
                         ja: `${s.sentence} (${s.deck_name})`,
                         audio: s.sound_url,
                         en: s.translation,
@@ -315,19 +322,19 @@
       const outputDiv = document.createElement('div');
       outputDiv.className = HTML_CLASS;
 
-      /** @type {HTMLAudioElement | null} */
+      /** @type {AudioPlayer | null} */
       let vocabAudioEl = null;
       if (current.aud) {
         /**
-         * @type {Record<string, HTMLAudioElement>}
+         * @type {Record<string, AudioPlayer>}
          */
         const vocabAudioEls = {};
         current.aud.map((a) => {
           const identifier = `${a.pronunciation}:${a.voice_actor_id}`;
           let audioEl = vocabAudioEls[identifier];
           if (!audioEl) {
-            audioEl = document.createElement('audio');
-            audioEl.style.display = 'none';
+            audioEl = createAudioPlayer('vocab', identifier);
+            audioEl.span.style.display = 'none';
 
             vocabAudioEls[identifier] = audioEl;
           }
@@ -336,18 +343,18 @@
           source.type = a.content_type;
           source.src = a.url;
 
-          audioEl.append(source);
+          audioEl.audio.append(source);
         });
 
         const vocabAudioElArray = Object.values(vocabAudioEls);
         const n = Math.floor(vocabAudioElArray.length * Math.random());
         vocabAudioEl = vocabAudioElArray[n];
-        outputDiv.append(vocabAudioEl);
-        vocabAudioElArray.map((el, i) => (i !== n ? el.remove() : null));
+        outputDiv.append(vocabAudioEl.span);
+        vocabAudioElArray.map((el, i) => (i !== n ? el.span.remove() : null));
       }
 
       let hasSentences = false;
-      /** @type {HTMLAudioElement[]} */
+      /** @type {AudioPlayer[]} */
       const sentenceAudioElArray = [];
 
       /**
@@ -358,41 +365,24 @@
       const createSentenceSection = (target, ss) => {
         return ss.map((s) => {
           const section = document.createElement('section');
-
-          if (s.ja && OPTS.HIDE_SENTENCE_JA !== 'remove') {
-            const p = document.createElement('p');
-            if (OPTS.HIDE_SENTENCE_JA) {
-              p.className = HIDDEN_UNTIL_HOVER_CLASS;
-            }
-            p.lang = 'ja';
-            p.innerText = s.ja;
-            section.append(p);
-          }
+          const p = document.createElement('p');
+          section.append(p);
 
           if (s.audio) {
-            const audio = document.createElement('audio');
-            audio.setAttribute('data-sentence', '');
-            audio.controls = true;
+            const player = createAudioPlayer('sentence', s.id);
+            player.audio.src = s.audio;
+            sentenceAudioElArray.push(player);
+            p.append(player.span);
+          }
 
-            audio.preload = 'none';
-            audio.src = s.audio;
-
-            const activateAudio = () => {
-              if (!audio.src) {
-                audio.src = s.audio;
-              }
-            };
-
-            sentenceAudioElArray.push(audio);
-
-            const p = document.createElement('p');
-            p.append(audio);
-
-            p.addEventListener('click', activateAudio);
-            p.addEventListener('mouseenter', activateAudio);
-            p.addEventListener('touchstart', activateAudio);
-
-            section.append(p);
+          if (s.ja && OPTS.HIDE_SENTENCE_JA !== 'remove') {
+            const span = document.createElement('span');
+            if (OPTS.HIDE_SENTENCE_JA) {
+              span.className = HIDDEN_UNTIL_HOVER_CLASS;
+            }
+            span.lang = 'ja';
+            span.innerHTML = s.ja;
+            p.append(span);
           }
 
           if (s.en && OPTS.HIDE_SENTENCE_EN !== 'remove') {
@@ -401,14 +391,12 @@
               p.className = HIDDEN_UNTIL_HOVER_CLASS;
             }
             p.lang = 'ja';
-            p.innerText = s.en;
+            p.innerHTML = s.en;
             section.append(p);
           }
 
-          if (section.innerHTML) {
-            hasSentences = true;
-            target.append(section);
-          }
+          hasSentences = true;
+          target.append(section);
         });
       };
 
@@ -419,12 +407,14 @@
 
       let needAutoplay = true;
 
-      if (autoplayDivArray[0]) {
-        if (autoplayDivArray[0].querySelector('audio[data-sentence]')) {
+      const [a1, a2] = autoplayDivArray;
+
+      if (a1) {
+        if (a1.querySelector('audio[data-sentence]')) {
           needAutoplay = false;
         }
       }
-      if (autoplayDivArray[1]) {
+      if (a2) {
         needAutoplay = false;
       }
 
@@ -432,33 +422,43 @@
         const autoplayDiv = document.createElement('div');
         autoplayDiv.style.display = 'none';
 
-        if (!autoplayDivArray[0] && vocabAudioEl) {
-          const el1 = /** @type {HTMLAudioElement} */ (
-            vocabAudioEl.cloneNode(true)
-          );
-          el1.autoplay = true;
-          autoplayDiv.append(el1);
+        if (!a1 && vocabAudioEl) {
+          const el1 = vocabAudioEl.clone();
+          el1.audio.autoplay = true;
+          autoplayDiv.append(el1.span);
 
           const firstSent = sentenceAudioElArray[0];
           if (firstSent) {
-            const el2 = /** @type {HTMLAudioElement} */ (
-              firstSent.cloneNode(true)
-            );
-            autoplayDiv.append(el2);
-            el1.onended = () => {
-              el2.play();
-              el1.onended = null;
+            const el2 = firstSent.clone();
+            autoplayDiv.append(el2.span);
+            el1.audio.onended = () => {
+              el2.audio.play();
+              el1.audio.onended = null;
             };
           }
         } else {
           const firstSent = sentenceAudioElArray[0];
           if (firstSent) {
-            const el2 = /** @type {HTMLAudioElement} */ (
-              firstSent.cloneNode(true)
-            );
-            autoplayDiv.append(el2);
+            const el2 = firstSent.clone();
+            autoplayDiv.append(el2.span);
 
-            el2.autoplay = true;
+            let isAutoplaySentence = true;
+            if (a1.classList.contains(AUDIO_PLAYED)) {
+              const v = a1.querySelector('audio[data-vocab]');
+              if (v instanceof HTMLAudioElement) {
+                if (!v.classList.contains(AUDIO_PLAYED)) {
+                  isAutoplaySentence = false;
+                  v.onended = () => {
+                    el2.audio.play();
+                    v.onended = null;
+                  };
+                }
+              }
+            }
+
+            if (isAutoplaySentence) {
+              el2.audio.autoplay = true;
+            }
           }
         }
 
@@ -475,7 +475,8 @@
 
         createSentenceSection(
           details,
-          sentences.slice(OPTS.NUMBER_OF_SENTENCES),
+          // Trim to 25 for performance reasons
+          sentences.slice(OPTS.NUMBER_OF_SENTENCES).slice(0, 25),
         );
         outputDiv.append(details);
       }
@@ -499,6 +500,79 @@
   $.jStorage.listenKeyChange('l/currentLesson', onNewVocabulary);
   $.jStorage.listenKeyChange('l/currentQuizItem', onNewVocabulary);
   onNewVocabulary();
+
+  const AUDIO_IDLE = 'audio-idle';
+  const AUDIO_PLAY = 'audio-play';
+  const AUDIO_PLAYED = 'audio-played';
+
+  /**
+   *
+   * Create an audio play using WaniKani styling
+   *
+   * @typedef {ReturnType<typeof createAudioPlayer>} AudioPlayer
+   *
+   * @param {string} idKey
+   * @param {string} idValue
+   */
+  function createAudioPlayer(idKey, idValue) {
+    const span = document.createElement('span');
+    span.className = 'audio-player';
+    span.setAttribute(`data-${idKey}`, idValue);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'audio-btn';
+    button.classList.add(AUDIO_IDLE);
+    button.setAttribute(`data-${idKey}`, idValue);
+
+    const audio = document.createElement('audio');
+    audio.style.display = 'none';
+    audio.preload = 'none';
+    audio.setAttribute(`data-${idKey}`, idValue);
+
+    button.addEventListener('click', () => {
+      audio.play().then(() => {
+        document
+          .querySelectorAll(`[data-${idKey}="${idValue}"]`)
+          .forEach((el) => {
+            if (el instanceof HTMLElement) {
+              el.style.pointerEvents = 'none';
+              el.classList.replace(AUDIO_IDLE, AUDIO_PLAY);
+            }
+          });
+      });
+    });
+
+    audio.addEventListener('ended', () => {
+      document
+        .querySelectorAll(`[data-${idKey}="${idValue}"]`)
+        .forEach((el) => {
+          if (el instanceof HTMLElement) {
+            el.style.pointerEvents = '';
+            el.classList.add(AUDIO_PLAYED);
+            el.classList.replace(AUDIO_PLAY, AUDIO_IDLE);
+          }
+        });
+    });
+
+    span.append(button, audio);
+
+    const oldSpan = span;
+
+    return {
+      span,
+      button,
+      audio,
+      clone() {
+        const span = /** @type {HTMLSpanElement} */ (oldSpan.cloneNode(true));
+        const button =
+          span.querySelector('button') || document.createElement('button');
+        const audio =
+          span.querySelector('audio') || document.createElement('audio');
+        return { span, button, audio };
+      },
+    };
+  }
 
   /**
    * Fisher-Yates (aka Knuth) Shuffle

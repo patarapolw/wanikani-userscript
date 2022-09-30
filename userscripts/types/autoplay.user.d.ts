@@ -12,7 +12,7 @@ interface ScriptOptions {
       reading: string[];
     };
     outFields: {
-      sentence: ISentence[];
+      sentence: Omit<ISentence, 'id'>[];
     };
   };
   LOG: {
@@ -23,6 +23,7 @@ interface ScriptOptions {
 type HidingOptions = boolean | 'remove';
 
 interface ISentence {
+  id: string;
   ja?: string;
   audio: string;
   en?: string;
