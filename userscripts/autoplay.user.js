@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Autoplay Sentence Audio
 // @namespace    polv/wanikani
-// @version      0.1
+// @version      0.1.1
 // @description  Autoplay audio sentences (via ImmersionKit.com), with customizability (via Anki-Connect)
 // @author       polv
 // @match        *://www.wanikani.com/review/session*
@@ -49,7 +49,7 @@
       ],
     },
     ANKI: {
-      model: 'yomichan-terms',
+      query: 'note:yomichan-terms',
       searchFields: {
         vocabulary: ['JapaneseWanikani', 'Japanese'],
         reading: ['Reading'],
@@ -70,6 +70,8 @@
   };
 
   // SCRIPT START
+
+  (window.unsafeWindow || window).audioAutoplay = false;
 
   const HTML_CLASS = 'wk-autoplay-sentence';
   const FURIGANA_FIELDS = new Set(
@@ -160,12 +162,12 @@
     const { voc, kana } = current;
 
     if (OPTS.ANKI) {
-      const { model: noteType, searchFields, outFields } = OPTS.ANKI;
+      const { query, searchFields, outFields } = OPTS.ANKI;
 
-      await ankiconnect
+      const noteIds = await ankiconnect
         .send('findNotes', {
           query: [
-            `"note:${noteType}"`,
+            query,
             `(${searchFields.vocabulary
               .map((f) => `"${f}:${voc}"`)
               .join(' OR ')})`,
@@ -174,92 +176,106 @@
               .join(' OR ')})`,
           ].join(' '),
         })
-        .then((notes) => ankiconnect.send('notesInfo', { notes }))
-        .then((notes) => {
-          /**
-           * @param {Pick<INote, 'fields'>} note
-           * @param {string} fieldName
-           */
-          function getField(note, fieldName) {
-            let { value = '' } = note.fields[fieldName] || {};
+        .catch((e) => {
+          console.error(e);
+          console.error(
+            'Cannot findNotes. Did you forget to install Anki and enable Anki-Connect (https://foosoft.net/projects/anki-connect/)?',
+          );
+          return [];
+        });
 
-            if (FURIGANA_FIELDS.has(fieldName)) {
-              value = value
-                .replace(/(\[.+?\])(.)/g, '$1 $2')
-                .replace(
-                  /(^| )([^ \[]+)\[([^\]]+)\]/g,
-                  '<ruby>$1<rt>$2</rt></ruby>',
-                );
+      if (noteIds.length) {
+        await ankiconnect
+          .send('notesInfo', { notes: noteIds })
+          .then((notes) => {
+            /**
+             * @param {Pick<INote, 'fields'>} note
+             * @param {string} fieldName
+             */
+            function getField(note, fieldName) {
+              let { value = '' } = note.fields[fieldName] || {};
+
+              if (FURIGANA_FIELDS.has(fieldName)) {
+                value = value
+                  .replace(/(\[.+?\])(.)/g, '$1 $2')
+                  .replace(
+                    /(^| )([^ \[]+)\[([^\]]+)\]/g,
+                    '<ruby>$1<rt>$2</rt></ruby>',
+                  );
+              }
+
+              return value;
             }
 
-            return value;
-          }
-
-          const filteredNotes = notes
-            .sort((n1, n2) =>
-              [n1, n2]
-                .map((n1) =>
-                  searchFields.vocabulary.findIndex((f) => getField(n1, f)),
-                )
-                .reduce((prev, c) => prev - c),
-            )
-            .filter((n) =>
-              searchFields.reading
-                .flatMap((f) => getField(n, f).split('\n'))
-                .some((r) => kana.includes(r.trim())),
-            );
-
-          const n =
-            filteredNotes.find((n) =>
-              outFields.sentence.map((f) => getField(n, f.audio)),
-            ) || filteredNotes[0];
-
-          if (n) {
-            sentences = outFields.sentence
-              .map((f) => {
-                const out = {
-                  id: `anki--${f.audio}`,
-                  ja: f.ja ? getField(n, f.ja) : undefined,
-                  en: f.en ? getField(n, f.en) : undefined,
-                  audio: '',
-                };
-
-                const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
-                if (m) {
-                  const filename = m[1];
-
-                  // [sound:https://...] works in AnkiDroid
-                  if (/:\/\//.exec(filename)) {
-                    out.audio = m[1];
-                  } else {
-                    ankiconnect
-                      .send('retrieveMediaFile', { filename })
-                      .then((r) => {
-                        let mimeType = 'audio/mpeg';
-                        const ext = m[1].replace(/^.+\./, '');
-                        switch (ext) {
-                          default:
-                            mimeType = `audio/${ext}`;
-                        }
-
-                        out.audio = `data:${mimeType};base64,${r}`;
-                      });
-                  }
-                }
-
-                return out;
-              })
-              .filter(
-                (s) =>
-                  (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
-                  s.audio,
+            const filteredNotes = notes
+              .sort((n1, n2) =>
+                [n1, n2]
+                  .map((n1) =>
+                    searchFields.vocabulary.findIndex((f) => getField(n1, f)),
+                  )
+                  .reduce((prev, c) => prev - c),
+              )
+              .filter((n) =>
+                searchFields.reading
+                  .flatMap((f) => getField(n, f).split('\n'))
+                  .some((r) => kana.includes(r.trim())),
               );
 
-            if (sentences.length) {
-              appender.renew();
+            const n =
+              filteredNotes.find((n) =>
+                outFields.sentence.map((f) => getField(n, f.audio)),
+              ) || filteredNotes[0];
+
+            if (n) {
+              sentences = outFields.sentence
+                .map((f) => {
+                  const out = {
+                    id: `anki--${f.audio}`,
+                    ja: f.ja ? getField(n, f.ja) : undefined,
+                    en: f.en ? getField(n, f.en) : undefined,
+                    audio: '',
+                  };
+
+                  const m = /\[sound\:(.+?)\]/.exec(getField(n, f.audio));
+                  if (m) {
+                    const filename = m[1];
+
+                    // [sound:https://...] works in AnkiDroid
+                    if (/:\/\//.exec(filename)) {
+                      out.audio = m[1];
+                    } else {
+                      ankiconnect
+                        .send('retrieveMediaFile', { filename })
+                        .then((r) => {
+                          let mimeType = 'audio/mpeg';
+                          const ext = m[1].replace(/^.+\./, '');
+                          switch (ext) {
+                            default:
+                              mimeType = `audio/${ext}`;
+                          }
+
+                          out.audio = `data:${mimeType};base64,${r}`;
+                        });
+                    }
+                  }
+
+                  return out;
+                })
+                .filter(
+                  (s) =>
+                    (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
+                    s.audio,
+                );
+
+              if (sentences.length) {
+                appender.renew();
+              }
             }
-          }
-        });
+          })
+          .catch((e) => {
+            console.error(e);
+          });
+      }
     }
 
     const { IMMERSION_KIT } = OPTS;

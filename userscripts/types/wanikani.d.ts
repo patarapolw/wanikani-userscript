@@ -46,5 +46,7 @@ declare global {
   interface Window {
     unsafeWindow?: Window;
     console: Console;
+
+    audioAutoplay: boolean;
   }
 }

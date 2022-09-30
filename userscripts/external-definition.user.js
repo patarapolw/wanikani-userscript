@@ -21,26 +21,16 @@
 (function () {
   'use strict';
 
+  /** @type {number | undefined} */
   const MAX_ENTRIES = 3;
+  /** @type {number | undefined} */
   const HTML_MAX_CHAR = 10000;
 
+  /** @type {{[key in 'weblio' | 'kanjipedia']?: false | { model: string; deck: string; fields: Record<string, string >}}} */
   const STORE_IN_ANKI = {
     weblio: false,
     // Just change to `: false` to disable
-    kanjipedia: {
-      model: 'kanji Model',
-      deck: 'Yomichan::Kanji',
-      fields: {
-        kanji: 'Kanji',
-        variants: 'Kanji_Forms',
-        meaning: 'Kanji_Meaning',
-        meaningInfo: 'Meaning_Info',
-        examples: 'Examples',
-        on: 'Reading_On',
-        kun: 'Reading_Kun',
-        radicals: 'Radicals',
-      },
-    },
+    kanjipedia: false,
   };
 
   const link_color = 'color: #666666;';
@@ -131,7 +121,20 @@
     }
     case 'vocabulary': {
       vocab = fixVocab(decodeURIComponent(urlParts[urlParts.length - 1]));
-      updateInfo();
+      waitFor(
+        'body',
+        '[data-react-class="Readings/Readings"][data-react-props]',
+      ).then((div) => {
+        if (div) {
+          const props = JSON.parse(
+            div.getAttribute('data-react-props') || '{}',
+          );
+          if (Array.isArray(props.readings)) {
+            reading = props.readings.map((r) => r.reading);
+          }
+        }
+        updateInfo();
+      });
       break;
     }
     case 'lesson': {
@@ -191,13 +194,14 @@
         ' target="_blank">Click for full entry</a>' +
         '</section>';
 
-      if (['kanji', 'vocabulary', 'review', 'extra_study'].includes(pageType)) {
+      if (['kanji', 'review', 'extra_study'].includes(pageType)) {
         const noteMeaning = $('#item-info-meaning-mnemonic:visible');
         if (noteMeaning.length) {
           noteMeaning.before(newHtml);
           return;
         }
       }
+
       $(lessonInsertAfter + ':visible').after(newHtml);
     }
 
@@ -478,7 +482,9 @@
             vocabDefinition,
             vocabPageURL,
             'Weblio',
-            '#supplement-voc-meaning-exp',
+            pageType === 'vocabulary'
+              ? '#note-reading'
+              : '#supplement-voc-meaning-exp',
           );
 
           div.remove();
@@ -489,6 +495,28 @@
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
   // Triggering updates on lessons and reviews
+
+  /**
+   *
+   * @param {string} from
+   * @param {string} lookFor
+   * @returns {Promise<HTMLElement | null>}
+   */
+  async function waitFor(from, lookFor) {
+    const targetNode = document.querySelector(from);
+    if (targetNode) {
+      return new Promise((resolve) => {
+        new MutationObserver(function () {
+          const out = targetNode.querySelector(lookFor);
+          if (out instanceof HTMLElement) {
+            resolve(out);
+            return;
+          }
+        }).observe(targetNode, { childList: true, attributes: true });
+      });
+    }
+    return null;
+  }
 
   function triggerOnLesson(targetId) {
     const targetNode = $('#' + targetId).get(0);

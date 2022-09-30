@@ -6,7 +6,7 @@ interface ScriptOptions {
     priority: string[];
   };
   ANKI?: {
-    model: string;
+    query: string;
     searchFields: {
       vocabulary: string[];
       reading: string[];
