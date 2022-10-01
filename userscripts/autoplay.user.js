@@ -8,7 +8,7 @@
 // @match        *://www.wanikani.com/*/session*
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
 // @require      https://greasyfork.org/scripts/452285-ankiconnect/code/ankiconnect.js?version=1099556
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
+// @icon         https://emoji.discourse-cdn.com/apple/loudspeaker.png?v=12
 // @license      MIT
 // @grant        none
 // ==/UserScript==
@@ -49,6 +49,40 @@
   // SCRIPT START
 
   (window.unsafeWindow || window).audioAutoplay = false;
+
+  const HTML_CLASS = 'wk-autoplay-sentence';
+
+  const HIDDEN_UNTIL_HOVER_CLASS = 'hidden-until-hover';
+  document.head.append(
+    Object.assign(document.createElement('style'), {
+      className: 'style--' + HTML_CLASS,
+      innerHTML: `
+    .${HTML_CLASS} .${HIDDEN_UNTIL_HOVER_CLASS}:not(:hover) {
+      background-color:#ccc;
+      color:#ccc;
+      text-shadow:none;
+    }
+
+    .${HTML_CLASS} section[data-sentence] {
+      display: grid;
+      grid-template-columns: 2em 1fr;
+      gap: 10px;
+      width: 100%;
+      align-items: center;
+      margin-bottom: initial !important;
+    }
+
+    .${HTML_CLASS} details {
+      margin-top: 2em;
+      display: revert;
+    }
+
+    .${HTML_CLASS} summary {
+      display: revert;
+    }
+    `,
+    }),
+  );
 
   /**
    * Configurable object, accessible via JavaScript console
@@ -196,46 +230,60 @@
                   ]),
                 ].sort();
 
-                /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
-                const sortedExamples = {};
                 /** @type {typeof examples} */
                 let remainingExamples = examples;
 
-                for (const p of IMMERSION_KIT.priority) {
-                  sortedExamples[p] = [];
+                /**
+                 *
+                 * @param {(ex: (typeof examples)[0]) => boolean} filterFn
+                 */
+                const addExamples = (filterFn) => {
+                  const existingIds = new Set(sentences.map((s) => s.id));
+
+                  /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
+                  const sortedExamples = {};
+
+                  for (const p of IMMERSION_KIT.priority) {
+                    sortedExamples[p] = [];
+                    remainingExamples = remainingExamples.filter((ex) => {
+                      if (existingIds.has(ex.sentence_id)) return false;
+                      if (ex.deck_name === p && !filterFn(ex)) {
+                        sortedExamples[p].push(ex);
+                        return false;
+                      }
+                      return true;
+                    });
+                  }
+
                   remainingExamples = remainingExamples.filter((ex) => {
-                    if (ex.deck_name === p) {
-                      sortedExamples[p].push(ex);
-                      return false;
-                    }
-                    return true;
+                    if (existingIds.has(ex.sentence_id)) return false;
+                    return filterFn(ex);
                   });
-                }
 
-                sortedExamples[''] = remainingExamples.reduce((prev, c) => {
-                  prev[c.deck_name] = prev[c.deck_name] || [];
-                  prev[c.deck_name].push(c);
-                  return prev;
-                }, {});
+                  sortedExamples[''] = remainingExamples.reduce((prev, c) => {
+                    prev[c.deck_name] = prev[c.deck_name] || [];
+                    prev[c.deck_name].push(c);
+                    return prev;
+                  }, {});
 
-                const existingIds = new Set(sentences.map((s) => s.id));
-
-                IMMERSION_KIT._lookup[voc] = [
-                  ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
-                  Object.values(sortedExamples['']).reduce(
-                    (prev, c) => [...prev, ...c],
-                    [],
-                  ),
-                ]
-                  .flatMap((ss) =>
-                    shuffleArray(
-                      ss.filter((s) => !existingIds.has(s.sentence_id)),
+                  IMMERSION_KIT._lookup[voc] = [
+                    ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
+                    Object.values(sortedExamples['']).reduce(
+                      (prev, c) => [...prev, ...c],
+                      [],
                     ),
-                  )
-                  .map((s) => {
-                    sentences.push(formatImKit(s));
-                    return s;
-                  });
+                  ]
+                    .flatMap((ss) => shuffleArray(ss))
+                    .map((s) => {
+                      sentences.push(formatImKit(s));
+                      return s;
+                    });
+                };
+
+                addExamples((s) =>
+                  s.sentence.replace(/\(.+?\)/g, ' ').includes(voc),
+                );
+                addExamples(() => true);
 
                 appender.renew();
 
@@ -271,7 +319,6 @@
 
   Object.assign(window.unsafeWindow || window, { wkAutoplaySentence: OB });
 
-  const HTML_CLASS = 'wk-autoplay-sentence';
   const FURIGANA_FIELDS = new Set(
     OB.ANKI
       ? [
@@ -281,30 +328,6 @@
       : undefined,
   );
   const ankiconnect = new AnkiConnect();
-
-  const HIDDEN_UNTIL_HOVER_CLASS = 'hidden-until-hover';
-
-  document.head.append(
-    Object.assign(document.createElement('style'), {
-      className: 'style--' + HTML_CLASS,
-      innerHTML: `
-    .${HTML_CLASS} .${HIDDEN_UNTIL_HOVER_CLASS}:not(:hover) {
-      background-color:#ccc;
-      color:#ccc;
-      text-shadow:none;
-    }
-
-    .${HTML_CLASS} .audio-player {
-      width: 2em;
-      display: inline-block;
-    }
-
-    .${HTML_CLASS} summary {
-      display: revert;
-    }
-    `,
-    }),
-  );
 
   /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */
   let current;
@@ -330,14 +353,12 @@
   });
 
   const onNewVocabulary = async () => {
-    autoRevealer.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
+    autoRevealer.disconnect();
     autoplayDivArray.map((el) => el.remove());
     autoplayDivArray.splice(0, autoplayDivArray.length);
-
     sentences.splice(0, sentences.length);
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
 
     let key = 'currentItem';
     if (document.URL.includes('/lesson/session')) {
@@ -569,24 +590,25 @@
       const createSentenceSection = (target, ss) => {
         return ss.map((s) => {
           const section = document.createElement('section');
-          const p = document.createElement('p');
-          section.append(p);
+          section.setAttribute('data-sentence', s.id);
 
-          if (s.audio) {
-            const player = createAudioPlayer('sentence', s.id);
-            player.audio.src = s.audio;
-            sentenceAudioElArray.push(player);
-            p.append(player.span);
-          }
+          const player = createAudioPlayer('sentence', s.id);
+          player.audio.src = s.audio;
+          sentenceAudioElArray.push(player);
+          section.append(player.span);
+
+          const mainEl = document.createElement('div');
+          mainEl.style.flexGrow = '1';
+          section.append(mainEl);
 
           if (s.ja && OB.HIDE_SENTENCE_JA !== 'remove') {
-            const span = document.createElement('span');
+            const p = document.createElement('p');
             if (OB.HIDE_SENTENCE_JA) {
-              span.className = HIDDEN_UNTIL_HOVER_CLASS;
+              p.className = HIDDEN_UNTIL_HOVER_CLASS;
             }
-            span.lang = 'ja';
-            span.innerHTML = s.ja;
-            p.append(span);
+            p.lang = 'ja';
+            p.innerHTML = s.ja;
+            mainEl.append(p);
           }
 
           if (s.en && OB.HIDE_SENTENCE_EN !== 'remove') {
@@ -596,7 +618,7 @@
             }
             p.lang = 'ja';
             p.innerHTML = s.en;
-            section.append(p);
+            mainEl.append(p);
           }
 
           hasSentences = true;
@@ -742,7 +764,7 @@
    * @param {string} idValue
    */
   function createAudioPlayer(idKey, idValue) {
-    const span = document.createElement('span');
+    const span = document.createElement('div');
     span.setAttribute(`data-${idKey}`, idValue);
     span.className = 'audio-player';
 

@@ -45,6 +45,8 @@
     '.' + entryClazz + ' .kanji-variant {',
     '  display: inline-block;',
     '  font-size: 2em;',
+    '  margin-top: 0;',
+    '  margin-bottom: 0;',
     '}',
     '.' + entryClazz + ' .kanji-variant img {',
     '  height: 2em;',
@@ -73,6 +75,12 @@
   let reading = [];
 
   function getCurrent() {
+    // First, remove any already existing entries to avoid displaying entries for other items:
+    $('.' + entryClazz).remove();
+    kanji = undefined;
+    vocab = undefined;
+    reading = [];
+
     let key = 'currentItem';
     if (document.URL.includes('/lesson/session')) {
       key = $.jStorage.get('l/quizActive')
@@ -83,16 +91,13 @@
     const current = $.jStorage.get(key);
     if (!current) return;
 
-    if ('kan' in current && typeof current.kan === 'string') {
-      kanji = current.kan;
-      vocab = undefined;
-      reading = [];
-    }
-
     if ('voc' in current) {
-      kanji = undefined;
       vocab = fixVocab(current.voc);
       reading = current.kana;
+    } else if ('kan' in current && typeof current.kan === 'string') {
+      kanji = current.kan;
+    } else if ('rad' in current) {
+      kanji = current.characters;
     }
   }
 
@@ -171,7 +176,7 @@
         name +
         ' Explanation</h2>' +
         "<div style='margin-bottom: 0.5em;'>" +
-        (definition || 'Definition not found.') +
+        definition +
         '</div>' +
         '<a href="' +
         full_url +
@@ -236,166 +241,286 @@
       }
     }
 
-    if (kanji) {
-      if (!document.getElementById('supplement-kan-meaning-mne')) {
-        $('#meaning .mnemonic-content')
-          .first()
-          .prepend($('<div id="supplement-kan-meaning-mne">'));
-      }
-
+    /**
+     *
+     * @param {string} kanji
+     * @returns
+     */
+    async function searchKanjipedia(kanji) {
       const kanjipediaUrlBase = 'https://www.kanjipedia.jp/';
       const regexImgSrc = /img src="/g;
       const replacementImgSrc = 'img width="16px" src="' + kanjipediaUrlBase;
       const regexTxtNormal = /class="txtNormal">/g;
       const replacementTxtNormal = '>.';
       const regexSpaceBeforeCircledNumber = / ([\u2460-\u2473])/g;
-      GM_xmlhttpRequest({
-        method: 'GET',
-        url: kanjipediaUrlBase + 'search?k=' + kanji + '&kt=1&sk=leftHand',
-        onload: function (data) {
-          const firstResult = /** @type {HTMLAnchorElement} */ (
-            $('<div />')
-              .append(data.responseText.replace(regexImgSrc, replacementImgSrc))
-              .find('#resultKanjiList a')[0]
-          );
-          if (!firstResult) return;
 
-          const rawKanjiURL = firstResult.href;
-          const kanjiPageURL = kanjipediaUrlBase + rawKanjiURL.slice(25);
-          GM_xmlhttpRequest({
-            method: 'GET',
-            url: kanjiPageURL,
-            onload: function (data) {
-              // First, remove any already existing entries to avoid displaying entries for other items:
-              $('.' + entryClazz).remove();
+      return new Promise((resolve, reject) => {
+        function onerror(e) {
+          (window.unsafeWindow || window).console.error(arguments);
+          reject(e);
+        }
 
-              const rawResponseNode = $('<div />').append(
-                data.responseText
-                  .replace(regexImgSrc, replacementImgSrc)
-                  .replace(regexTxtNormal, replacementTxtNormal)
-                  .replace(regexSpaceBeforeCircledNumber, '<br/>$1'),
-              );
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: kanjipediaUrlBase + 'search?k=' + kanji + '&kt=1&sk=leftHand',
+          onerror,
+          onload: function (data) {
+            const firstResult = /** @type {HTMLAnchorElement} */ (
+              $('<div />')
+                .append(
+                  data.responseText.replace(regexImgSrc, replacementImgSrc),
+                )
+                .find('#resultKanjiList a')[0]
+            );
+            if (!firstResult) {
+              resolve('');
+              return;
+            }
 
-              const readingNode = rawResponseNode.find(
-                '#kanjiLeftSection #onkunList',
-              );
-              // Okurigana dot removal, so that it can be read as a vocabulary with Yomichan
-              readingNode.find('span').each((_, it) => {
-                const $it = $(it);
-                const text = $it.text();
-                if (text[0] === '.') {
-                  $it.text(text.substring(1));
-                  $it.addClass('okurigana').css('color', '#ab9b96');
-                }
-              });
-
-              insertReading(readingNode.html(), kanjiPageURL);
-
-              const htmlDefinition = rawResponseNode
-                .find('#kanjiRightSection p')
-                .html();
-              insertDefinition(
-                htmlDefinition,
-                kanjiPageURL,
-                'Kanjipedia',
-                '#supplement-kan-meaning-mne',
-              );
-
-              const htmlVariant = (() => {
-                const vs = [
-                  ...rawResponseNode.find('#kanjiOyaji'),
-                  ...rawResponseNode.find('.subKanji'),
-                ].filter(
-                  (n) => $(n).text() !== decodeURIComponent(kanji || ''),
+            const rawKanjiURL = firstResult.href;
+            const kanjiPageURL = kanjipediaUrlBase + rawKanjiURL.slice(25);
+            GM_xmlhttpRequest({
+              method: 'GET',
+              url: kanjiPageURL,
+              onerror,
+              onload: function (data) {
+                const rawResponseNode = $('<div />').append(
+                  data.responseText
+                    .replace(regexImgSrc, replacementImgSrc)
+                    .replace(regexTxtNormal, replacementTxtNormal)
+                    .replace(regexSpaceBeforeCircledNumber, '<br/>$1'),
                 );
 
-                if (!vs.length) return '';
+                const readingNode = rawResponseNode.find(
+                  '#kanjiLeftSection #onkunList',
+                );
+                // Okurigana dot removal, so that it can be read as a vocabulary with Yomichan
+                readingNode.find('span').each((_, it) => {
+                  const $it = $(it);
+                  const text = $it.text();
+                  if (text[0] === '.') {
+                    $it.text(text.substring(1));
+                    $it.addClass('okurigana').css('color', '#ab9b96');
+                  }
+                });
 
-                const $vs = $(vs);
-                $vs.find('img').removeAttr('width').css('height', '2em');
+                insertReading(readingNode.html(), kanjiPageURL);
 
-                $('.' + entryClazz + '-reading').append(
-                  $('<li>').text('異体字'),
-                  $('<div style="text-align: center">').append(
-                    ...$vs.addClass('kanji-variant'),
-                  ),
+                const htmlDefinition = rawResponseNode
+                  .find('#kanjiRightSection p')
+                  .html();
+                insertDefinition(
+                  htmlDefinition,
+                  kanjiPageURL,
+                  'Kanjipedia',
+                  '#supplement-kan-meaning-mne',
                 );
 
-                return $vs.html();
-              })();
+                const htmlVariant = (() => {
+                  const vs = [
+                    ...rawResponseNode.find('#kanjiOyaji'),
+                    ...rawResponseNode.find('.subKanji'),
+                  ].filter(
+                    (n) => $(n).text() !== decodeURIComponent(kanji || ''),
+                  );
 
-              if (STORE_IN_ANKI.kanjipedia) {
-                const ankiOpts = STORE_IN_ANKI.kanjipedia;
-                const k = decodeURIComponent(kanji || '');
-                if (!k) return;
+                  if (!vs.length) return '';
 
-                AnkiConnect('findNotes', {
-                  query: `"note:${ankiOpts.model}" "${ankiOpts.fields.kanji}:${k}"`,
-                })
-                  .then((notes) => AnkiConnect('notesInfo', { notes }))
-                  .then(([n]) => {
-                    const note = {
-                      id: '',
-                      fields: /** @type {Record<string, string>} */ ({}),
-                      tags: ['wanikani', 'kanjipedia'],
-                      options: {
-                        allowDuplicate: false,
-                      },
-                    };
+                  const $vs = $(vs);
+                  $vs.find('img').removeAttr('width').css('height', '2em');
 
-                    if (n) {
-                      note.id = n.noteId;
+                  $('.' + entryClazz + '-reading').append(
+                    $('<li>').text('異体字'),
+                    $('<div style="text-align: center">').append(
+                      ...$vs.addClass('kanji-variant'),
+                    ),
+                  );
 
-                      if (
-                        $(n.fields[ankiOpts.fields.meaning].value).hasClass(
-                          'kanjipedia',
-                        )
-                      ) {
-                        return;
-                      }
+                  return $vs.html();
+                })();
 
-                      if (!n.fields[ankiOpts.fields.meaningInfo].value) {
-                        note.fields[ankiOpts.fields.meaningInfo] =
-                          n.fields[ankiOpts.fields.meaning].value;
-                      }
-                    }
+                if (STORE_IN_ANKI.kanjipedia) {
+                  const ankiOpts = STORE_IN_ANKI.kanjipedia;
+                  const k = decodeURIComponent(kanji || '');
+                  if (!k) return;
 
-                    note.fields[ankiOpts.fields.variants] = htmlVariant;
-                    note.fields[
-                      ankiOpts.fields.meaning
-                    ] = `<div class="kanjipedia">${htmlDefinition}</div>`;
-                    note.fields[ankiOpts.fields.on] = readingNode
-                      .find('img[alt="音"]')
-                      .siblings('.onkunYomi')
-                      .html();
-                    note.fields[ankiOpts.fields.kun] = readingNode
-                      .find('img[alt="訓"]')
-                      .siblings('.onkunYomi')
-                      .html();
-
-                    return note;
+                  AnkiConnect('findNotes', {
+                    query: `"note:${ankiOpts.model}" "${ankiOpts.fields.kanji}:${k}"`,
                   })
-                  .then((note) => {
-                    if (!note) return;
+                    .then((notes) => AnkiConnect('notesInfo', { notes }))
+                    .then(([n]) => {
+                      const note = {
+                        id: '',
+                        fields: /** @type {Record<string, string>} */ ({}),
+                        tags: ['wanikani', 'kanjipedia'],
+                        options: {
+                          allowDuplicate: false,
+                        },
+                      };
 
-                    if (note.id) {
-                      return AnkiConnect('updateNoteFields', { note });
+                      if (n) {
+                        note.id = n.noteId;
+
+                        if (
+                          $(n.fields[ankiOpts.fields.meaning].value).hasClass(
+                            'kanjipedia',
+                          )
+                        ) {
+                          return;
+                        }
+
+                        if (!n.fields[ankiOpts.fields.meaningInfo].value) {
+                          note.fields[ankiOpts.fields.meaningInfo] =
+                            n.fields[ankiOpts.fields.meaning].value;
+                        }
+                      }
+
+                      note.fields[ankiOpts.fields.variants] = htmlVariant;
+                      note.fields[
+                        ankiOpts.fields.meaning
+                      ] = `<div class="kanjipedia">${htmlDefinition}</div>`;
+                      note.fields[ankiOpts.fields.on] = readingNode
+                        .find('img[alt="音"]')
+                        .siblings('.onkunYomi')
+                        .html();
+                      note.fields[ankiOpts.fields.kun] = readingNode
+                        .find('img[alt="訓"]')
+                        .siblings('.onkunYomi')
+                        .html();
+
+                      return note;
+                    })
+                    .then((note) => {
+                      if (!note) return;
+
+                      if (note.id) {
+                        return AnkiConnect('updateNoteFields', { note });
+                      }
+
+                      note.fields[ankiOpts.fields.kanji] = k;
+
+                      return AnkiConnect('addNote', {
+                        note: {
+                          ...note,
+                          deckName: ankiOpts.deck,
+                          modelName: ankiOpts.model,
+                        },
+                      });
+                    });
+                }
+
+                resolve(htmlDefinition);
+              },
+            });
+          },
+        });
+      });
+    }
+
+    /**
+     *
+     * @param {string} vocab
+     * @returns
+     */
+    async function searchWeblio(vocab) {
+      const vocabPageURL = 'https://www.weblio.jp/content/' + vocab;
+
+      return new Promise((resolve, reject) => {
+        function onerror(e) {
+          (window.unsafeWindow || window).console.error(arguments);
+          reject(e);
+        }
+
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: vocabPageURL,
+          onerror,
+          onload: function (data) {
+            if (!data.responseText) {
+              resolve('');
+              return;
+            }
+
+            const div = document.createElement('div');
+            div.innerHTML = data.responseText;
+
+            const vocabDefinition = Array.from(div.querySelectorAll('.kiji'))
+              .flatMap((el) => {
+                return Array.from(el.children).filter(
+                  (el) => el instanceof HTMLDivElement,
+                );
+              })
+              .map((el) => {
+                if (el instanceof HTMLElement) {
+                  if (el.querySelector('script')) return '';
+                  el.innerHTML = el.innerHTML.substring(0, HTML_MAX_CHAR);
+                  return el.innerHTML;
+                }
+                return '';
+              })
+              .filter((s) => s)
+              .sort((t1, t2) => {
+                /**
+                 *
+                 * @param {string} t
+                 * @returns {number}
+                 */
+                const fn = (t) => {
+                  if (/［[音訓]］/.exec(t)) return kanji ? -10 : 10;
+
+                  const m =
+                    /読み方：([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/u.exec(t);
+                  if (m) {
+                    if (reading.length && !reading.includes(m[1])) return 5;
+
+                    if (isSuffix) {
+                      if (t.includes('接尾')) return -1;
                     }
 
-                    note.fields[ankiOpts.fields.kanji] = k;
+                    if (isSuru) {
+                      if (t.includes('スル')) return -1;
+                    }
 
-                    return AnkiConnect('addNote', {
-                      note: {
-                        ...note,
-                        deckName: ankiOpts.deck,
-                        modelName: ankiOpts.model,
-                      },
-                    });
-                  });
-              }
-            },
-          });
-        },
+                    return 0;
+                  }
+
+                  return 1000;
+                };
+                return fn(t1) - fn(t2);
+              })
+              .slice(0, MAX_ENTRIES)
+              .join('<hr>');
+
+            if (vocabDefinition) {
+              insertDefinition(
+                vocabDefinition,
+                vocabPageURL,
+                'Weblio',
+                pageType === 'vocabulary' ||
+                  pageType === 'kanji' ||
+                  pageType === 'radical'
+                  ? '#note-reading'
+                  : '#supplement-voc-meaning-exp',
+              );
+            }
+
+            div.remove();
+            resolve(vocabDefinition);
+          },
+        });
+      });
+    }
+
+    if (kanji) {
+      if (!document.getElementById('supplement-kan-meaning-mne')) {
+        $('#meaning .mnemonic-content')
+          .first()
+          .prepend($('<div id="supplement-kan-meaning-mne">'));
+      }
+      searchKanjipedia(kanji).then((html) => {
+        if (!html && kanji) {
+          return searchWeblio(kanji);
+        }
       });
     }
     if (vocab) {
@@ -404,78 +529,7 @@
           .first()
           .prepend($('<div id="supplement-voc-meaning-exp">'));
       }
-
-      const vocabPageURL = 'https://www.weblio.jp/content/' + vocab;
-      GM_xmlhttpRequest({
-        method: 'GET',
-        url: vocabPageURL,
-        onload: function (data) {
-          // First, remove any already existing entries to avoid displaying entries for other items:
-          $('.' + entryClazz).remove();
-
-          const div = document.createElement('div');
-          div.innerHTML = data.responseText;
-
-          const vocabDefinition = Array.from(div.querySelectorAll('.kiji'))
-            .flatMap((el) => {
-              return Array.from(el.children).filter(
-                (el) => el instanceof HTMLDivElement,
-              );
-            })
-            .map((el) => {
-              if (el instanceof HTMLElement) {
-                if (el.querySelector('script')) return '';
-                el.innerHTML = el.innerHTML.substring(0, HTML_MAX_CHAR);
-                return el.innerHTML;
-              }
-              return '';
-            })
-            .filter((s) => s)
-            .sort((t1, t2) => {
-              /**
-               *
-               * @param {string} t
-               * @returns {number}
-               */
-              const fn = (t) => {
-                if (/［[音訓]］/.exec(t)) return 10;
-
-                const m = /読み方：([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/u.exec(
-                  t,
-                );
-                if (m) {
-                  if (reading.length && !reading.includes(m[1])) return 5;
-
-                  if (isSuffix) {
-                    if (t.includes('接尾')) return -1;
-                  }
-
-                  if (isSuru) {
-                    if (t.includes('スル')) return -1;
-                  }
-
-                  return 0;
-                }
-
-                return 1000;
-              };
-              return fn(t1) - fn(t2);
-            })
-            .slice(0, MAX_ENTRIES)
-            .join('<hr>');
-
-          insertDefinition(
-            vocabDefinition,
-            vocabPageURL,
-            'Weblio',
-            pageType === 'vocabulary'
-              ? '#note-reading'
-              : '#supplement-voc-meaning-exp',
-          );
-
-          div.remove();
-        },
-      });
+      searchWeblio(vocab);
     }
   }
 
@@ -569,10 +623,10 @@
   //     return undefined;
   //   });
 
-  // on review meaning page (vocab and kanji):
+  // on review meaning page (radical, vocab and kanji, but empty when radical):
   triggerOnReview('item-info-col2', 'note-meaning');
 
-  // on review reading page (vocab and kanji, but we change the page only when kanji)
+  // on review reading page (radical, vocab and kanji, but we change the page only when kanji)
   triggerOnReview('item-info-col1', 'item-info-reading');
 
   // on lesson vocab meaning page:
