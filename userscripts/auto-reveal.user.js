@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         WaniKani Always Show Item Info
-// @namespace    http://tampermonkey.net/
+// @namespace    polv/wanikani
 // @version      1.0
 // @description  Always show WaniKani item info during reviews without scrolling, no matter if your answer was correct or not.
-// @author       irrelephant
+// @author       polv
 // @match        *://www.wanikani.com/*/session*
 // @grant        none
 // ==/UserScript==
@@ -11,48 +11,33 @@
 /// <reference types="jquery" />
 (function () {
   'use strict';
-  let isRunning = false;
 
-  $.jStorage.listenKeyChange('questionCount', function (key, action) {
-    const c = $.jStorage.get('currentItem');
-    const q = $.jStorage.get('questionType');
-    if (c.voc && q === 'reading') return;
-    showItemInfo();
-  });
-
-  const onQuiz = () => {
-    const c = $.jStorage.get('l/currentQuizItem');
-    const q = $.jStorage.get('l/questionType');
-    if (c.voc && q === 'reading') return;
-
-    if (isRunning) return;
-    isRunning = true;
+  const onSubmit = () => {
     setTimeout(() => {
-      isRunning = false;
-    }, 100);
-
-    showItemInfo();
+      const btn = document.getElementById('option-item-info');
+      if (btn instanceof HTMLElement && !btn.classList.contains('active')) {
+        btn.click();
+        // const { scrollX, scrollY, scrollTo } = window.unsafeWindow || window;
+        // const noScroll = () => scrollTo(scrollX, scrollY);
+        // window.addEventListener('scroll', onscroll);
+        // setTimeout(() => {
+        //   btn.click();
+        // }, 100);
+        // setTimeout(() => {
+        //   window.removeEventListener('scroll', noScroll);
+        // }, 1000);
+      }
+    }, 50);
   };
 
-  $.jStorage.listenKeyChange('l/currentQuizItem', onQuiz);
-  $.jStorage.listenKeyChange('l/questionType', onQuiz);
-
-  function noscroll() {
-    window.scrollTo(0, 0);
-  }
-
-  // expand item info
-  function showItemInfo() {
-    window.addEventListener('scroll', noscroll);
-
-    // expand item info
-    setTimeout(function () {
-      $('#option-item-info').trigger('click');
-    }, 100);
-
-    // Remove listener to disable scroll
-    setTimeout(function () {
-      window.removeEventListener('scroll', noscroll);
-    }, 1000);
-  }
+  new MutationObserver(() => {
+    const answerForm = document.querySelector('#answer-form fieldset');
+    if (answerForm instanceof HTMLElement && answerForm.className) {
+      onSubmit();
+    }
+  }).observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+  });
 })();

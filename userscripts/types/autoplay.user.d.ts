@@ -44,7 +44,7 @@ interface WKAutoplaySentence {
 interface WKAutoplayObject extends WKAutoplayOptions {
   IMMERSION_KIT?: WKAutoplayImmersionKit;
   load(s?: WKAutoplayOptions): WKAutoplayObject;
-  save(): void;
+  save(): WKAutoplayObject;
   reset(): WKAutoplayObject;
   dump(): WKAutoplayOptions;
 }

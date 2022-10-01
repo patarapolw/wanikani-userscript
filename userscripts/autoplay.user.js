@@ -4,9 +4,8 @@
 // @version      0.1.2
 // @description  Autoplay audio sentences (via ImmersionKit.com), with customizability (via Anki-Connect)
 // @author       polv
-// @match        *://www.wanikani.com/review/session*
-// @match        *://www.wanikani.com/extra_study/session*
-// @match        *://www.wanikani.com/lesson/session*
+// @match        *://www.wanikani.com/dashboard
+// @match        *://www.wanikani.com/*/session*
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
 // @require      https://greasyfork.org/scripts/452285-ankiconnect/code/ankiconnect.js?version=1099556
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
@@ -79,7 +78,10 @@
 
         const ANKI = deepAssign(OB.ANKI, vAnki || lsGet(KEY_ANKI));
 
-        deepAssign(OB, Object.keys(vOB).length ? vOB : lsGet(KEY_OB));
+        Object.assign(
+          OB,
+          deepAssign(OB, Object.keys(vOB).length ? vOB : lsGet(KEY_OB)),
+        );
 
         if (IMMERSION_KIT && Object.keys(IMMERSION_KIT).length) {
           OB.IMMERSION_KIT = IMMERSION_KIT;
@@ -124,11 +126,10 @@
             if (s) {
               stopAllAudio();
 
-              const player = createAudioPlayer('sentence', s.sentence_id);
-              const { audio } = player;
+              const audio = new Audio();
               audio.src = s.sound_url;
               audio.onended = () => {
-                player.span.remove();
+                audio.remove();
               };
               audio.play();
 
@@ -154,11 +155,10 @@
             if (s) {
               stopAllAudio();
 
-              const player = createAudioPlayer('sentence', s.sentence_id);
-              const { audio } = player;
+              const audio = new Audio();
               audio.src = s.sound_url;
               audio.onended = () => {
-                player.span.remove();
+                audio.remove();
               };
               audio.play();
 
@@ -255,6 +255,7 @@
         lsSet(KEY_IMMERSION_KIT, IMMERSION_KIT);
         lsSet(KEY_ANKI, ANKI);
         lsSet(KEY_OB, others);
+        return OB;
       },
       reset: makeOB,
       dump() {
@@ -272,10 +273,10 @@
 
   const HTML_CLASS = 'wk-autoplay-sentence';
   const FURIGANA_FIELDS = new Set(
-    OPTS.ANKI
+    OB.ANKI
       ? [
-          ...OPTS.ANKI.searchFields.vocabulary,
-          ...OPTS.ANKI.outFields.sentence.map((s) => s.ja).filter((f) => f),
+          ...OB.ANKI.searchFields.vocabulary,
+          ...OB.ANKI.outFields.sentence.map((s) => s.ja).filter((f) => f),
         ]
       : undefined,
   );
@@ -316,7 +317,21 @@
 
   let isAnkiConnect = !!OB.ANKI;
 
+  const autoRevealer = new MutationObserver(() => {
+    const answerForm = document.querySelector('#answer-form fieldset');
+    if (answerForm instanceof HTMLElement && answerForm.className) {
+      setTimeout(() => {
+        const btn = document.getElementById('option-item-info');
+        if (btn instanceof HTMLElement && !btn.classList.contains('active')) {
+          btn.click();
+        }
+      }, 50);
+    }
+  });
+
   const onNewVocabulary = async () => {
+    autoRevealer.disconnect();
+
     autoplayDivArray.map((el) => el.remove());
     autoplayDivArray.splice(0, autoplayDivArray.length);
 
@@ -354,15 +369,11 @@
 
     if (qType) {
       if (qType === 'reading') {
-        // expand item info
-        setTimeout(function () {
-          window.addEventListener('scroll', noscroll);
-          $('#option-item-info').click();
-          // Remove listener to disable scroll
-          setTimeout(function () {
-            window.removeEventListener('scroll', noscroll);
-          }, 1000);
-        }, 100);
+        autoRevealer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+        });
       } else {
         return;
       }
@@ -476,7 +487,7 @@
                   })
                   .filter(
                     (s) =>
-                      (OPTS.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
+                      (OB.HIDE_SENTENCE_JA === 'remove' ? false : s.ja) ||
                       s.audio,
                   ),
               );
@@ -568,9 +579,9 @@
             p.append(player.span);
           }
 
-          if (s.ja && OPTS.HIDE_SENTENCE_JA !== 'remove') {
+          if (s.ja && OB.HIDE_SENTENCE_JA !== 'remove') {
             const span = document.createElement('span');
-            if (OPTS.HIDE_SENTENCE_JA) {
+            if (OB.HIDE_SENTENCE_JA) {
               span.className = HIDDEN_UNTIL_HOVER_CLASS;
             }
             span.lang = 'ja';
@@ -578,9 +589,9 @@
             p.append(span);
           }
 
-          if (s.en && OPTS.HIDE_SENTENCE_EN !== 'remove') {
+          if (s.en && OB.HIDE_SENTENCE_EN !== 'remove') {
             const p = document.createElement('p');
-            if (OPTS.HIDE_SENTENCE_EN) {
+            if (OB.HIDE_SENTENCE_EN) {
               p.className = HIDDEN_UNTIL_HOVER_CLASS;
             }
             p.lang = 'ja';
@@ -595,7 +606,7 @@
 
       createSentenceSection(
         outputDiv,
-        sentences.slice(0, OPTS.NUMBER_OF_SENTENCES),
+        sentences.slice(0, OB.NUMBER_OF_SENTENCES),
       );
 
       let needAutoplay = true;
@@ -665,7 +676,7 @@
         document.body.append(autoplayDiv);
       }
 
-      if (sentences.length > OPTS.NUMBER_OF_SENTENCES) {
+      if (sentences.length > OB.NUMBER_OF_SENTENCES) {
         const details = document.createElement('details');
 
         const summary = document.createElement('summary');
@@ -675,7 +686,7 @@
         createSentenceSection(
           details,
           // Trim to 25 for performance reasons
-          sentences.slice(OPTS.NUMBER_OF_SENTENCES).slice(0, 25),
+          sentences.slice(OB.NUMBER_OF_SENTENCES).slice(0, 25),
         );
         outputDiv.append(details);
       }
@@ -834,10 +845,6 @@
     };
   }
 
-  function noscroll() {
-    window.scrollTo(0, 0);
-  }
-
   function clone(o) {
     if (o && typeof o === 'object') {
       if (Array.isArray(o)) {
@@ -919,16 +926,22 @@
    * @returns
    */
   function deepAssign(dst, src) {
-    if (!dst) return src;
-    if (src && typeof src === 'object') {
+    if (typeof src === 'undefined') return dst;
+    if (typeof src === 'object') {
       if (Array.isArray(dst || []) && Array.isArray(src)) {
         dst = dst || [];
-        const length = Math.max(dst.length, src.length);
-        return Array.from({ length }, (_, i) => deepAssign(dst[i], src[i]));
+        return Array.from({ length: src.length }, (_, i) =>
+          deepAssign(dst[i], src[i]),
+        );
       }
 
-      return src;
+      if (dst && typeof dst === 'object') {
+        return Object.fromEntries(
+          Object.keys(src).map((k) => [k, deepAssign(dst[k], src[k])]),
+        );
+      }
     }
-    return dst;
+
+    return src;
   }
 })();
