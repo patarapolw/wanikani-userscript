@@ -11,6 +11,8 @@
 /// <reference types="jquery" />
 (function () {
   'use strict';
+  let isRunning = false;
+
   $.jStorage.listenKeyChange('questionCount', function (key, action) {
     const c = $.jStorage.get('currentItem');
     const q = $.jStorage.get('questionType');
@@ -18,12 +20,22 @@
     showItemInfo();
   });
 
-  $.jStorage.listenKeyChange('l/additionalContent', function (key, action) {
+  const onQuiz = () => {
     const c = $.jStorage.get('l/currentQuizItem');
     const q = $.jStorage.get('l/questionType');
     if (c.voc && q === 'reading') return;
+
+    if (isRunning) return;
+    isRunning = true;
+    setTimeout(() => {
+      isRunning = false;
+    }, 100);
+
     showItemInfo();
-  });
+  };
+
+  $.jStorage.listenKeyChange('l/currentQuizItem', onQuiz);
+  $.jStorage.listenKeyChange('l/questionType', onQuiz);
 
   function noscroll() {
     window.scrollTo(0, 0);

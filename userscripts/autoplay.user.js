@@ -39,7 +39,7 @@
    */
   const OPTS = {
     HIDE_SENTENCE_JA: true,
-    HIDE_SENTENCE_EN: 'remove',
+    HIDE_SENTENCE_EN: false,
     NUMBER_OF_SENTENCES: 3,
     IMMERSION_KIT: {
       priority: [],
@@ -123,10 +123,12 @@
             );
             if (s) {
               stopAllAudio();
-              const audio = new Audio();
+
+              const player = createAudioPlayer('sentence', s.sentence_id);
+              const { audio } = player;
               audio.src = s.sound_url;
               audio.onended = () => {
-                audio.remove();
+                player.span.remove();
               };
               audio.play();
 
@@ -151,10 +153,12 @@
             );
             if (s) {
               stopAllAudio();
-              const audio = new Audio();
+
+              const player = createAudioPlayer('sentence', s.sentence_id);
+              const { audio } = player;
               audio.src = s.sound_url;
               audio.onended = () => {
-                audio.remove();
+                player.span.remove();
               };
               audio.play();
 
@@ -173,8 +177,6 @@
 
           IMMERSION_KIT.search = async (voc) => {
             if (!voc) return [];
-
-            const existingIds = new Set(sentences.map((s) => s.id));
 
             return fetch(
               `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
@@ -215,6 +217,8 @@
                   prev[c.deck_name].push(c);
                   return prev;
                 }, {});
+
+                const existingIds = new Set(sentences.map((s) => s.id));
 
                 IMMERSION_KIT._lookup[voc] = [
                   ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
@@ -307,6 +311,8 @@
   const sentences = [];
   /** @type {HTMLElement[]} */
   const autoplayDivArray = [];
+
+  let currentlyPlayingSentence = '';
 
   let isAnkiConnect = !!OB.ANKI;
 
@@ -619,6 +625,8 @@
             const el2 = firstSent.clone();
             autoplayDiv.append(el2.span);
             el1.audio.onended = () => {
+              currentlyPlayingSentence = el2.idValue;
+              setSentencePlaying();
               el2.audio.play();
               el1.audio.onended = null;
             };
@@ -636,6 +644,8 @@
                 if (!v.classList.contains(AUDIO_PLAYED)) {
                   isAutoplaySentence = false;
                   v.onended = () => {
+                    currentlyPlayingSentence = el2.idValue;
+                    setSentencePlaying();
                     el2.audio.play();
                     v.onended = null;
                   };
@@ -644,6 +654,8 @@
             }
 
             if (isAutoplaySentence) {
+              currentlyPlayingSentence = el2.idValue;
+              setSentencePlaying();
               el2.audio.autoplay = true;
             }
           }
@@ -727,12 +739,11 @@
     button.setAttribute(`data-${idKey}`, idValue);
     button.type = 'button';
     button.className = 'audio-btn';
-    button.classList.add(AUDIO_IDLE);
-
-    const audio = document.createElement('audio');
-    audio.setAttribute(`data-${idKey}`, idValue);
-    audio.style.display = 'none';
-    audio.preload = 'none';
+    button.classList.add(
+      idKey === 'sentence' && idValue === currentlyPlayingSentence
+        ? AUDIO_PLAY
+        : AUDIO_IDLE,
+    );
 
     button.addEventListener('click', () => {
       stopAllAudio();
@@ -741,30 +752,47 @@
           .querySelectorAll(`[data-${idKey}="${idValue}"]`)
           .forEach((el) => {
             if (el instanceof HTMLElement) {
-              el.style.pointerEvents = 'none';
               el.classList.replace(AUDIO_IDLE, AUDIO_PLAY);
             }
           });
       });
     });
 
-    audio.addEventListener('ended', () => {
-      document
-        .querySelectorAll(`[data-${idKey}="${idValue}"]`)
-        .forEach((el) => {
-          if (el instanceof HTMLElement) {
-            el.style.pointerEvents = '';
-            el.classList.add(AUDIO_PLAYED);
-            el.classList.replace(AUDIO_PLAY, AUDIO_IDLE);
-          }
-        });
-    });
+    const audio = document.createElement('audio');
+    audio.setAttribute(`data-${idKey}`, idValue);
+    audio.style.display = 'none';
+    audio.preload = 'none';
+
+    /**
+     *
+     * @param {HTMLAudioElement} a
+     */
+    const setAudio = (a) => {
+      a.onplay = () => {
+        if (idKey === 'sentence') currentlyPlayingSentence = idValue;
+      };
+
+      a.addEventListener('ended', () => {
+        audio.currentTime = 0;
+        document
+          .querySelectorAll(`[data-${idKey}="${idValue}"]`)
+          .forEach((el) => {
+            if (el instanceof HTMLElement) {
+              el.classList.add(AUDIO_PLAYED);
+              el.classList.replace(AUDIO_PLAY, AUDIO_IDLE);
+            }
+          });
+        a.currentTime = 0;
+      });
+    };
+    setAudio(audio);
 
     span.append(button, audio);
-
     const oldSpan = span;
 
     return {
+      idKey,
+      idValue,
       span,
       button,
       audio,
@@ -774,12 +802,23 @@
           span.querySelector('button') || document.createElement('button');
         const audio =
           span.querySelector('audio') || document.createElement('audio');
-        return { span, button, audio };
+
+        setAudio(audio);
+        return { idKey, idValue, span, button, audio };
       },
     };
   }
 
-  /// SCRIPT-SPECIFIC GLOBAL FUNCTIONS
+  function setSentencePlaying() {
+    if (!currentlyPlayingSentence) return;
+    document
+      .querySelectorAll(`[data-sentence="${currentlyPlayingSentence}"]`)
+      .forEach((el) => {
+        if (el instanceof HTMLElement) {
+          el.classList.replace(AUDIO_IDLE, AUDIO_PLAY);
+        }
+      });
+  }
 
   /**
    *

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.11
+// @version      0.11.1
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -72,8 +72,15 @@
   /** @type {string[]} */
   let reading = [];
 
-  function getOnReview() {
-    const current = $.jStorage.get('currentItem');
+  function getCurrent() {
+    let key = 'currentItem';
+    if (document.URL.includes('/lesson/session')) {
+      key = $.jStorage.get('l/quizActive')
+        ? 'l/currentQuizItem'
+        : 'l/currentLesson';
+    }
+
+    const current = $.jStorage.get(key);
     if (!current) return;
 
     if ('kan' in current && typeof current.kan === 'string') {
@@ -89,26 +96,9 @@
     }
   }
 
-  $.jStorage.listenKeyChange('currentItem', getOnReview);
-
-  function getOnLesson() {
-    const current = $.jStorage.get('l/currentLesson');
-    if (!current) return;
-
-    if ('kan' in current && typeof current.kan === 'string') {
-      kanji = current.kan;
-      vocab = undefined;
-      reading = [];
-    }
-
-    if ('voc' in current) {
-      kanji = undefined;
-      vocab = fixVocab(current.voc);
-      reading = current.kana;
-    }
-  }
-
-  $.jStorage.listenKeyChange('l/currentLesson', getOnLesson);
+  $.jStorage.listenKeyChange('currentItem', getCurrent);
+  $.jStorage.listenKeyChange('l/currentLesson', getCurrent);
+  $.jStorage.listenKeyChange('l/currentQuizItem', getCurrent);
 
   const urlParts = document.URL.split('/');
   const pageType = urlParts[urlParts.length - 2];
@@ -137,12 +127,8 @@
       });
       break;
     }
-    case 'lesson': {
-      getOnLesson();
-      break;
-    }
     default: {
-      getOnReview();
+      getCurrent();
     }
   }
 
