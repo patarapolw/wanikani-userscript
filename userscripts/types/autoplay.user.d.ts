@@ -15,8 +15,9 @@ interface WKAutoplayImmersionKit {
     [vocab: string]: ImmersionKitExample[];
   };
   list(vocab?: string): ImmersionKitExample[];
-  set(sentence_id: string, vocab?: string): ImmersionKitExample | null;
   autoplay(sentence_id: string, vocab?: string): ImmersionKitExample | null;
+  add(sentence_id: string, vocab?: string): ImmersionKitExample | null;
+  search(vocab: string): Promise<ImmersionKitExample[]>;
   _lookup: {
     [vocab: string]: ImmersionKitExample[];
   };

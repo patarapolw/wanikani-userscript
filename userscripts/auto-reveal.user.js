@@ -8,11 +8,19 @@
 // @grant        none
 // ==/UserScript==
 
+/// <reference types="jquery" />
 (function () {
   'use strict';
   $.jStorage.listenKeyChange('questionCount', function (key, action) {
     const c = $.jStorage.get('currentItem');
     const q = $.jStorage.get('questionType');
+    if (c.voc && q === 'reading') return;
+    showItemInfo();
+  });
+
+  $.jStorage.listenKeyChange('l/additionalContent', function (key, action) {
+    const c = $.jStorage.get('l/currentQuizItem');
+    const q = $.jStorage.get('l/questionType');
     if (c.voc && q === 'reading') return;
     showItemInfo();
   });
@@ -27,7 +35,7 @@
 
     // expand item info
     setTimeout(function () {
-      $('#option-item-info').click();
+      $('#option-item-info').trigger('click');
     }, 100);
 
     // Remove listener to disable scroll

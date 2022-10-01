@@ -114,7 +114,7 @@
             return ls;
           };
 
-          IMMERSION_KIT.set = (sentence_id, vocab) => {
+          IMMERSION_KIT.add = (sentence_id, vocab) => {
             vocab = vocab || current?.voc;
             if (!vocab) return null;
 
@@ -122,6 +122,14 @@
               (s0) => s0.sentence_id === sentence_id,
             );
             if (s) {
+              stopAllAudio();
+              const audio = new Audio();
+              audio.src = s.sound_url;
+              audio.onended = () => {
+                audio.remove();
+              };
+              audio.play();
+
               const ss = IMMERSION_KIT.user[vocab] || [];
               if (!ss.find((s0) => s0.id === s.id)) {
                 ss.push(s);
@@ -142,6 +150,14 @@
               (s0) => s0.sentence_id === sentence_id,
             );
             if (s) {
+              stopAllAudio();
+              const audio = new Audio();
+              audio.src = s.sound_url;
+              audio.onended = () => {
+                audio.remove();
+              };
+              audio.play();
+
               IMMERSION_KIT.user[vocab] = [
                 s,
                 ...(IMMERSION_KIT.user[vocab] || []).filter(
@@ -153,6 +169,74 @@
               return s;
             }
             return null;
+          };
+
+          IMMERSION_KIT.search = async (voc) => {
+            if (!voc) return [];
+
+            const existingIds = new Set(sentences.map((s) => s.id));
+
+            return fetch(
+              `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
+            )
+              .then((r) => r.json())
+              .then((r) => {
+                if (!current || current.voc !== voc) return [];
+
+                const {
+                  data: [{ examples }],
+                } = /** @type {ImmersionKitResult} */ (r);
+
+                IMMERSION_KIT.availableDecks = [
+                  ...new Set([
+                    ...IMMERSION_KIT.availableDecks,
+                    ...examples.map((s) => s.deck_name),
+                  ]),
+                ].sort();
+
+                /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
+                const sortedExamples = {};
+                /** @type {typeof examples} */
+                let remainingExamples = examples;
+
+                for (const p of IMMERSION_KIT.priority) {
+                  sortedExamples[p] = [];
+                  remainingExamples = remainingExamples.filter((ex) => {
+                    if (ex.deck_name === p) {
+                      sortedExamples[p].push(ex);
+                      return false;
+                    }
+                    return true;
+                  });
+                }
+
+                sortedExamples[''] = remainingExamples.reduce((prev, c) => {
+                  prev[c.deck_name] = prev[c.deck_name] || [];
+                  prev[c.deck_name].push(c);
+                  return prev;
+                }, {});
+
+                IMMERSION_KIT._lookup[voc] = [
+                  ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
+                  Object.values(sortedExamples['']).reduce(
+                    (prev, c) => [...prev, ...c],
+                    [],
+                  ),
+                ]
+                  .flatMap((ss) =>
+                    shuffleArray(
+                      ss.filter((s) => !existingIds.has(s.sentence_id)),
+                    ),
+                  )
+                  .map((s) => {
+                    sentences.push(formatImKit(s));
+                    return s;
+                  });
+
+                appender.renew();
+
+                return IMMERSION_KIT._lookup[voc];
+              });
           };
         }
 
@@ -250,8 +334,17 @@
       return;
     }
 
-    const qType =
-      key === 'currentItem' ? $.jStorage.get('questionType') : undefined;
+    let qType = '';
+    switch (key) {
+      case 'currentItem': {
+        qType = $.jStorage.get('questionType') || '';
+        break;
+      }
+      case 'l/currentQuizItem': {
+        qType = $.jStorage.get('l/questionType') || '';
+        break;
+      }
+    }
 
     if (qType) {
       if (qType === 'reading') {
@@ -395,80 +488,10 @@
 
     const { IMMERSION_KIT } = OB;
     if (IMMERSION_KIT) {
-      /**
-       *
-       * @param {ImmersionKitExample} s
-       * @returns {Required<WKAutoplaySentence>}
-       */
-      const formatImKit = (s) => ({
-        id: s.sentence_id,
-        ja: `${s.sentence} (${s.deck_name})`,
-        audio: s.sound_url,
-        en: s.translation,
-      });
-
       sentences.push(
         ...(IMMERSION_KIT.user[voc] || []).map((s) => formatImKit(s)),
       );
-      const existingIds = new Set(sentences.map((s) => s.id));
-
-      await fetch(
-        `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
-      )
-        .then((r) => r.json())
-        .then((r) => {
-          if (!current || current.voc !== voc) return;
-
-          const {
-            data: [{ examples }],
-          } = /** @type {ImmersionKitResult} */ (r);
-
-          IMMERSION_KIT.availableDecks = [
-            ...new Set([
-              ...IMMERSION_KIT.availableDecks,
-              ...examples.map((s) => s.deck_name),
-            ]),
-          ].sort();
-
-          /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
-          const sortedExamples = {};
-          /** @type {typeof examples} */
-          let remainingExamples = examples;
-
-          for (const p of IMMERSION_KIT.priority) {
-            sortedExamples[p] = [];
-            remainingExamples = remainingExamples.filter((ex) => {
-              if (ex.deck_name === p) {
-                sortedExamples[p].push(ex);
-                return false;
-              }
-              return true;
-            });
-          }
-
-          sortedExamples[''] = remainingExamples.reduce((prev, c) => {
-            prev[c.deck_name] = prev[c.deck_name] || [];
-            prev[c.deck_name].push(c);
-            return prev;
-          }, {});
-
-          IMMERSION_KIT._lookup[voc] = [
-            ...IMMERSION_KIT.priority.map((p) => sortedExamples[p]),
-            Object.values(sortedExamples['']).reduce(
-              (prev, c) => [...prev, ...c],
-              [],
-            ),
-          ]
-            .flatMap((ss) =>
-              shuffleArray(ss.filter((s) => !existingIds.has(s.sentence_id))),
-            )
-            .map((s) => {
-              sentences.push(formatImKit(s));
-              return s;
-            });
-
-          appender.renew();
-        });
+      await IMMERSION_KIT.search(voc);
 
       OB.save();
     }
@@ -657,9 +680,34 @@
   $.jStorage.listenKeyChange('l/currentQuizItem', onNewVocabulary);
   onNewVocabulary();
 
+  const onNewQuestionType = () => {
+    if ($.jStorage.get('questionType') !== 'reading') {
+      autoplayDivArray.map((el) => el.remove());
+      autoplayDivArray.splice(0, autoplayDivArray.length);
+
+      sentences.splice(0, sentences.length);
+    }
+  };
+
+  $.jStorage.listenKeyChange('questionType', onNewQuestionType);
+  $.jStorage.listenKeyChange('l/questionType', onNewQuestionType);
+
   const AUDIO_IDLE = 'audio-idle';
   const AUDIO_PLAY = 'audio-play';
   const AUDIO_PLAYED = 'audio-played';
+
+  function stopAllAudio() {
+    document.querySelectorAll('audio').forEach((a) => {
+      a.pause();
+      a.currentTime = 0;
+    });
+    document.querySelectorAll('[data-vocab], [data-sentence]').forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.style.pointerEvents = '';
+        el.classList.replace(AUDIO_PLAY, AUDIO_IDLE);
+      }
+    });
+  }
 
   /**
    *
@@ -672,21 +720,22 @@
    */
   function createAudioPlayer(idKey, idValue) {
     const span = document.createElement('span');
-    span.className = 'audio-player';
     span.setAttribute(`data-${idKey}`, idValue);
+    span.className = 'audio-player';
 
     const button = document.createElement('button');
+    button.setAttribute(`data-${idKey}`, idValue);
     button.type = 'button';
     button.className = 'audio-btn';
     button.classList.add(AUDIO_IDLE);
-    button.setAttribute(`data-${idKey}`, idValue);
 
     const audio = document.createElement('audio');
+    audio.setAttribute(`data-${idKey}`, idValue);
     audio.style.display = 'none';
     audio.preload = 'none';
-    audio.setAttribute(`data-${idKey}`, idValue);
 
     button.addEventListener('click', () => {
+      stopAllAudio();
       audio.play().then(() => {
         document
           .querySelectorAll(`[data-${idKey}="${idValue}"]`)
@@ -730,49 +779,24 @@
     };
   }
 
+  /// SCRIPT-SPECIFIC GLOBAL FUNCTIONS
+
   /**
-   * Fisher-Yates (aka Knuth) Shuffle
    *
-   * https://stackoverflow.com/a/2450976/9023855
-   *
-   * @type {<T>(arr: T[]) => T[]}
+   * @param {ImmersionKitExample} s
+   * @returns {Required<WKAutoplaySentence>}
    */
-  function shuffleArray(array) {
-    let currentIndex = array.length;
-    let randomIndex;
-
-    // While there remain elements to shuffle.
-    while (currentIndex != 0) {
-      // Pick a remaining element.
-      randomIndex = Math.floor(Math.random() * currentIndex);
-      currentIndex--;
-
-      // And swap it with the current element.
-      [array[currentIndex], array[randomIndex]] = [
-        array[randomIndex],
-        array[currentIndex],
-      ];
-    }
-
-    return array;
+  function formatImKit(s) {
+    return {
+      id: s.sentence_id,
+      ja: `${s.sentence} (${s.deck_name})`,
+      audio: s.sound_url,
+      en: s.translation,
+    };
   }
 
   function noscroll() {
     window.scrollTo(0, 0);
-  }
-
-  function deepAssign(dst, src) {
-    if (!dst) return src;
-    if (src && typeof src === 'object') {
-      if (Array.isArray(dst || []) && Array.isArray(src)) {
-        dst = dst || [];
-        const length = Math.max(dst.length, src.length);
-        return Array.from({ length }, (_, i) => deepAssign(dst[i], src[i]));
-      }
-
-      return src;
-    }
-    return dst;
   }
 
   function clone(o) {
@@ -818,5 +842,54 @@
       },
       indent,
     );
+  }
+
+  /// UTILITY FUNCTIONS
+
+  /**
+   * Fisher-Yates (aka Knuth) Shuffle
+   *
+   * https://stackoverflow.com/a/2450976/9023855
+   *
+   * @type {<T>(arr: T[]) => T[]}
+   */
+  function shuffleArray(array) {
+    let currentIndex = array.length;
+    let randomIndex;
+
+    // While there remain elements to shuffle.
+    while (currentIndex != 0) {
+      // Pick a remaining element.
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+
+      // And swap it with the current element.
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex],
+        array[currentIndex],
+      ];
+    }
+
+    return array;
+  }
+
+  /**
+   *
+   * @param {*} dst
+   * @param {*} src
+   * @returns
+   */
+  function deepAssign(dst, src) {
+    if (!dst) return src;
+    if (src && typeof src === 'object') {
+      if (Array.isArray(dst || []) && Array.isArray(src)) {
+        dst = dst || [];
+        const length = Math.max(dst.length, src.length);
+        return Array.from({ length }, (_, i) => deepAssign(dst[i], src[i]));
+      }
+
+      return src;
+    }
+    return dst;
   }
 })();
