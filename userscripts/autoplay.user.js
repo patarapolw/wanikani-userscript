@@ -8,6 +8,7 @@
 // @match        *://www.wanikani.com/*/session*
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
 // @require      https://greasyfork.org/scripts/452285-ankiconnect/code/ankiconnect.js?version=1099556
+// @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @icon         https://emoji.discourse-cdn.com/apple/loudspeaker.png?v=12
 // @license      MIT
 // @grant        none
@@ -65,11 +66,31 @@
 
     .${HTML_CLASS} section[data-sentence] {
       display: grid;
-      grid-template-columns: 2em 1fr;
+      grid-template-columns: 4em 1fr;
       gap: 10px;
       width: 100%;
       align-items: center;
       margin-bottom: initial !important;
+    }
+
+    .${HTML_CLASS} .unstyled {
+      all: unset;
+    }
+
+    .${HTML_CLASS} button.audio-btn {
+      width: 1.5em;
+    }
+
+    .${HTML_CLASS} label.pinning > input[type="checkbox"] {
+      /* visibility: hidden; */
+    }
+
+    .${HTML_CLASS} label.pinning > input[type="checkbox"]:not(:disabled) + ::after {
+      background-image: url(https://emoji.discourse-cdn.com/apple/white_large_square.png?v=12);
+    }
+
+    .${HTML_CLASS} label.pinning > input[type="checkbox"]:checked + ::after {
+      background-image: url(https://emoji.discourse-cdn.com/apple/pushpin.png?v=12);
     }
 
     .${HTML_CLASS} details {
@@ -211,17 +232,37 @@
 
           IMMERSION_KIT.search = async (voc) => {
             if (!voc) return [];
-
-            return fetch(
-              `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}`,
-            )
-              .then((r) => r.json())
+            return db.imKitSearch
+              .get(voc)
               .then((r) => {
-                if (!current || current.voc !== voc) return [];
+                return r
+                  ? db.imKitExample
+                      .bulkGet(r.sentence_id)
+                      .then((rs) => rs.filter((r) => r))
+                  : fetch(
+                      `https://api.immersionkit.com/look_up_dictionary?keyword=${voc}&category=anime`,
+                    )
+                      .then((r) => r.json())
+                      .then((r) => {
+                        /** @type {ImmersionKitExample[]} */
+                        const examples = r.data[0].examples;
 
-                const {
-                  data: [{ examples }],
-                } = /** @type {ImmersionKitResult} */ (r);
+                        if (examples.length) {
+                          try {
+                            db.imKitExample.bulkAdd(examples).finally(() => {
+                              db.imKitSearch.add({
+                                id: voc,
+                                sentence_id: examples.map((ex) => ex.id),
+                              });
+                            });
+                          } catch (e) {}
+                        }
+
+                        return examples;
+                      });
+              })
+              .then((r) => {
+                const examples = /** @type {ImmersionKitExample[]} */ (r);
 
                 IMMERSION_KIT.availableDecks = [
                   ...new Set([
@@ -230,23 +271,24 @@
                   ]),
                 ].sort();
 
+                const existingIds = new Set(sentences.map((s) => s.id));
+
                 /** @type {typeof examples} */
-                let remainingExamples = examples;
+                let remainingExamples = examples.filter((ex) => {
+                  return !existingIds.has(ex.sentence_id);
+                });
 
                 /**
                  *
                  * @param {(ex: (typeof examples)[0]) => boolean} filterFn
                  */
                 const addExamples = (filterFn) => {
-                  const existingIds = new Set(sentences.map((s) => s.id));
-
                   /** @type {{[type: string]: (typeof examples)} & {'': {[type: string]: (typeof examples)}}} */
                   const sortedExamples = {};
 
                   for (const p of IMMERSION_KIT.priority) {
                     sortedExamples[p] = [];
                     remainingExamples = remainingExamples.filter((ex) => {
-                      if (existingIds.has(ex.sentence_id)) return false;
                       if (ex.deck_name === p && !filterFn(ex)) {
                         sortedExamples[p].push(ex);
                         return false;
@@ -255,12 +297,8 @@
                     });
                   }
 
-                  remainingExamples = remainingExamples.filter((ex) => {
-                    if (existingIds.has(ex.sentence_id)) return false;
-                    return filterFn(ex);
-                  });
-
                   sortedExamples[''] = remainingExamples.reduce((prev, c) => {
+                    if (filterFn(c)) return prev;
                     prev[c.deck_name] = prev[c.deck_name] || [];
                     prev[c.deck_name].push(c);
                     return prev;
@@ -284,6 +322,17 @@
                   s.sentence.replace(/\(.+?\)/g, ' ').includes(voc),
                 );
                 addExamples(() => true);
+                sentences.push(
+                  ...shuffleArray(remainingExamples).map((s) => formatImKit(s)),
+                );
+                const sentenceIds = sentences.map((s) => s.id);
+                sentences.splice(
+                  0,
+                  sentences.length,
+                  ...sentences.filter(
+                    (s, i) => sentenceIds.indexOf(s.id) === i,
+                  ),
+                );
 
                 appender.renew();
 
@@ -319,6 +368,34 @@
 
   Object.assign(window.unsafeWindow || window, { wkAutoplaySentence: OB });
 
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // @ts-ignore
+  const _Dexie = /** @type {typeof import('dexie').default} */ (Dexie);
+  /**
+   * @typedef {{ id: string; sentence_id: number[] }} EntryImKitSearch
+   */
+
+  class Database extends _Dexie {
+    /** @type {import('dexie').Table<ImmersionKitExample>} */
+    imKitExample;
+
+    /** @type {import('dexie').Table<EntryImKitSearch>} */
+    imKitSearch;
+
+    constructor() {
+      super(HTML_CLASS);
+      this.version(1).stores({
+        imKitExample: 'id,category,deck_name,sentence,&sentence_id,*tags',
+        imKitSearch: 'id,*sentence_id',
+      });
+    }
+  }
+
+  const db = new Database();
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
   const FURIGANA_FIELDS = new Set(
     OB.ANKI
       ? [
@@ -353,8 +430,6 @@
   });
 
   const onNewVocabulary = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
     autoRevealer.disconnect();
     autoplayDivArray.map((el) => el.remove());
     autoplayDivArray.splice(0, autoplayDivArray.length);
@@ -372,9 +447,7 @@
         $.jStorage.get(key)
       );
 
-    if (!c || !('voc' in c)) {
-      return;
-    }
+    if (!c || !('voc' in c)) return;
 
     let qType = '';
     switch (key) {
@@ -527,7 +600,9 @@
     const { IMMERSION_KIT } = OB;
     if (IMMERSION_KIT) {
       sentences.push(
-        ...(IMMERSION_KIT.user[voc] || []).map((s) => formatImKit(s)),
+        ...shuffleArray(IMMERSION_KIT.user[voc] || []).map((s) =>
+          formatImKit(s),
+        ),
       );
       await IMMERSION_KIT.search(voc);
 
@@ -595,6 +670,37 @@
           const player = createAudioPlayer('sentence', s.id);
           player.audio.src = s.audio;
           sentenceAudioElArray.push(player);
+
+          if (s.imKit && OB.IMMERSION_KIT) {
+            const { imKit } = s;
+            const { IMMERSION_KIT } = OB;
+
+            if (
+              IMMERSION_KIT &&
+              IMMERSION_KIT.user[current.voc] &&
+              IMMERSION_KIT.user[current.voc].find(
+                (s0) => s0.sentence_id === imKit.sentence_id,
+              )
+            ) {
+              player.checkbox.checked = true;
+            }
+
+            player.checkbox.onchange = () => {
+              IMMERSION_KIT.user[current.voc] =
+                IMMERSION_KIT.user[current.voc] || [];
+              if (player.checkbox.checked) {
+                IMMERSION_KIT.user[current.voc].unshift(imKit);
+              } else {
+                IMMERSION_KIT.user[current.voc].filter(
+                  (s0) => s0.sentence_id !== imKit.sentence_id,
+                );
+              }
+              OB.save();
+            };
+          } else {
+            player.checkbox.disabled = true;
+          }
+
           section.append(player.span);
 
           const mainEl = document.createElement('div');
@@ -720,17 +826,43 @@
       }
     });
 
-  $.jStorage.listenKeyChange('questionCount', onNewVocabulary);
+  $.jStorage.listenKeyChange('currentItem', onNewVocabulary);
   $.jStorage.listenKeyChange('l/currentLesson', onNewVocabulary);
   $.jStorage.listenKeyChange('l/currentQuizItem', onNewVocabulary);
   onNewVocabulary();
 
   const onNewQuestionType = () => {
-    if ($.jStorage.get('questionType') !== 'reading') {
-      autoplayDivArray.map((el) => el.remove());
-      autoplayDivArray.splice(0, autoplayDivArray.length);
+    if (document.URL.includes('/session')) {
+      if (
+        (document.URL.includes('/lesson/')
+          ? $.jStorage.get('l/questionType')
+          : $.jStorage.get('questionType')) === 'reading'
+      ) {
+        setTimeout(() => {
+          autoRevealer.disconnect();
+          autoplayDivArray.map((el) => el.remove());
+          autoplayDivArray.splice(0, autoplayDivArray.length);
+          sentences.splice(0, sentences.length);
 
-      sentences.splice(0, sentences.length);
+          let key = 'currentItem';
+          if (document.URL.includes('/lesson/session')) {
+            key = $.jStorage.get('l/quizActive')
+              ? 'l/currentQuizItem'
+              : 'l/currentLesson';
+          }
+
+          const c =
+            /** @type {import("./types/wanikani").WKCurrent<'vocabulary'>} */ (
+              $.jStorage.get(key)
+            );
+
+          if (!c || !('voc' in c)) {
+            return;
+          }
+
+          onNewVocabulary();
+        }, 50);
+      }
     }
   };
 
@@ -791,6 +923,14 @@
       });
     });
 
+    const checkLabel = document.createElement('label');
+    checkLabel.className = 'pinning';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+
+    checkLabel.append(checkbox, document.createElement('span'));
+
     const audio = document.createElement('audio');
     audio.setAttribute(`data-${idKey}`, idValue);
     audio.style.display = 'none';
@@ -820,7 +960,27 @@
     };
     setAudio(audio);
 
-    span.append(button, audio);
+    span.append(
+      button,
+      audio,
+      checkLabel,
+      (() => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'unstyled';
+        btn.ariaRoleDescription = 'button';
+        btn.style.cursor = 'pointer';
+        btn.style.marginLeft = '0.3em';
+
+        const checkImg = document.createElement('img');
+        checkImg.width = 12;
+        checkImg.src =
+          'https://emoji.discourse-cdn.com/apple/heavy_minus_sign.png?v=12';
+        btn.append(checkImg);
+
+        return btn;
+      })(),
+    );
     const oldSpan = span;
 
     return {
@@ -828,16 +988,21 @@
       idValue,
       span,
       button,
+      checkLabel,
+      checkbox,
       audio,
       clone() {
         const span = /** @type {HTMLSpanElement} */ (oldSpan.cloneNode(true));
-        const button =
-          span.querySelector('button') || document.createElement('button');
         const audio =
           span.querySelector('audio') || document.createElement('audio');
 
         setAudio(audio);
-        return { idKey, idValue, span, button, audio };
+        return {
+          idKey,
+          idValue,
+          span,
+          audio,
+        };
       },
     };
   }
@@ -864,6 +1029,7 @@
       ja: `${s.sentence} (${s.deck_name})`,
       audio: s.sound_url,
       en: s.translation,
+      imKit: s,
     };
   }
 
@@ -921,8 +1087,9 @@
    *
    * @type {<T>(arr: T[]) => T[]}
    */
-  function shuffleArray(array) {
-    let currentIndex = array.length;
+  function shuffleArray(src) {
+    const dst = Array(src.length).fill(null);
+    let currentIndex = src.length;
     let randomIndex;
 
     // While there remain elements to shuffle.
@@ -932,13 +1099,13 @@
       currentIndex--;
 
       // And swap it with the current element.
-      [array[currentIndex], array[randomIndex]] = [
-        array[randomIndex],
-        array[currentIndex],
+      [dst[currentIndex], dst[randomIndex]] = [
+        src[randomIndex],
+        src[currentIndex],
       ];
     }
 
-    return array;
+    return dst;
   }
 
   /**

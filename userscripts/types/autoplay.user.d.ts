@@ -39,6 +39,7 @@ interface WKAutoplaySentence {
   ja?: string;
   audio: string;
   en?: string;
+  imKit?: ImmersionKitExample;
 }
 
 interface WKAutoplayObject extends WKAutoplayOptions {

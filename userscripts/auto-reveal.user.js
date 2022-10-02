@@ -5,10 +5,10 @@
 // @description  Always show WaniKani item info during reviews without scrolling, no matter if your answer was correct or not.
 // @author       polv
 // @match        *://www.wanikani.com/*/session*
+// @license      MIT
 // @grant        none
 // ==/UserScript==
 
-/// <reference types="jquery" />
 (function () {
   'use strict';
 
@@ -17,15 +17,6 @@
       const btn = document.getElementById('option-item-info');
       if (btn instanceof HTMLElement && !btn.classList.contains('active')) {
         btn.click();
-        // const { scrollX, scrollY, scrollTo } = window.unsafeWindow || window;
-        // const noScroll = () => scrollTo(scrollX, scrollY);
-        // window.addEventListener('scroll', onscroll);
-        // setTimeout(() => {
-        //   btn.click();
-        // }, 100);
-        // setTimeout(() => {
-        //   window.removeEventListener('scroll', noScroll);
-        // }, 1000);
       }
     }, 50);
   };
