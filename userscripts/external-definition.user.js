@@ -42,6 +42,9 @@
     '  margin-top: 0;',
     '  margin-bottom: 0;',
     '}',
+    '.' + entryClazz + ' .kanji-variant {',
+    '  font-size: 2em;',
+    '}',
     '.' + entryClazz + ' .kanji-variant img {',
     '  height: 2em;',
     '}',
@@ -280,6 +283,10 @@
         );
 
         if (r.variant) {
+          r.variant = r.variant.trim();
+          if (!r.variant.startsWith('<')) {
+            r.variant = `<div>${r.variant}</div>`;
+          }
           $('.' + entryClazz + '-reading').append(
             $('<li>').text('異体字'),
             $('<div style="text-align: center">').append(r.variant),
@@ -517,7 +524,7 @@
           .prepend($('<div id="supplement-kan-meaning-mne">'));
       }
       searchKanjipedia(kanji).then((html) => {
-        if (!html && kanji) {
+        if (kanji) {
           return searchWeblio(kanji);
         }
       });
