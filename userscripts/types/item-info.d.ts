@@ -41,7 +41,7 @@ interface WKItemInfo<T extends string = string> {
   under(cond: string): WKItemInfo<T>;
   spoiling(cond: string): WKItemInfo<T>;
 
-  notify(cb: WKItemInfoCallback<void, T>): void;
+  notify(cb: WKItemInfoCallback<void, T>): WKItemInfoAfterInsert;
   append(
     header: string,
     cb: WKItemInfoCallbackHTML<T>,

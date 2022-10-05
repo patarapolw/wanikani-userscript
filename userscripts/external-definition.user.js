@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.11.1
+// @version      0.12
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -11,6 +11,7 @@
 // @match        *://www.wanikani.com/*radical/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
@@ -18,6 +19,7 @@
 
 // @ts-check
 /// <reference path="./types/wanikani.d.ts" />
+/// <reference path="./types/item-info.d.ts" />
 /// <reference path="./types/gm.d.ts" />
 (function () {
   'use strict';
@@ -27,15 +29,16 @@
   /** @type {number | undefined} */
   const HTML_MAX_CHAR = 10000;
 
-  const link_color = 'color: #666666;';
   const entryClazz = 'wkexternaldefinition';
 
-  // redefine the crosslink CSS class from weblio:
   const style = document.createElement('style');
   style.innerHTML = [
-    '.crosslink {',
-    '  ' + link_color,
-    '  text-decoration: none;}',
+    '.' + entryClazz + ' a.crosslink {',
+    '  color: #023e8a;',
+    '}',
+    '.' + entryClazz + ' a {',
+    '  text-decoration: none;',
+    '}',
     '.' + entryClazz + ' .kanji-variant {',
     '  display: inline-block;',
     '  font-size: 2em;',
@@ -96,12 +99,20 @@
   /** @type {string[]} */
   let reading = [];
 
+  let kanjipediaDefinition;
+  let weblioDefinition;
+  let kanjipediaReading;
+
   function getCurrent() {
     // First, remove any already existing entries to avoid displaying entries for other items:
     $('.' + entryClazz).remove();
     kanji = undefined;
     vocab = undefined;
     reading = [];
+
+    kanjipediaDefinition = undefined;
+    kanjipediaReading = undefined;
+    weblioDefinition = undefined;
 
     let key = 'currentItem';
     if (document.URL.includes('/lesson/session')) {
@@ -121,6 +132,8 @@
     } else if ('rad' in current) {
       kanji = current.characters;
     }
+
+    updateInfo();
   }
 
   $.jStorage.listenKeyChange('currentItem', getCurrent);
@@ -131,9 +144,12 @@
   const pageType = urlParts[urlParts.length - 2];
 
   switch (pageType) {
+    case 'radical':
     case 'kanji': {
-      kanji = urlParts[urlParts.length - 1];
-      updateInfo();
+      kanji = decodeURIComponent(urlParts[urlParts.length - 1]);
+      setTimeout(() => {
+        updateInfo();
+      }, 50);
       break;
     }
     case 'vocabulary': {
@@ -183,83 +199,31 @@
   ///////////////////////////////////////////////////////////////////////////////////////////////////
   // Loading the information and updating the webpage
   function updateInfo() {
-    const hrefColor = ' style="' + link_color + '"';
+    function insertDefinition(definition, full_url, name) {
+      const output = document.createElement('div');
+      output.className = entryClazz;
+      output.lang = 'ja';
+      output.innerHTML = definition;
 
-    function insertDefinition(definition, full_url, name, lessonInsertAfter) {
-      const h2_style =
-        pageType === 'lesson' ? ' style="margin-top: 1.25em;" ' : '';
-      const newHtml =
-        '<section lang="ja" class="' +
-        entryClazz +
-        '">' +
-        '<h2' +
-        h2_style +
-        '>' +
-        name +
-        ' Explanation</h2>' +
-        "<div style='margin-bottom: 0.5em;'>" +
-        definition +
-        '</div>' +
-        '<a href="' +
-        full_url +
-        '"' +
-        hrefColor +
-        ' target="_blank">Click for full entry</a>' +
-        '</section>';
+      const a = document.createElement('a');
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.innerText = 'Click for full entry';
+      a.href = full_url;
 
-      if (['kanji', 'review', 'extra_study'].includes(pageType)) {
-        const noteMeaning = $('#item-info-meaning-mnemonic:visible');
-        if (noteMeaning.length) {
-          noteMeaning.before(newHtml);
-          return;
-        }
-      }
+      const p = document.createElement('p');
+      p.style.marginTop = '0.5em';
+      p.append(a);
+      output.append(p);
 
-      $(lessonInsertAfter + ':visible').after(newHtml);
-    }
-
-    function insertReading(kanjiInfo, full_url) {
-      if (pageType === 'kanji') {
-        $('.span4')
-          .removeClass('span4')
-          .addClass('span3')
-          .last()
-          .after(
-            '<div lang="ja" class="span3 ' +
-              entryClazz +
-              ' ' +
-              entryClazz +
-              '-reading' +
-              '"><h3>Kanjipedia</h3>' +
-              kanjiInfo +
-              '</div>',
-          );
-      }
-      if (['review', 'extra_study'].includes(pageType)) {
-        $('#item-info #item-info-col1 #item-info-reading:visible').after(
-          '<section lang="ja" class="' +
-            entryClazz +
-            ' ' +
-            entryClazz +
-            '-reading' +
-            '"><h2>Kanjipedia</h2>' +
-            kanjiInfo +
-            '</section>',
-        );
-      }
-      if (pageType === 'lesson') {
-        $('#supplement-kan-reading:visible .pure-u-1-4 > div')
-          .first()
-          .after(
-            '<span lang="ja" class="' +
-              entryClazz +
-              ' ' +
-              entryClazz +
-              '-reading' +
-              '"><h2 style="margin-top: 1.25em;">Kanjipedia</h2>' +
-              kanjiInfo +
-              '</span>',
-          );
+      if (name === 'Kanjipedia') {
+        kanjipediaDefinition = output;
+        kanjipediaInserter.renew();
+        kanjipediaItemPageInserter.renew();
+      } else {
+        weblioDefinition = output;
+        weblioInserter.renew();
+        weblioItemPageInserter.renew();
       }
     }
 
@@ -274,24 +238,30 @@
        * @param {EntryKanjipedia} r
        */
       const setContent = (r) => {
-        insertReading(r.reading, r.url);
-        insertDefinition(
-          r.definition,
-          r.url,
-          'Kanjipedia',
-          '#supplement-kan-meaning-mne',
-        );
+        kanjipediaReading = r.reading;
 
         if (r.variant) {
           r.variant = r.variant.trim();
           if (!r.variant.startsWith('<')) {
             r.variant = `<div>${r.variant}</div>`;
           }
-          $('.' + entryClazz + '-reading').append(
-            $('<li>').text('異体字'),
-            $('<div style="text-align: center">').append(r.variant),
-          );
+
+          kanjipediaReading += [
+            '<li>異体字</li>',
+            `<div style="text-align:center; font-size:2em">${r.variant}<div>`,
+          ].join('\n');
         }
+
+        kanjipediaReadingInserter.renew();
+
+        insertDefinition(
+          r.definition
+            .split('<br>')
+            .map((s) => `<p>${s}</p>`)
+            .join('\n'),
+          r.url,
+          'Kanjipedia',
+        );
       };
 
       const r = await db.kanjipedia.get(kanji);
@@ -444,16 +414,7 @@
           })
           .join('<hr>');
 
-        insertDefinition(
-          vocabDefinition,
-          r.url,
-          'Weblio',
-          pageType === 'vocabulary' ||
-            pageType === 'kanji' ||
-            pageType === 'radical'
-            ? '#note-reading'
-            : '#supplement-voc-meaning-exp',
-        );
+        insertDefinition(vocabDefinition, r.url, 'Weblio');
       };
 
       const r = await db.weblio.get(vocab);
@@ -518,11 +479,6 @@
     }
 
     if (kanji) {
-      if (!document.getElementById('supplement-kan-meaning-mne')) {
-        $('#meaning .mnemonic-content')
-          .first()
-          .prepend($('<div id="supplement-kan-meaning-mne">'));
-      }
       searchKanjipedia(kanji).then((html) => {
         if (kanji) {
           return searchWeblio(kanji);
@@ -530,11 +486,6 @@
       });
     }
     if (vocab) {
-      if (!document.getElementById('supplement-voc-meaning-exp')) {
-        $('#meaning .mnemonic-content')
-          .first()
-          .prepend($('<div id="supplement-voc-meaning-exp">'));
-      }
       searchWeblio(vocab);
     }
   }
@@ -564,83 +515,111 @@
     return null;
   }
 
-  function triggerOnLesson(targetId) {
-    const targetNode = $('#' + targetId).get(0);
-    if (targetNode) {
-      // mutation observer throws an error if the node is undefined
-      new MutationObserver(function (mutations) {
-        const currentNode = mutations[0].target;
-        if (
-          currentNode instanceof HTMLElement &&
-          currentNode.id === targetId &&
-          currentNode.style &&
-          currentNode.style.display !== 'none'
-        ) {
-          updateInfo();
+  const kanjipediaInserter = wkItemInfo
+    .on('lesson,lessonQuiz,review,extraStudy')
+    .under('meaning')
+    .appendAtTop('Kanjipedia Explanation', (state) => {
+      if (!(kanji && kanji === state.characters)) {
+        return;
+      }
+
+      return kanjipediaDefinition;
+    });
+
+  const weblioInserter = wkItemInfo
+    .on('lesson,lessonQuiz,review,extraStudy')
+    .under('meaning')
+    .appendAtTop('Weblio Explanation', (state) => {
+      if (state.type === 'vocabulary') {
+        if (state.characters !== vocab) return;
+      } else if (!(kanji && kanji === state.characters)) {
+        return;
+      }
+
+      return weblioDefinition;
+    });
+
+  const kanjipediaItemPageInserter = wkItemInfo
+    .on('itemPage')
+    .under('meaning')
+    .append('Kanjipedia Explanation', (state) => {
+      if (pageType === 'kanji' || pageType === 'radical') {
+        if (!kanji) {
+          kanji = state.characters;
+          return;
         }
-      }).observe(targetNode, { attributes: true });
-    }
-  }
+      }
 
-  function triggerOnReview(targetId, nodeId) {
-    const targetNode = $('#' + targetId).get(0);
-    if (targetNode) {
-      // mutation observer throws an error if the node is undefined
-      new MutationObserver(function (mutations) {
-        for (let i = 0; i < mutations.length; ++i) {
-          for (let j = 0; j < mutations[i].addedNodes.length; ++j) {
-            const addedNode = mutations[i].addedNodes[j];
-            if (
-              addedNode instanceof HTMLElement &&
-              addedNode.id === nodeId &&
-              addedNode.style &&
-              addedNode.style.display !== 'none'
-            ) {
-              updateInfo();
-              return; // we found a node we want to update -> stop iterating
-            }
-          }
-        }
-      }).observe(targetNode, { childList: true, attributes: true });
-    }
-  }
+      if (!(kanji && kanji === state.characters)) {
+        return;
+      }
 
-  // wkItemInfo
-  //   .on('lesson,lessonQuiz,review,extraStudy,itemPage')
-  //   .forType('vocabulary')
-  //   .under('meaning')
-  //   .append('Weblio Explanation', (state) => {
-  //     return undefined;
-  //   });
+      return kanjipediaDefinition;
+    });
 
-  // wkItemInfo
-  //   .on('lesson,lessonQuiz,review,extraStudy,itemPage')
-  //   .forType('kanji')
-  //   .under('meaning')
-  //   .append('Kanjipedia Explanation', (state) => {
-  //     return undefined;
-  //   });
+  const weblioItemPageInserter = wkItemInfo
+    .on('itemPage')
+    .under('meaning')
+    .append('Weblio Explanation', (state) => {
+      if (state.type === 'vocabulary') {
+        if (state.characters !== vocab) return;
+      } else if (!(kanji && kanji === state.characters)) {
+        return;
+      }
 
-  // wkItemInfo
-  //   .on('lesson,lessonQuiz,review,extraStudy,itemPage')
-  //   .forType('vocabulary')
-  //   .under('reading')
-  //   .append('Kanjipedia', (state) => {
-  //     return undefined;
-  //   });
+      return weblioDefinition;
+    });
 
-  // on review meaning page (radical, vocab and kanji, but empty when radical):
-  triggerOnReview('item-info-col2', 'note-meaning');
+  const kanjipediaReadingInserter = wkItemInfo
+    .on('lesson,lessonQuiz,review,extraStudy,itemPage')
+    .forType('kanji')
+    .under('reading')
+    .notify((state) => {
+      if (!(kanji && kanji === state.characters)) {
+        return;
+      }
 
-  // on review reading page (radical, vocab and kanji, but we change the page only when kanji)
-  triggerOnReview('item-info-col1', 'item-info-reading');
+      if (!kanjipediaReading) return;
 
-  // on lesson vocab meaning page:
-  triggerOnLesson('supplement-voc-meaning');
-
-  // on lesson kanji meaning page:
-  triggerOnLesson('supplement-kan-meaning');
-
-  // on lesson kanji reading page:
-  triggerOnLesson('supplement-kan-reading');
+      if (state.on === 'lesson') {
+        $('#supplement-kan-reading:visible .pure-u-1-4 > div')
+          .first()
+          .after(
+            '<span lang="ja" class="' +
+              entryClazz +
+              ' ' +
+              entryClazz +
+              '-reading' +
+              '"><h2 style="margin-top: 1.25em;">Kanjipedia</h2>' +
+              kanjipediaReading +
+              '</span>',
+          );
+      } else if (state.on === 'itemPage') {
+        $('.span4')
+          .removeClass('span4')
+          .addClass('span3')
+          .last()
+          .after(
+            '<div lang="ja" class="span3 ' +
+              entryClazz +
+              ' ' +
+              entryClazz +
+              '-reading' +
+              '"><h3>Kanjipedia</h3>' +
+              kanjipediaReading +
+              '</div>',
+          );
+      } else {
+        $('#item-info #item-info-col1 #item-info-reading:visible').after(
+          '<section lang="ja" class="' +
+            entryClazz +
+            ' ' +
+            entryClazz +
+            '-reading' +
+            '"><h2>Kanjipedia</h2>' +
+            kanjipediaReading +
+            '</section>',
+        );
+      }
+    });
 })();
