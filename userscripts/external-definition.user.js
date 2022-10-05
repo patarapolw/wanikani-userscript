@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.1
+// @version      0.12.2
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -11,7 +11,7 @@
 // @match        *://www.wanikani.com/*radicals/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1101319
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
@@ -157,6 +157,10 @@
 
             const inserter = (title, html) => {
               if (html) {
+                if (html instanceof HTMLElement) {
+                  html = html.outerHTML;
+                }
+
                 const section = document.createElement('section');
                 section.className = 'subject-section__subsection';
 
@@ -174,8 +178,8 @@
               }
             };
 
-            inserter('Kanjipedia', r.kanjipedia);
-            inserter('Weblio', r.weblio);
+            inserter('Kanjipedia', kanjipediaDefinition);
+            inserter('Weblio', weblioDefinition);
           });
         }
       });
@@ -590,13 +594,14 @@
 
   const kanjipediaItemPageInserter = wkItemInfo
     .on('itemPage')
+    .forType('kanji,vocabulary')
     .under('meaning')
     .append('Kanjipedia Explanation', (state) => {
-      if (pageType === 'radicals' && !kanji) {
-        kanji = state.characters;
-        kanjipediaItemPageInserter.renew();
-        return;
-      }
+      // if (state.type === 'radical' && !kanji) {
+      //   kanji = state.characters;
+      //   updateInfo();
+      //   return;
+      // }
 
       if (!(kanji && kanji === state.characters)) {
         return;
@@ -607,6 +612,7 @@
 
   const weblioItemPageInserter = wkItemInfo
     .on('itemPage')
+    .forType('kanji,vocabulary')
     .under('meaning')
     .append('Weblio Explanation', (state) => {
       if (state.type === 'vocabulary') {
