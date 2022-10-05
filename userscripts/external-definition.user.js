@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12
+// @version      0.12.1
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
 // @match        *://www.wanikani.com/*/session*
 // @match        *://www.wanikani.com/*vocabulary/*
 // @match        *://www.wanikani.com/*kanji/*
-// @match        *://www.wanikani.com/*radical/*
+// @match        *://www.wanikani.com/*radicals/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1057854
@@ -58,7 +58,7 @@
     '  color: #ab9b96;',
     '}',
   ].join('\n');
-  document.getElementsByTagName('head')[0].appendChild(style);
+  document.head.appendChild(style);
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
   // @ts-ignore
@@ -136,20 +136,54 @@
     updateInfo();
   }
 
-  $.jStorage.listenKeyChange('currentItem', getCurrent);
-  $.jStorage.listenKeyChange('l/currentLesson', getCurrent);
-  $.jStorage.listenKeyChange('l/currentQuizItem', getCurrent);
+  if (typeof $ !== 'undefined') {
+    $.jStorage.listenKeyChange('currentItem', getCurrent);
+    $.jStorage.listenKeyChange('l/currentLesson', getCurrent);
+    $.jStorage.listenKeyChange('l/currentQuizItem', getCurrent);
+  }
 
   const urlParts = document.URL.split('/');
   const pageType = urlParts[urlParts.length - 2];
 
   switch (pageType) {
-    case 'radical':
+    case 'radicals': {
+      // Radicals quick-fix for itemInfo injector
+      waitFor('body', '.page-header__icon--radical[lang=ja]').then((span) => {
+        if (span && span.innerText) {
+          kanji = span.innerText.trim();
+          updateInfo().then((r) => {
+            const dst = document.querySelector('section.subject-section');
+            if (!dst) return;
+
+            const inserter = (title, html) => {
+              if (html) {
+                const section = document.createElement('section');
+                section.className = 'subject-section__subsection';
+
+                const h2 = document.createElement('h2');
+                h2.className = 'subject-section__title';
+                h2.innerText = title + ' Explanation';
+                section.append(h2);
+
+                const div = document.createElement('div');
+                div.className = 'subject-section__text';
+                div.innerHTML = html;
+                section.append(div);
+
+                dst.append(section);
+              }
+            };
+
+            inserter('Kanjipedia', r.kanjipedia);
+            inserter('Weblio', r.weblio);
+          });
+        }
+      });
+      break;
+    }
     case 'kanji': {
       kanji = decodeURIComponent(urlParts[urlParts.length - 1]);
-      setTimeout(() => {
-        updateInfo();
-      }, 50);
+      updateInfo();
       break;
     }
     case 'vocabulary': {
@@ -197,8 +231,19 @@
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
-  // Loading the information and updating the webpage
-  function updateInfo() {
+  /**
+   * Loading the information and updating the webpage
+   *
+   * @returns {Promise<Record<string, string>>}
+   */
+  async function updateInfo() {
+    /**
+     *
+     * @param {string} definition
+     * @param {string} full_url
+     * @param {string} name
+     * @returns {string}
+     */
     function insertDefinition(definition, full_url, name) {
       const output = document.createElement('div');
       output.className = entryClazz;
@@ -225,12 +270,14 @@
         weblioInserter.renew();
         weblioItemPageInserter.renew();
       }
+
+      return output.outerHTML;
     }
 
     /**
      *
      * @param {string} kanji
-     * @returns
+     * @returns {Promise<string>}
      */
     async function searchKanjipedia(kanji) {
       /**
@@ -262,12 +309,13 @@
           r.url,
           'Kanjipedia',
         );
+
+        return r.definition;
       };
 
       const r = await db.kanjipedia.get(kanji);
       if (r) {
-        setContent(r);
-        return;
+        return setContent(r);
       }
 
       const kanjipediaUrlBase = 'https://www.kanjipedia.jp/';
@@ -296,7 +344,7 @@
                 .find('#resultKanjiList a')[0]
             );
             if (!firstResult) {
-              resolve(null);
+              resolve('');
               return;
             }
 
@@ -351,9 +399,8 @@
                   })(),
                 };
 
-                setContent(r);
                 db.kanjipedia.add(r);
-                resolve(r);
+                resolve(setContent(r));
               },
             });
           },
@@ -364,7 +411,7 @@
     /**
      *
      * @param {string} vocab
-     * @returns
+     * @returns {Promise<string>}
      */
     async function searchWeblio(vocab) {
       /**
@@ -372,7 +419,7 @@
        * @param {EntryWeblio} r
        */
       const setContent = (r) => {
-        if (!r.definitions.length) return;
+        if (!r.definitions.length) return '';
         const vocabDefinition = r.definitions
           .sort((t1, t2) => {
             /**
@@ -415,12 +462,12 @@
           .join('<hr>');
 
         insertDefinition(vocabDefinition, r.url, 'Weblio');
+        return vocabDefinition;
       };
 
       const r = await db.weblio.get(vocab);
       if (r) {
-        setContent(r);
-        return;
+        return setContent(r);
       }
 
       const vocabPageURL = 'https://www.weblio.jp/content/' + vocab;
@@ -437,7 +484,7 @@
           onerror,
           onload: function (data) {
             if (!data.responseText) {
-              resolve(null);
+              resolve('');
               return;
             }
 
@@ -460,7 +507,7 @@
             div.remove();
 
             if (!definitions.length) {
-              resolve(null);
+              resolve('');
               return;
             }
 
@@ -470,24 +517,26 @@
               definitions,
             };
 
-            setContent(r);
             db.weblio.add(r);
-            resolve(r);
+            resolve(setContent(r));
           },
         });
       });
     }
 
+    /** @type {Record<string, string>} */
+    const out = {};
+
     if (kanji) {
-      searchKanjipedia(kanji).then((html) => {
-        if (kanji) {
-          return searchWeblio(kanji);
-        }
-      });
+      await Promise.allSettled([
+        searchKanjipedia(kanji).then((html) => (out.kanjipedia = html)),
+        searchWeblio(kanji).then((html) => (out.weblio = html)),
+      ]);
+    } else if (vocab) {
+      out.weblio = await searchWeblio(vocab);
     }
-    if (vocab) {
-      searchWeblio(vocab);
-    }
+
+    return out;
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -543,11 +592,10 @@
     .on('itemPage')
     .under('meaning')
     .append('Kanjipedia Explanation', (state) => {
-      if (pageType === 'kanji' || pageType === 'radical') {
-        if (!kanji) {
-          kanji = state.characters;
-          return;
-        }
+      if (pageType === 'radicals' && !kanji) {
+        kanji = state.characters;
+        kanjipediaItemPageInserter.renew();
+        return;
       }
 
       if (!(kanji && kanji === state.characters)) {

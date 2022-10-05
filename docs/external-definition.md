@@ -2,18 +2,19 @@
 source: https://community.wanikani.com/t/userscript-wanikani-external-definition-from-weblio-jp-and-kanjipedia/22834
 ---
 
-Currently maintained by @NicoleRauch 
+On various WaniKani pages, the script displays J->J definitions of Kanji from Kanjipedia and of vocab words from Weblio. Weblio results with suitable reading and Part-of-Speech are shown first.
 
-On various WaniKani pages, the script displays J->J definitions of kanji from Kanjipedia and of vocab words from Weblio.
+In addition, various radicals can be deemed Kanji, as well as some Kanji aren't in Kanjipedia, so fixed accordingly. (Weblio aggregates from various sources including Wiktionary and Wikipedia.)
 
-Originally developed by polv, but he doesn't actively use WaniKani anymore.
+If you have an old version of the script (version 0.10 or below) please upgrade to the new version. [[Change Notes](https://community.wanikani.com/t/userscript-wanikani-external-definition-from-weblio-jp-and-kanjipedia/22834/34?u=polv)]
 
-Get [a new version of the script at GreasyFork](https://greasyfork.org/en/scripts/376666-wanikani-external-definition).
+https://greasyfork.org/en/scripts/35970-wanikani-jj-external-definition
 
-So if you have an old version of the script (version 0.5 or below) please upgrade to the new version.
-**Note:** You cannot simply update your script because the script author has changed, therefore technically it is a new script. Please delete the old script from your computer and install the new version from scratch. Thanks and sorry for the inconvenience!
+**Note:** You cannot simply update your script because the script namespace has changed, therefore technically it is a new script. Please delete the old script from your computer and install the new version from scratch. Thanks and sorry for the inconvenience!
 
-[details="Version history for the new version"]
+[details="NicoleRauch's fix for version < 0.5"]
+Get [the pre-0.11 script at GreasyFork](https://greasyfork.org/en/scripts/376666-wanikani-external-definition).
+
 **0.10:** Displays the kanji readings from Kanjipedia on the kanji, lesson and review pages.
 
 **0.9:** Bugfix: Accidentally scraping scripts from weblio leads to a blank WaniKani page.
@@ -26,12 +27,10 @@ So if you have an old version of the script (version 0.5 or below) please upgrad
 
 [/details]
 
-![08 AM|690x406](upload://uZJ5q8sg12stqjWsYe7cftng0bu.png)
+![七つ (Vocabulary)|690x346](upload://f6EAd8HuC3bTXAEC5hvJf2BqYbR.png)
 
----
+![半 (Kanji Reading)|690x346](upload://mHv1Q7YhoS5ZpFgeQki6wMAooxM.png)
 
-[details="Original version of the script"]
-I kept this URL here for reasons of archiving. Please install the newer version (linked above)!
+![今 (Kanji Meaning)|690x346](upload://tKZr1KtdAV7PAzJvzLd7XXr6j52.png)
 
-https://greasyfork.org/en/scripts/35970-wanikani-external-definition
-[/details]
+![彡 (Radical)|690x346](upload://mYs7pmxL83u87ZyY0PdeKRKfODz.png)
