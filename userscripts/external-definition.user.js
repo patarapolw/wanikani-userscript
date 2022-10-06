@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.2
+// @version      0.12.3
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -11,7 +11,7 @@
 // @match        *://www.wanikani.com/*radicals/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1101319
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1101385
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
@@ -41,7 +41,10 @@
     '}',
     '.' + entryClazz + ' .kanji-variant {',
     '  display: inline-block;',
+    '  text-align: center;',
+    '  width: 100%;',
     '  font-size: 2em;',
+    '  font-family: serif;',
     '  margin-top: 0;',
     '  margin-bottom: 0;',
     '}',
@@ -140,77 +143,8 @@
     $.jStorage.listenKeyChange('currentItem', getCurrent);
     $.jStorage.listenKeyChange('l/currentLesson', getCurrent);
     $.jStorage.listenKeyChange('l/currentQuizItem', getCurrent);
-  }
 
-  const urlParts = document.URL.split('/');
-  const pageType = urlParts[urlParts.length - 2];
-
-  switch (pageType) {
-    case 'radicals': {
-      // Radicals quick-fix for itemInfo injector
-      waitFor('body', '.page-header__icon--radical[lang=ja]').then((span) => {
-        if (span && span.innerText) {
-          kanji = span.innerText.trim();
-          updateInfo().then((r) => {
-            const dst = document.querySelector('section.subject-section');
-            if (!dst) return;
-
-            const inserter = (title, html) => {
-              if (html) {
-                if (html instanceof HTMLElement) {
-                  html = html.outerHTML;
-                }
-
-                const section = document.createElement('section');
-                section.className = 'subject-section__subsection';
-
-                const h2 = document.createElement('h2');
-                h2.className = 'subject-section__title';
-                h2.innerText = title + ' Explanation';
-                section.append(h2);
-
-                const div = document.createElement('div');
-                div.className = 'subject-section__text';
-                div.innerHTML = html;
-                section.append(div);
-
-                dst.append(section);
-              }
-            };
-
-            inserter('Kanjipedia', kanjipediaDefinition);
-            inserter('Weblio', weblioDefinition);
-          });
-        }
-      });
-      break;
-    }
-    case 'kanji': {
-      kanji = decodeURIComponent(urlParts[urlParts.length - 1]);
-      updateInfo();
-      break;
-    }
-    case 'vocabulary': {
-      vocab = fixVocab(decodeURIComponent(urlParts[urlParts.length - 1]));
-      waitFor(
-        'body',
-        '[data-react-class="Readings/Readings"][data-react-props]',
-      ).then((div) => {
-        if (div) {
-          const props = JSON.parse(
-            div.getAttribute('data-react-props') || '{}',
-          );
-          if (Array.isArray(props.readings)) {
-            reading = props.readings.map((r) => r.reading);
-          }
-        }
-        updateInfo();
-      });
-      break;
-    }
-    default: {
-      getCurrent();
-    }
+    getCurrent();
   }
 
   /**
@@ -238,7 +172,7 @@
   /**
    * Loading the information and updating the webpage
    *
-   * @returns {Promise<Record<string, string>>}
+   * @returns {Promise<void>}
    */
   async function updateInfo() {
     /**
@@ -299,7 +233,7 @@
 
           kanjipediaReading += [
             '<li>異体字</li>',
-            `<div style="text-align:center; font-size:2em">${r.variant}<div>`,
+            `<div class="kanji-variant">${r.variant}<div>`,
           ].join('\n');
         }
 
@@ -528,19 +462,11 @@
       });
     }
 
-    /** @type {Record<string, string>} */
-    const out = {};
-
     if (kanji) {
-      await Promise.allSettled([
-        searchKanjipedia(kanji).then((html) => (out.kanjipedia = html)),
-        searchWeblio(kanji).then((html) => (out.weblio = html)),
-      ]);
+      await Promise.allSettled([searchKanjipedia(kanji), searchWeblio(kanji)]);
     } else if (vocab) {
-      out.weblio = await searchWeblio(vocab);
+      await searchWeblio(vocab);
     }
-
-    return out;
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -594,31 +520,28 @@
 
   const kanjipediaItemPageInserter = wkItemInfo
     .on('itemPage')
-    .forType('kanji,vocabulary')
     .under('meaning')
     .append('Kanjipedia Explanation', (state) => {
-      // if (state.type === 'radical' && !kanji) {
-      //   kanji = state.characters;
-      //   updateInfo();
-      //   return;
-      // }
-
-      if (!(kanji && kanji === state.characters)) {
-        return;
-      }
-
       return kanjipediaDefinition;
     });
 
   const weblioItemPageInserter = wkItemInfo
     .on('itemPage')
-    .forType('kanji,vocabulary')
     .under('meaning')
     .append('Weblio Explanation', (state) => {
       if (state.type === 'vocabulary') {
-        if (state.characters !== vocab) return;
-      } else if (!(kanji && kanji === state.characters)) {
-        return;
+        if (!vocab) {
+          vocab = state.characters;
+          reading = state.reading;
+          updateInfo();
+          return;
+        }
+      } else {
+        if (!kanji) {
+          kanji = state.characters;
+          updateInfo();
+          return;
+        }
       }
 
       return weblioDefinition;
