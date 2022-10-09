@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.4
+// @version      0.12.5
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -143,6 +143,11 @@
     $.jStorage.listenKeyChange('currentItem', getCurrent);
     $.jStorage.listenKeyChange('l/currentLesson', getCurrent);
     $.jStorage.listenKeyChange('l/currentQuizItem', getCurrent);
+    $.jStorage.listenKeyChange('l/startQuiz', (key) => {
+      if ($.jStorage.get(key)) {
+        getCurrent();
+      }
+    });
 
     getCurrent();
   }
@@ -475,28 +480,6 @@
   ///////////////////////////////////////////////////////////////////////////////////////////////////
   // Triggering updates on lessons and reviews
 
-  /**
-   *
-   * @param {string} from
-   * @param {string} lookFor
-   * @returns {Promise<HTMLElement | null>}
-   */
-  async function waitFor(from, lookFor) {
-    const targetNode = document.querySelector(from);
-    if (targetNode) {
-      return new Promise((resolve) => {
-        new MutationObserver(function () {
-          const out = targetNode.querySelector(lookFor);
-          if (out instanceof HTMLElement) {
-            resolve(out);
-            return;
-          }
-        }).observe(targetNode, { childList: true, attributes: true });
-      });
-    }
-    return null;
-  }
-
   const kanjipediaInserter = wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy')
     .under('meaning')
@@ -560,12 +543,16 @@
       }
 
       if (!kanjipediaReading) return;
+      const id = [entryClazz, 'kanjipedia', 'reading'].join('--');
+      $('#' + id).remove();
 
       if (state.on === 'lesson') {
         $('#supplement-kan-reading:visible .pure-u-1-4 > div')
           .first()
           .after(
-            '<span lang="ja" class="' +
+            '<span id="' +
+              id +
+              '" lang="ja" class="' +
               entryClazz +
               ' ' +
               entryClazz +
@@ -580,7 +567,9 @@
           .addClass('span3')
           .last()
           .after(
-            '<div lang="ja" class="span3 ' +
+            '<div id="' +
+              id +
+              '" lang="ja" class="span3 ' +
               entryClazz +
               ' ' +
               entryClazz +
@@ -591,7 +580,9 @@
           );
       } else {
         $('#item-info #item-info-col1 #item-info-reading:visible').after(
-          '<section lang="ja" class="' +
+          '<section id="' +
+            id +
+            '" lang="ja" class="' +
             entryClazz +
             ' ' +
             entryClazz +
