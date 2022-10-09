@@ -18,6 +18,7 @@ interface WKItemInfoState<T> {
   meaning: string[];
   characters: string;
   reading: string[];
+  injector: WKItemInfo<T>;
 }
 
 type WKItemInfoCallback<R, T> = (state: WKItemInfoState<T>) => R;

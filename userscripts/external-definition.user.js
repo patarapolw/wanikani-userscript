@@ -1,7 +1,9 @@
+// See https://github.com/patarapolw/WanikaniExternalDefinition
+
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.5
+// @version      0.12.6
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -11,7 +13,7 @@
 // @match        *://www.wanikani.com/*radicals/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1101385
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1102710
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
@@ -210,11 +212,9 @@
       if (name === 'Kanjipedia') {
         kanjipediaDefinition = output;
         kanjipediaInserter.renew();
-        kanjipediaItemPageInserter.renew();
       } else {
         weblioDefinition = output;
         weblioInserter.renew();
-        weblioItemPageInserter.renew();
       }
 
       return output.outerHTML;
@@ -481,56 +481,64 @@
   // Triggering updates on lessons and reviews
 
   const kanjipediaInserter = wkItemInfo
-    .on('lesson,lessonQuiz,review,extraStudy')
+    .on('lesson,lessonQuiz,review,extraStudy,itemPage')
     .under('meaning')
-    .appendAtTop('Kanjipedia Explanation', (state) => {
+    .notify((state) => {
       if (!(kanji && kanji === state.characters)) {
         return;
       }
 
-      return kanjipediaDefinition;
+      if (!kanjipediaDefinition) return;
+
+      const title = 'Kanjipedia Explanation';
+      if (
+        state.on === 'itemPage' ||
+        (state.type === 'radical' && state.on === 'lesson')
+      ) {
+        state.injector.append(title, kanjipediaDefinition);
+      } else {
+        state.injector.appendAtTop(title, kanjipediaDefinition);
+      }
     });
 
   const weblioInserter = wkItemInfo
-    .on('lesson,lessonQuiz,review,extraStudy')
+    .on('lesson,lessonQuiz,review,extraStudy,itemPage')
     .under('meaning')
-    .appendAtTop('Weblio Explanation', (state) => {
+    .notify((state) => {
+      if (state.on === 'itemPage') {
+        if (state.type === 'vocabulary') {
+          if (!vocab) {
+            vocab = state.characters;
+            reading = state.reading;
+            updateInfo();
+            return;
+          }
+        } else {
+          if (!kanji) {
+            kanji = state.characters;
+            updateInfo();
+            return;
+          }
+        }
+      }
+
       if (state.type === 'vocabulary') {
         if (state.characters !== vocab) return;
       } else if (!(kanji && kanji === state.characters)) {
         return;
       }
 
-      return weblioDefinition;
-    });
+      if (!weblioDefinition) return;
 
-  const kanjipediaItemPageInserter = wkItemInfo
-    .on('itemPage')
-    .under('meaning')
-    .append('Kanjipedia Explanation', (state) => {
-      return kanjipediaDefinition;
-    });
-
-  const weblioItemPageInserter = wkItemInfo
-    .on('itemPage')
-    .under('meaning')
-    .append('Weblio Explanation', (state) => {
-      if (state.type === 'vocabulary') {
-        if (!vocab) {
-          vocab = state.characters;
-          reading = state.reading;
-          updateInfo();
-          return;
-        }
+      const title = 'Weblio Explanation';
+      if (
+        state.on === 'itemPage' ||
+        (state.type === 'radical' && state.on === 'lesson')
+      ) {
+        state.injector.append(title, weblioDefinition);
       } else {
-        if (!kanji) {
-          kanji = state.characters;
-          updateInfo();
-          return;
-        }
+        state.injector.appendAtTop(title, weblioDefinition);
       }
-
-      return weblioDefinition;
     });
 
   const kanjipediaReadingInserter = wkItemInfo
