@@ -10,6 +10,7 @@
 // @match        *://moji.tekkai.com/*
 // @match        *://*.immersionkit.com/*
 // @match        *://youglish.com/*
+// @match        *://nihongoswitch.com/*
 // @match        *://docs.google.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=eastasiastudent.net
 // @grant        none

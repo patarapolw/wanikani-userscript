@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.6
+// @version      0.12.7
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -17,6 +17,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
+// @homepage     https://github.com/patarapolw/WanikaniExternalDefinition
 // ==/UserScript==
 
 // @ts-check
@@ -25,6 +26,8 @@
 /// <reference path="./types/gm.d.ts" />
 (function () {
   'use strict';
+
+  const AFTER_EN_MEANING = false;
 
   /** @type {number | undefined} */
   const MAX_ENTRIES = 3;
@@ -492,6 +495,7 @@
 
       const title = 'Kanjipedia Explanation';
       if (
+        AFTER_EN_MEANING ||
         state.on === 'itemPage' ||
         (state.type === 'radical' && state.on === 'lesson')
       ) {
@@ -532,6 +536,7 @@
 
       const title = 'Weblio Explanation';
       if (
+        AFTER_EN_MEANING ||
         state.on === 'itemPage' ||
         (state.type === 'radical' && state.on === 'lesson')
       ) {
