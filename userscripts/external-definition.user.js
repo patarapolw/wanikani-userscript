@@ -1,5 +1,3 @@
-// See https://github.com/patarapolw/WanikaniExternalDefinition
-
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
@@ -17,7 +15,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
-// @homepage     https://github.com/patarapolw/WanikaniExternalDefinition
+// @homepage     https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/external-definition.user.js
 // ==/UserScript==
 
 // @ts-check
