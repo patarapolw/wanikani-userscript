@@ -15,7 +15,9 @@
 
 (function (gobj) {
   var css =
-    '.context-sentence-group p:not([lang="ja"]):not(:hover), p[lang="ja"] + p, div[lang="ja"] + div {' +
+    '.context-sentence-group p:not([lang="ja"]):not(:hover), ' +
+    '.subject-collocations__collocation-text:not([lang="ja"]):not(:hover), ' +
+    'p[lang="ja"] + p:not(:hover) {' +
     '  background-color:#ccc;' +
     '  color:#ccc;' +
     '  text-shadow:none;' +
