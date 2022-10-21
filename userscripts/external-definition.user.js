@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.7
+// @version      0.12.8
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -65,6 +65,11 @@
     '.' + entryClazz + ' .okurigana {',
     '  color: #ab9b96;',
     '}',
+    `@media only screen and (min-width: 768px){
+      .subject-readings__reading {
+        flex: 1;
+      }
+    }`,
   ].join('\n');
   document.head.appendChild(style);
   ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,7 +118,7 @@
 
   function getCurrent() {
     // First, remove any already existing entries to avoid displaying entries for other items:
-    $('.' + entryClazz).remove();
+    document.querySelectorAll('.' + entryClazz).forEach((el) => el.remove());
     kanji = undefined;
     vocab = undefined;
     reading = [];
@@ -285,12 +290,14 @@
           url: kanjipediaUrlBase + 'search?k=' + kanji + '&kt=1&sk=leftHand',
           onerror,
           onload: function (data) {
+            const div = document.createElement('div');
+            div.innerHTML = data.responseText.replace(
+              regexImgSrc,
+              replacementImgSrc,
+            );
+
             const firstResult = /** @type {HTMLAnchorElement} */ (
-              $('<div />')
-                .append(
-                  data.responseText.replace(regexImgSrc, replacementImgSrc),
-                )
-                .find('#resultKanjiList a')[0]
+              div.querySelector('#resultKanjiList a')
             );
             if (!firstResult) {
               resolve('');
@@ -304,47 +311,55 @@
               url: kanjiPageURL,
               onerror,
               onload: function (data) {
-                const rawResponseNode = $('<div />').append(
-                  data.responseText
-                    .replace(regexImgSrc, replacementImgSrc)
-                    .replace(regexTxtNormal, replacementTxtNormal)
-                    .replace(regexSpaceBeforeCircledNumber, '<br/>$1'),
-                );
+                const rawResponseNode = document.createElement('div');
+                rawResponseNode.innerHTML = data.responseText
+                  .replace(regexImgSrc, replacementImgSrc)
+                  .replace(regexTxtNormal, replacementTxtNormal)
+                  .replace(regexSpaceBeforeCircledNumber, '<br/>$1');
 
-                const readingNode = rawResponseNode.find(
+                const readingNode = rawResponseNode.querySelector(
                   '#kanjiLeftSection #onkunList',
                 );
+                if (!readingNode) return;
+
                 // Okurigana dot removal, so that it can be read as a vocabulary with Yomichan
-                readingNode.find('span').each((_, it) => {
-                  const $it = $(it);
-                  const text = $it.text();
+                readingNode.querySelectorAll('span').forEach((it) => {
+                  const text = it.innerText;
                   if (text[0] === '.') {
-                    $it.text(text.substring(1));
-                    $it.addClass('okurigana').css('color', '#ab9b96');
+                    it.innerText = text.substring(1);
+                    it.classList.add('okurigana');
+                    it.style.color = '#ab9b96';
                   }
                 });
 
                 const r = {
                   id: kanji,
                   url: kanjiPageURL,
-                  reading: readingNode.html(),
-                  definition: rawResponseNode
-                    .find('#kanjiRightSection p')
-                    .html(),
+                  reading: readingNode.innerHTML,
+                  definition: Array.from(
+                    rawResponseNode.querySelectorAll('#kanjiRightSection p'),
+                  )
+                    .map((p) => p.innerHTML)
+                    .join('\n'),
                   variant: (() => {
                     const vs = [
-                      ...rawResponseNode.find('#kanjiOyaji'),
-                      ...rawResponseNode.find('.subKanji'),
+                      ...rawResponseNode.querySelectorAll('#kanjiOyaji'),
+                      ...rawResponseNode.querySelectorAll('.subKanji'),
                     ].filter(
-                      (n) => $(n).text() !== decodeURIComponent(kanji || ''),
+                      (n) => n.textContent !== decodeURIComponent(kanji || ''),
                     );
 
                     if (!vs.length) return '';
 
-                    const $vs = $(vs).addClass('kanji-variant');
-                    $vs.find('img').removeAttr('width').css('height', '2em');
+                    vs.map((v) => {
+                      v.classList.add('kanji-variant');
+                      v.querySelectorAll('img').forEach((img) => {
+                        img.removeAttribute('width');
+                        img.style.height = '2em';
+                      });
+                    });
 
-                    return $vs.html();
+                    return vs.map((v) => v.innerHTML).join('\n');
                   })(),
                 };
 
@@ -557,12 +572,16 @@
 
       if (!kanjipediaReading) return;
       const id = [entryClazz, 'kanjipedia', 'reading'].join('--');
-      $('#' + id).remove();
+      document.querySelectorAll('#' + id).forEach((el) => el.remove());
 
       if (state.on === 'lesson') {
-        $('#supplement-kan-reading:visible .pure-u-1-4 > div')
-          .first()
-          .after(
+        const dst = document.querySelector(
+          '#supplement-kan-reading .pure-u-1-4 > div',
+        );
+
+        if (dst) {
+          dst.insertAdjacentHTML(
+            'afterend',
             '<span id="' +
               id +
               '" lang="ja" class="' +
@@ -574,36 +593,47 @@
               kanjipediaReading +
               '</span>',
           );
+        }
       } else if (state.on === 'itemPage') {
-        $('.span4')
-          .removeClass('span4')
-          .addClass('span3')
-          .last()
-          .after(
-            '<div id="' +
+        const dst = document.querySelector('.subject-readings');
+
+        if (dst) {
+          const el = document.createElement('div');
+          el.id = id;
+          el.className = `subject-readings__reading ${entryClazz} ${entryClazz}-reading`;
+
+          const h = document.createElement('h3');
+          h.className = 'subject-readings__reading-title';
+          h.innerText = 'Kanjipedia';
+
+          const content = document.createElement('div');
+          content.className = 'subject-readings__reading-items';
+          content.lang = 'ja';
+          content.innerHTML = kanjipediaReading;
+
+          el.append(h, content);
+          dst.append(el);
+        }
+      } else {
+        const dst = document.querySelector(
+          '#item-info #item-info-col1 #item-info-reading',
+        );
+
+        if (dst) {
+          dst.insertAdjacentHTML(
+            'afterend',
+            '<section id="' +
               id +
-              '" lang="ja" class="span3 ' +
+              '" lang="ja" class="' +
               entryClazz +
               ' ' +
               entryClazz +
               '-reading' +
-              '"><h3>Kanjipedia</h3>' +
+              '"><h2>Kanjipedia</h2>' +
               kanjipediaReading +
-              '</div>',
+              '</section>',
           );
-      } else {
-        $('#item-info #item-info-col1 #item-info-reading:visible').after(
-          '<section id="' +
-            id +
-            '" lang="ja" class="' +
-            entryClazz +
-            ' ' +
-            entryClazz +
-            '-reading' +
-            '"><h2>Kanjipedia</h2>' +
-            kanjipediaReading +
-            '</section>',
-        );
+        }
       }
     });
 })();
