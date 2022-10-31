@@ -1,17 +1,14 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.8
+// @version      0.12.9
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
-// @match        *://www.wanikani.com/*/session*
-// @match        *://www.wanikani.com/*vocabulary/*
-// @match        *://www.wanikani.com/*kanji/*
-// @match        *://www.wanikani.com/*radicals/*
+// @match        *://www.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1102710
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1111117
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
@@ -498,8 +495,17 @@
 
   const kanjipediaInserter = wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy,itemPage')
+    .forType('kanji,radical')
     .under('meaning')
     .notify((state) => {
+      if (state.on === 'itemPage') {
+        if (kanji !== state.characters) {
+          kanji = state.characters;
+          updateInfo();
+          return;
+        }
+      }
+
       if (!(kanji && kanji === state.characters)) {
         return;
       }
@@ -524,14 +530,14 @@
     .notify((state) => {
       if (state.on === 'itemPage') {
         if (state.type === 'vocabulary') {
-          if (!vocab) {
+          if (vocab !== state.characters) {
             vocab = state.characters;
             reading = state.reading;
             updateInfo();
             return;
           }
         } else {
-          if (!kanji) {
+          if (kanji !== state.characters) {
             kanji = state.characters;
             updateInfo();
             return;
@@ -564,6 +570,14 @@
     .forType('kanji')
     .under('reading')
     .notify((state) => {
+      if (state.on === 'itemPage') {
+        if (kanji !== state.characters) {
+          kanji = state.characters;
+          updateInfo();
+          return;
+        }
+      }
+
       if (!(kanji && kanji === state.characters)) {
         return;
       }
