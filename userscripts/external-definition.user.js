@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.12.9
+// @version      0.13.0
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -32,40 +32,84 @@
   const entryClazz = 'wkexternaldefinition';
 
   const style = document.createElement('style');
-  style.innerHTML = [
-    '.' + entryClazz + ' a.crosslink {',
-    '  color: #023e8a;',
-    '}',
-    '.' + entryClazz + ' a {',
-    '  text-decoration: none;',
-    '}',
-    '.' + entryClazz + ' .kanji-variant {',
-    '  display: inline-block;',
-    '  text-align: center;',
-    '  width: 100%;',
-    '  font-size: 2em;',
-    '  font-family: serif;',
-    '  margin-top: 0;',
-    '  margin-bottom: 0;',
-    '}',
-    '.' + entryClazz + ' .kanji-variant {',
-    '  font-size: 2em;',
-    '}',
-    '.' + entryClazz + ' .kanji-variant img {',
-    '  height: 2em;',
-    '}',
-    '.' + entryClazz + ' .kanji-variant + .kanji-variant {',
-    '  margin-left: 1em;',
-    '}',
-    '.' + entryClazz + ' .okurigana {',
-    '  color: #ab9b96;',
-    '}',
-    `@media only screen and (min-width: 768px){
-      .subject-readings__reading {
-        flex: 1;
-      }
-    }`,
-  ].join('\n');
+  style.appendChild(
+    document.createTextNode(/* css */ `
+
+  /* Weblio fixes */
+  .${entryClazz} a.crosslink {
+    color: #023e8a;
+  }
+  .${entryClazz} a {
+    text-decoration: none;
+  }
+  .${entryClazz} ol {
+    list-style: revert;
+    padding: revert;
+  }
+  .${entryClazz} ul {
+    list-style: revert;
+    padding: revert;
+  }
+  .${entryClazz} .wnryjNotice {
+    border: #b5b6b5 solid 1px;
+    font-size: 0.8em;
+    line-height: 1.32em;
+    margin: 16px 0 0 0;
+    padding: 10px;
+    width: auto;
+  }
+  .${entryClazz} .SgkdjImg img {
+    width: 40%;
+    height: 40%;
+  }
+  .${entryClazz} .synonymsUnderDictWrp {
+    margin-top: 1em;
+  }
+  .${entryClazz} .synonymsUnderDict {
+    background-color: #f7f7f7;
+    clear: both;
+    margin: 0 0 0 8px;
+    padding: 2px 8px;
+  }
+  .${entryClazz} .synonymsUnderDict a {
+    padding-right: 8px;
+  }
+  .${entryClazz} .tssmjC {
+    background-color: #f0f0f0;
+    border: #666666 solid 1px;
+    color: #363636;
+    font-size: 0.9em;
+    line-height: 1.0em;
+    margin-right: 5px;
+    padding: 1px;
+  }
+
+  /* Kanjipedia fixes */
+  .${entryClazz} .kanji-variant {
+    display: inline-block;
+    text-align: center;
+    width: 100%;
+    font-size: 2em;
+    font-family: serif;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .${entryClazz} .kanji-variant img {
+    height: 2em;
+  }
+  .${entryClazz} .kanji-variant + .kanji-variant {
+    margin-left: 1em;
+  }
+  .${entryClazz} .okurigana {
+    color: #ab9b96;
+  }
+  @media only screen and (min-width: 768px) {
+    .subject-readings__reading {
+      flex: 1;
+    }
+  }
+  `),
+  );
   document.head.appendChild(style);
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -498,14 +542,6 @@
     .forType('kanji,radical')
     .under('meaning')
     .notify((state) => {
-      if (state.on === 'itemPage') {
-        if (kanji !== state.characters) {
-          kanji = state.characters;
-          updateInfo();
-          return;
-        }
-      }
-
       if (!(kanji && kanji === state.characters)) {
         return;
       }
@@ -570,14 +606,6 @@
     .forType('kanji')
     .under('reading')
     .notify((state) => {
-      if (state.on === 'itemPage') {
-        if (kanji !== state.characters) {
-          kanji = state.characters;
-          updateInfo();
-          return;
-        }
-      }
-
       if (!(kanji && kanji === state.characters)) {
         return;
       }
