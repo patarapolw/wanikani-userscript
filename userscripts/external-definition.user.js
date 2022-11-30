@@ -143,7 +143,7 @@
     Coral: ['丞'],
     Cactus: [],
     Satellite: ['䍃'],
-    Psychopath: ['鬯'],
+    Psychopath: ['鬯'], // Except this one; but it's a smaller radical not elsewhere described.
   };
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
