@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.13.0
+// @version      0.14.0
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -111,6 +111,41 @@
   `),
   );
   document.head.appendChild(style);
+
+  const radicalMap = {
+    Gun: ['𠂉'],
+    Leaf: ['丆'],
+    Beggar: ['丂'],
+    Spikes: ['业'],
+    Kick: ['𧘇'],
+    Viking: ['𤇾', '𦥯'],
+    Cape: ['𠃌'],
+    Hills: [],
+    Gladiator: ['龹'],
+    Pope: [],
+    Spring: ['𡗗'],
+    Squid: ['㑒', '僉'],
+    Yurt: [],
+    Chinese: ['𦰩', '堇'],
+    Bear: ['㠯'],
+    Blackjack: ['	龷'],
+    Trash: ['𠫓'],
+    Tofu: [],
+    Creeper: [],
+    Bar: ['㦮', '戔'],
+    Saw: ['巩'],
+    Zombie: ['袁'],
+    Explosion: [],
+    Morning: ['𠦝', '龺'],
+    'Death Star': ['俞'],
+    Comb: [],
+    Elf: [],
+    Coral: ['丞'],
+    Cactus: [],
+    Satellite: ['䍃'],
+    Psychopath: ['鬯'],
+  };
+
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
   // @ts-ignore
@@ -182,7 +217,7 @@
     } else if ('kan' in current && typeof current.kan === 'string') {
       kanji = current.kan;
     } else if ('rad' in current) {
-      kanji = current.characters;
+      kanji = current.characters || getRadicalKanji(current.en);
     }
 
     updateInfo();
@@ -542,7 +577,13 @@
     .forType('kanji,radical')
     .under('meaning')
     .notify((state) => {
-      if (!(kanji && kanji === state.characters)) {
+      if (
+        !(
+          kanji &&
+          (kanji === state.characters ||
+            kanji === getRadicalKanji(state.meaning))
+        )
+      ) {
         return;
       }
 
@@ -573,18 +614,22 @@
             return;
           }
         } else {
-          if (kanji !== state.characters) {
-            kanji = state.characters;
+          const newKanji = state.characters || getRadicalKanji(state.meaning);
+
+          if (kanji !== newKanji) {
+            kanji = newKanji;
             updateInfo();
             return;
           }
-        }
-      }
 
-      if (state.type === 'vocabulary') {
-        if (state.characters !== vocab) return;
-      } else if (!(kanji && kanji === state.characters)) {
-        return;
+          if (!kanji) return;
+        }
+      } else {
+        if (state.type === 'vocabulary') {
+          if (state.characters !== vocab) return;
+        } else if (!(kanji && kanji === state.characters)) {
+          return;
+        }
       }
 
       if (!weblioDefinition) return;
@@ -676,4 +721,17 @@
         }
       }
     });
+
+  /**
+   *
+   * @param {string[]} meanings
+   * @returns {string | undefined}
+   */
+  function getRadicalKanji(meanings) {
+    const [en] = meanings;
+    if (!en) return;
+    const ks = radicalMap[en];
+    if (!ks) return;
+    return ks[0];
+  }
 })();
