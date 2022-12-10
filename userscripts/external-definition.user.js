@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.14.1
+// @version      0.14.2
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -39,6 +39,7 @@
   }
 
   .${entryClazz} details summary {
+    display: revert;
     margin-bottom: 1em;
     cursor: pointer;
   }
