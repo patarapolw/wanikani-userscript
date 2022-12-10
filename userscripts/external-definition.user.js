@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.14.0
+// @version      0.14.1
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -34,8 +34,19 @@
   const style = document.createElement('style');
   style.appendChild(
     document.createTextNode(/* css */ `
+  .${entryClazz} details {
+    margin-top: 1em;
+  }
+
+  .${entryClazz} details summary {
+    margin-bottom: 1em;
+    cursor: pointer;
+  }
 
   /* Weblio fixes */
+  .${entryClazz} p {
+    margin-bottom: 0.5em;
+  }
   .${entryClazz} a.crosslink {
     color: #023e8a;
   }
@@ -128,7 +139,7 @@
     Yurt: [],
     Chinese: ['𦰩', '堇'],
     Bear: ['㠯'],
-    Blackjack: ['	龷'],
+    Blackjack: ['龷'],
     Trash: ['𠫓'],
     Tofu: [],
     Creeper: [],
@@ -212,8 +223,8 @@
     if (!current) return;
 
     if ('voc' in current) {
+      reading = current.kana || [];
       vocab = fixVocab(current.voc);
-      reading = current.kana;
     } else if ('kan' in current && typeof current.kan === 'string') {
       kanji = current.kan;
     } else if ('rad' in current) {
@@ -246,6 +257,7 @@
     isSuru = v.endsWith(suru);
     if (isSuru) {
       v = v.substring(0, v.length - suru.length);
+      reading = reading.map((r) => r.substring(0, v.length - suru.length));
     }
 
     const extMark = '〜';
@@ -458,7 +470,7 @@
        */
       const setContent = (r) => {
         if (!r.definitions.length) return '';
-        const vocabDefinition = r.definitions
+        const sortedDef = r.definitions
           .sort((t1, t2) => {
             /**
              *
@@ -466,13 +478,16 @@
              * @returns {number}
              */
             const fn = (t) => {
-              if (/［[音訓]］/.exec(t)) return kanji ? -10 : 10;
+              let isKanji = /［[音訓]］/.exec(t);
+              if (kanji && isKanji) return -10;
 
               const m = /読み方：([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/u.exec(
                 t,
               );
               if (m) {
-                if (reading.length && !reading.includes(m[1])) return 5;
+                if (reading.length && !reading.includes(m[1])) {
+                  return isKanji ? 10 : 5;
+                }
 
                 if (isSuffix) {
                   if (t.includes('接尾')) return -1;
@@ -489,15 +504,39 @@
             };
             return fn(t1) - fn(t2);
           })
-          .slice(0, MAX_ENTRIES)
           .map((html) => {
+            if (!HTML_MAX_CHAR || html.length < HTML_MAX_CHAR) {
+              return html;
+            }
+
             const div = document.createElement('div');
             div.innerHTML = html.substring(0, HTML_MAX_CHAR);
-            html = div.innerHTML;
+
+            const mark = document.createElement('mark');
+            mark.style.cursor = 'pointer';
+            mark.setAttribute('data-html', html);
+            mark.textContent = '...';
+
+            html = div.outerHTML.replace(
+              /<\/div>$/,
+              mark.outerHTML.replace(
+                /^<mark /,
+                '$&' +
+                  'onclick="parentElement.innerHTML=getAttribute(\'data-html\')" ',
+              ) + '$&',
+            );
             div.remove();
+
             return html;
-          })
-          .join('<hr>');
+          });
+
+        let vocabDefinition = sortedDef.splice(0, MAX_ENTRIES).join('<hr>');
+
+        if (sortedDef.length) {
+          vocabDefinition += `<details><summary>Show more</summary>${sortedDef.join(
+            '<hr>',
+          )}</details>`;
+        }
 
         insertDefinition(vocabDefinition, r.url, 'Weblio');
         return vocabDefinition;
@@ -607,9 +646,10 @@
     .notify((state) => {
       if (state.on === 'itemPage') {
         if (state.type === 'vocabulary') {
-          if (vocab !== state.characters) {
-            vocab = state.characters;
+          const fixedCharacters = fixVocab(state.characters);
+          if (vocab !== fixedCharacters) {
             reading = state.reading;
+            vocab = fixedCharacters;
             updateInfo();
             return;
           }
