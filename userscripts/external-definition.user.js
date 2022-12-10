@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.14.2
+// @version      0.14.3
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -84,7 +84,7 @@
     padding: 2px 8px;
   }
   .${entryClazz} .synonymsUnderDict a {
-    padding-right: 8px;
+    padding-right: 1em;
   }
   .${entryClazz} .tssmjC {
     background-color: #f0f0f0;
@@ -258,7 +258,7 @@
     isSuru = v.endsWith(suru);
     if (isSuru) {
       v = v.substring(0, v.length - suru.length);
-      reading = reading.map((r) => r.substring(0, v.length - suru.length));
+      reading = reading.map((r) => r.replace(new RegExp(suru + '$'), ''));
     }
 
     const extMark = '〜';
@@ -342,7 +342,7 @@
 
         kanjipediaReadingInserter.renew();
 
-        insertDefinition(
+        return insertDefinition(
           r.definition
             .split('<br>')
             .map((s) => `<p>${s}</p>`)
@@ -350,8 +350,6 @@
           r.url,
           'Kanjipedia',
         );
-
-        return r.definition;
       };
 
       const r = await db.kanjipedia.get(kanji);
@@ -539,8 +537,7 @@
           )}</details>`;
         }
 
-        insertDefinition(vocabDefinition, r.url, 'Weblio');
-        return vocabDefinition;
+        return insertDefinition(vocabDefinition, r.url, 'Weblio');
       };
 
       const r = await db.weblio.get(vocab);
@@ -645,9 +642,13 @@
     .on('lesson,lessonQuiz,review,extraStudy,itemPage')
     .under('meaning')
     .notify((state) => {
+      let fixedCharacters = state.characters;
+      if (state.type === 'vocabulary') {
+        fixedCharacters = fixVocab(state.characters);
+      }
+
       if (state.on === 'itemPage') {
         if (state.type === 'vocabulary') {
-          const fixedCharacters = fixVocab(state.characters);
           if (vocab !== fixedCharacters) {
             reading = state.reading;
             vocab = fixedCharacters;
@@ -667,7 +668,7 @@
         }
       } else {
         if (state.type === 'vocabulary') {
-          if (state.characters !== vocab) return;
+          if (fixedCharacters !== vocab) return;
         } else if (!(kanji && kanji === state.characters)) {
           return;
         }
