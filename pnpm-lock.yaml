@@ -2,7 +2,6 @@ lockfileVersion: 5.4
 
 specifiers:
   '@types/jquery': ^3.5.14
-  '@types/jstorage': ^0.3.30
   dexie: ^3.2.2
   prettier: ^2.7.1
 
@@ -11,7 +10,6 @@ dependencies:
 
 devDependencies:
   '@types/jquery': 3.5.14
-  '@types/jstorage': 0.3.30
   prettier: 2.7.1
 
 packages:
@@ -20,10 +18,6 @@ packages:
     resolution: {integrity: sha512-X1gtMRMbziVQkErhTQmSe2jFwwENA/Zr+PprCkF63vFq+Yt5PZ4AlKqgmeNlwgn7dhsXEK888eIW2520EpC+xg==}
     dependencies:
       '@types/sizzle': 2.3.3
-    dev: true
-
-  /@types/jstorage/0.3.30:
-    resolution: {integrity: sha512-vGFEFnqmnruOEpRHQgrEs3fzsRanB96gVGQcGFbrQ4+vp9K5aRvkTzkCoX60qY1NF0DUTjrLVIH77piFeiiJJQ==}
     dev: true
 
   /@types/sizzle/2.3.3:

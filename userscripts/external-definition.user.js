@@ -1,11 +1,14 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      0.14.3
+// @version      1.0.0
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
-// @match        *://www.wanikani.com/*
+// @match        *://www.wanikani.com/*/session
+// @match        *://www.wanikani.com/*/session/*
+// @match        *://preview.wanikani.com/lesson/session
+// @match        *://preview.wanikani.com/subjects/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1111117
@@ -213,40 +216,97 @@
     kanjipediaReading = undefined;
     weblioDefinition = undefined;
 
-    let key = 'currentItem';
-    if (document.URL.includes('/lesson/session')) {
-      key = $.jStorage.get('l/quizActive')
-        ? 'l/currentQuizItem'
-        : 'l/currentLesson';
-    }
+    if (typeof $ !== 'undefined' && 'jStorage' in $) {
+      let key = 'currentItem';
+      if (document.URL.includes('/lesson/session')) {
+        // @ts-ignore
+        key = $.jStorage.get('l/quizActive')
+          ? 'l/currentQuizItem'
+          : 'l/currentLesson';
+      }
 
-    const current = $.jStorage.get(key);
-    if (!current) return;
+      // @ts-ignore
+      const current = $.jStorage.get(key);
+      if (!current) return;
 
-    if ('voc' in current) {
-      reading = current.kana || [];
-      vocab = fixVocab(current.voc);
-    } else if ('kan' in current && typeof current.kan === 'string') {
-      kanji = current.kan;
-    } else if ('rad' in current) {
-      kanji = current.characters || getRadicalKanji(current.en);
+      if ('voc' in current) {
+        reading = current.kana || [];
+        vocab = fixVocab(current.voc);
+      } else if ('kan' in current && typeof current.kan === 'string') {
+        kanji = current.kan;
+      } else if ('rad' in current) {
+        kanji = current.characters || getRadicalKanji(current.en);
+      }
+    } else {
+      const elObj = document.querySelector(
+        'script[data-quiz-queue-target="subjects"]',
+      );
+      if (!elObj) return;
+
+      try {
+        const obj = JSON.parse(elObj.textContent || '');
+        const it = obj[0];
+        if (it) {
+          if (it.type === 'Vocabulary') {
+            vocab = it.characters;
+            reading = it.readings.map((r) => r.reading);
+          } else {
+            kanji = it.characters || getRadicalKanji(it.meanings[0]);
+          }
+        }
+      } catch (e) {}
     }
 
     updateInfo();
   }
 
-  if (typeof $ !== 'undefined') {
-    $.jStorage.listenKeyChange('currentItem', getCurrent);
-    $.jStorage.listenKeyChange('l/currentLesson', getCurrent);
-    $.jStorage.listenKeyChange('l/currentQuizItem', getCurrent);
-    $.jStorage.listenKeyChange('l/startQuiz', (key) => {
-      if ($.jStorage.get(key)) {
-        getCurrent();
-      }
-    });
+  let cType = '';
+  let cChar = '';
+  /** @type {HTMLElement | null} */
+  let cEl = null;
 
-    getCurrent();
-  }
+  const obs = new MutationObserver(() => {
+    if (!cEl) return;
+
+    const elChar = cEl.querySelector(
+      '.character-header__characters, #character',
+    );
+
+    const elType = cEl.querySelector('#question-type') || cEl;
+
+    if (elChar && elType) {
+      if (elType.className !== cType || elChar.innerHTML !== cChar) {
+        cType = elType.className;
+        cChar = elChar.innerHTML;
+        getCurrent();
+        return;
+      }
+    }
+
+    cType = '';
+    cChar = '';
+  });
+
+  setInterval(() => {
+    const elQuestion = document.querySelector(
+      '.character-header, #question, #main-info',
+    );
+
+    if (cEl === elQuestion) {
+      return;
+    }
+    cEl = /** @type {HTMLElement} */ (elQuestion);
+
+    if (elQuestion) {
+      obs.observe(elQuestion, {
+        childList: true,
+        subtree: true,
+        attributeFilter: ['id', 'class'],
+      });
+    } else {
+      obs.disconnect();
+    }
+  }, 1000);
 
   /**
    *

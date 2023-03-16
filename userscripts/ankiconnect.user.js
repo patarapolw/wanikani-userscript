@@ -144,18 +144,7 @@
       en: '',
     };
 
-    function getCurrentItem() {
-      const c = $.jStorage.get('currentItem');
-      if (!c || !('voc' in c)) {
-        current = undefined;
-        return;
-      }
-      current = c;
-    }
-
     const onNewVocabulary = () => {
-      getCurrentItem();
-
       if (!current) return;
 
       sentence.ja = '';
@@ -289,7 +278,6 @@
       .forType('vocabulary')
       .under('reading')
       .appendAtTop('Anki Example', (state) => {
-        // (window.unsafeWindow || window).console.log(state);
         if (!current) return;
 
         Array.from(
