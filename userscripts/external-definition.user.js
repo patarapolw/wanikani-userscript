@@ -1,13 +1,11 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.0.0
+// @version      1.0.1
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
-// @match        *://www.wanikani.com/*/session
-// @match        *://www.wanikani.com/*/session/*
-// @match        *://www.wanikani.com/subjects/*
+// @match        *://www.wanikani.com/*
 // @match        *://preview.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
