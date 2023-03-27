@@ -7,11 +7,11 @@
 // @author       NicoleRauch
 // @match        *://www.wanikani.com/*/session
 // @match        *://www.wanikani.com/*/session/*
-// @match        *://preview.wanikani.com/lesson/session
-// @match        *://preview.wanikani.com/subjects/*
+// @match        *://www.wanikani.com/subjects/*
+// @match        *://preview.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1111117
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1166918
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
