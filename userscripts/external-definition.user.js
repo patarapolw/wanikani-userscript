@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.0.1
+// @version      1.0.3
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -43,6 +43,19 @@
     display: revert;
     margin-bottom: 1em;
     cursor: pointer;
+  }
+
+  .${entryClazz} .spoiler:not(:hover) {
+    background-color: #ccc;
+    color: #ccc;
+    text-shadow: none;
+  }
+
+  .${entryClazz} .keep-10em {
+    display: inline-block;
+    width: 10em;
+    min-width: fit-content;
+    max-width: 100%;
   }
 
   /* Weblio fixes */
@@ -203,108 +216,66 @@
   let weblioDefinition;
   let kanjipediaReading;
 
-  function getCurrent() {
+  const inputObserver = new MutationObserver((muts) => {
+    // if (qType !== 'meaning') return;
+
+    setTimeout(() => {
+      for (const m of muts) {
+        const { target } = m;
+        if (
+          target instanceof HTMLDivElement &&
+          target.getAttribute('correct')
+        ) {
+          const btn = document.querySelector(
+            '.additional-content__item--item-info',
+          );
+          if (btn && !btn.className.includes('--open')) {
+            // @ts-ignore
+            btn.click();
+          }
+          return;
+        }
+      }
+    }, 100);
+  });
+  /** @type {Element | null} */
+  let inputContainer = null;
+  let qType = '';
+
+  window.addEventListener('willShowNextQuestion', (e) => {
     // First, remove any already existing entries to avoid displaying entries for other items:
     document.querySelectorAll('.' + entryClazz).forEach((el) => el.remove());
     kanji = undefined;
     vocab = undefined;
     reading = [];
+    qType = '';
 
     kanjipediaDefinition = undefined;
     kanjipediaReading = undefined;
     weblioDefinition = undefined;
 
-    if (typeof $ !== 'undefined' && 'jStorage' in $) {
-      let key = 'currentItem';
-      if (document.URL.includes('/lesson/session')) {
-        // @ts-ignore
-        key = $.jStorage.get('l/quizActive')
-          ? 'l/currentQuizItem'
-          : 'l/currentLesson';
+    if ('detail' in e) {
+      const { subject, questionType } = /** @type {any} */ (e.detail);
+      qType = questionType;
+      if (subject.type === 'Vocabulary') {
+        vocab = subject.characters;
+        reading = subject.readings.map((r) => r.reading);
+      } else {
+        kanji = subject.characters || getRadicalKanji(subject.meanings[0]);
       }
-
-      // @ts-ignore
-      const current = $.jStorage.get(key);
-      if (!current) return;
-
-      if ('voc' in current) {
-        reading = current.kana || [];
-        vocab = fixVocab(current.voc);
-      } else if ('kan' in current && typeof current.kan === 'string') {
-        kanji = current.kan;
-      } else if ('rad' in current) {
-        kanji = current.characters || getRadicalKanji(current.en);
-      }
-    } else {
-      const elObj = document.querySelector(
-        'script[data-quiz-queue-target="subjects"]',
-      );
-      if (!elObj) return;
-
-      try {
-        const obj = JSON.parse(elObj.textContent || '');
-        const it = obj[0];
-        if (it) {
-          if (it.type === 'Vocabulary') {
-            vocab = it.characters;
-            reading = it.readings.map((r) => r.reading);
-          } else {
-            kanji = it.characters || getRadicalKanji(it.meanings[0]);
-          }
-        }
-      } catch (e) {}
     }
 
     updateInfo();
-  }
 
-  let cType = '';
-  let cChar = '';
-  /** @type {HTMLElement | null} */
-  let cEl = null;
-
-  const obs = new MutationObserver(() => {
-    if (!cEl) return;
-
-    const elChar = cEl.querySelector(
-      '.character-header__characters, #character',
-    );
-
-    const elType = cEl.querySelector('#question-type') || cEl;
-
-    if (elChar && elType) {
-      if (elType.className !== cType || elChar.innerHTML !== cChar) {
-        cType = elType.className;
-        cChar = elChar.innerHTML;
-        getCurrent();
-        return;
-      }
-    }
-
-    cType = '';
-    cChar = '';
-  });
-
-  setInterval(() => {
-    const elQuestion = document.querySelector(
-      '.character-header, #question, #main-info',
-    );
-
-    if (cEl === elQuestion) {
-      return;
-    }
-    cEl = /** @type {HTMLElement} */ (elQuestion);
-
-    if (elQuestion) {
-      obs.observe(elQuestion, {
-        childList: true,
-        subtree: true,
-        attributeFilter: ['id', 'class'],
+    const newInput = document.querySelector('.quiz-input__input-container');
+    if (newInput && newInput !== inputContainer) {
+      inputContainer = newInput;
+      inputObserver.observe(inputContainer, {
+        attributes: true,
+        attributeFilter: ['correct'],
       });
-    } else {
-      obs.disconnect();
     }
-  }, 1000);
+  });
 
   /**
    *
@@ -527,6 +498,12 @@
        */
       const setContent = (r) => {
         if (!r.definitions.length) return '';
+        const reYomi = /(読み方：)([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/gu;
+        const makeSpoiler = (s) =>
+          qType === 'meaning'
+            ? s.replace(reYomi, '$1<span class="spoiler keep-10em">$2</span>')
+            : s;
+
         const sortedDef = r.definitions
           .sort((t1, t2) => {
             /**
@@ -538,12 +515,13 @@
               let isKanji = /［[音訓]］/.exec(t);
               if (kanji && isKanji) return -10;
 
-              const m = /読み方：([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/u.exec(
-                t,
-              );
+              reYomi.lastIndex = 0;
+              const m = reYomi.exec(t);
               if (m) {
-                if (reading.length && !reading.includes(m[1])) {
-                  return isKanji ? 10 : 5;
+                const readingIdx = reading.indexOf(m[2]);
+
+                if (reading.length && readingIdx === -1) {
+                  return isKanji ? 100 : 90;
                 }
 
                 if (isSuffix) {
@@ -554,7 +532,7 @@
                   if (t.includes('スル')) return -1;
                 }
 
-                return 0;
+                return readingIdx;
               }
 
               return 1000;
@@ -563,11 +541,11 @@
           })
           .map((html) => {
             if (!HTML_MAX_CHAR || html.length < HTML_MAX_CHAR) {
-              return html;
+              return makeSpoiler(html);
             }
 
             const div = document.createElement('div');
-            div.innerHTML = html.substring(0, HTML_MAX_CHAR);
+            div.innerHTML = makeSpoiler(html.substring(0, HTML_MAX_CHAR));
 
             const mark = document.createElement('mark');
             mark.style.cursor = 'pointer';
@@ -671,6 +649,7 @@
     .on('lesson,lessonQuiz,review,extraStudy,itemPage')
     .forType('kanji,radical')
     .under('meaning')
+    .spoiling('meaning')
     .notify((state) => {
       if (
         !(
@@ -699,6 +678,7 @@
   const weblioInserter = wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy,itemPage')
     .under('meaning')
+    .spoiling('meaning')
     .notify((state) => {
       let fixedCharacters = state.characters;
       if (state.type === 'vocabulary') {
@@ -708,8 +688,15 @@
       if (state.on === 'itemPage') {
         if (state.type === 'vocabulary') {
           if (vocab !== fixedCharacters) {
-            reading = state.reading;
+            reading =
+              state.reading ||
+              Array.from(
+                document.querySelectorAll('.reading-with-audio__reading'),
+              )
+                .map((el) => (el.textContent || '').trim())
+                .filter((s) => s);
             vocab = fixedCharacters;
+
             updateInfo();
             return;
           }
