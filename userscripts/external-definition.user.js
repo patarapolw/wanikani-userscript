@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.0.3
+// @version      1.0.4
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -258,7 +258,7 @@
       const { subject, questionType } = /** @type {any} */ (e.detail);
       qType = questionType;
       if (subject.type === 'Vocabulary') {
-        vocab = subject.characters;
+        vocab = fixVocab(subject.characters);
         reading = subject.readings.map((r) => r.reading);
       } else {
         kanji = subject.characters || getRadicalKanji(subject.meanings[0]);
