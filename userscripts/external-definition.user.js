@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.0.4
+// @version      1.1.0
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -45,7 +45,7 @@
     cursor: pointer;
   }
 
-  .${entryClazz} .spoiler:not(:hover) {
+  .${entryClazz} .spoiler:not(:hover), .${entryClazz} .spoiler:not(:hover) * {
     background-color: #ccc;
     color: #ccc;
     text-shadow: none;
@@ -111,6 +111,16 @@
   }
 
   /* Kanjipedia fixes */
+  .${entryClazz}-kanjipedia-reading-horizontal * {
+    display: inline-block;
+  }
+  .${entryClazz}-kanjipedia-reading-horizontal li {
+    margin-right: 1em;
+  }
+  .${entryClazz}-kanjipedia-reading-horizontal .kanji-variant-header {
+    display: none;
+  }
+
   .${entryClazz} .kanji-variant {
     display: inline-block;
     text-align: center;
@@ -241,6 +251,7 @@
   /** @type {Element | null} */
   let inputContainer = null;
   let qType = '';
+  let sType = '';
 
   window.addEventListener('willShowNextQuestion', (e) => {
     // First, remove any already existing entries to avoid displaying entries for other items:
@@ -257,6 +268,7 @@
     if ('detail' in e) {
       const { subject, questionType } = /** @type {any} */ (e.detail);
       qType = questionType;
+      sType = subject.type;
       if (subject.type === 'Vocabulary') {
         vocab = fixVocab(subject.characters);
         reading = subject.readings.map((r) => r.reading);
@@ -357,25 +369,32 @@
       const setContent = (r) => {
         kanjipediaReading = r.reading;
 
+        let htmlVar = '';
+
         if (r.variant) {
           r.variant = r.variant.trim();
           if (!r.variant.startsWith('<')) {
             r.variant = `<div>${r.variant}</div>`;
           }
 
-          kanjipediaReading += [
-            '<li>異体字</li>',
-            `<div class="kanji-variant">${r.variant}<div>`,
+          htmlVar = [
+            '<li class="kanji-variant-header">異体字</li>',
+            `<div class="kanji-variant">${r.variant}</div>`,
           ].join('\n');
+
+          kanjipediaReading += htmlVar;
         }
 
         kanjipediaReadingInserter.renew();
 
         return insertDefinition(
-          r.definition
-            .split('<br>')
-            .map((s) => `<p>${s}</p>`)
-            .join('\n'),
+          (qType === 'meaning' && sType !== 'Radical'
+            ? htmlVar
+            : `<ul class="${entryClazz}-kanjipedia-reading-horizontal">${kanjipediaReading}</ul>`) +
+            r.definition
+              .split('<br>')
+              .map((s) => `<p>${s}</p>`)
+              .join('\n'),
           r.url,
           'Kanjipedia',
         );
@@ -499,9 +518,11 @@
       const setContent = (r) => {
         if (!r.definitions.length) return '';
         const reYomi = /(読み方：)([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/gu;
-        const makeSpoiler = (s) =>
-          qType === 'meaning'
-            ? s.replace(reYomi, '$1<span class="spoiler keep-10em">$2</span>')
+        const makeYomiSpoiler = (s) =>
+          qType === 'meaning' && sType !== 'Radical'
+            ? s
+                .replace(reYomi, '$1<span class="spoiler keep-10em">$2</span>')
+                .replace(/<p(>.*?［[音訓]］.*?<\/p>)/s, '<p class="spoiler"$1')
             : s;
 
         const sortedDef = r.definitions
@@ -541,11 +562,11 @@
           })
           .map((html) => {
             if (!HTML_MAX_CHAR || html.length < HTML_MAX_CHAR) {
-              return makeSpoiler(html);
+              return makeYomiSpoiler(html);
             }
 
             const div = document.createElement('div');
-            div.innerHTML = makeSpoiler(html.substring(0, HTML_MAX_CHAR));
+            div.innerHTML = makeYomiSpoiler(html.substring(0, HTML_MAX_CHAR));
 
             const mark = document.createElement('mark');
             mark.style.cursor = 'pointer';
@@ -680,6 +701,10 @@
     .under('meaning')
     .spoiling('meaning')
     .notify((state) => {
+      if (state.on === 'itemPage') {
+        qType = '';
+      }
+
       let fixedCharacters = state.characters;
       if (state.type === 'vocabulary') {
         fixedCharacters = fixVocab(state.characters);
@@ -733,6 +758,8 @@
       }
     });
 
+  let kanjipediaReadingPanelInterval = 0;
+
   const kanjipediaReadingInserter = wkItemInfo
     .on('lesson,lessonQuiz,review,extraStudy,itemPage')
     .forType('kanji')
@@ -743,36 +770,14 @@
       }
 
       if (!kanjipediaReading) return;
-      const id = [entryClazz, 'kanjipedia', 'reading'].join('--');
-      document.querySelectorAll('#' + id).forEach((el) => el.remove());
+      clearInterval(kanjipediaReadingPanelInterval);
 
-      if (state.on === 'lesson') {
-        const dst = document.querySelector(
-          '#supplement-kan-reading .pure-u-1-4 > div',
-        );
-
-        if (dst) {
-          dst.insertAdjacentHTML(
-            'afterend',
-            '<span id="' +
-              id +
-              '" lang="ja" class="' +
-              entryClazz +
-              ' ' +
-              entryClazz +
-              '-reading' +
-              '"><h2 style="margin-top: 1.25em;">Kanjipedia</h2>' +
-              kanjipediaReading +
-              '</span>',
-          );
-        }
-      } else if (state.on === 'itemPage') {
+      if (state.on === 'itemPage') {
         const dst = document.querySelector('.subject-readings');
 
         if (dst) {
           const el = document.createElement('div');
-          el.id = id;
-          el.className = `subject-readings__reading ${entryClazz} ${entryClazz}-reading`;
+          el.className = `subject-readings__reading subject-readings__reading--primary ${entryClazz} ${entryClazz}-reading`;
 
           const h = document.createElement('h3');
           h.className = 'subject-readings__reading-title';
@@ -787,25 +792,26 @@
           dst.append(el);
         }
       } else {
-        const dst = document.querySelector(
-          '#item-info #item-info-col1 #item-info-reading',
-        );
-
-        if (dst) {
-          dst.insertAdjacentHTML(
-            'afterend',
-            '<section id="' +
-              id +
-              '" lang="ja" class="' +
-              entryClazz +
-              ' ' +
-              entryClazz +
-              '-reading' +
-              '"><h2>Kanjipedia</h2>' +
-              kanjipediaReading +
-              '</section>',
-          );
-        }
+        kanjipediaReadingPanelInterval = setInterval(() => {
+          const node = document.querySelector('.subject-readings');
+          if (node) {
+            if (node.querySelector(`.${entryClazz}`)) {
+              return clearInterval(kanjipediaReadingPanelInterval);
+            }
+            node.insertAdjacentHTML(
+              'beforeend',
+              '<div class="subject-readings__reading subject-readings__reading--primary ' +
+                entryClazz +
+                ' ' +
+                entryClazz +
+                '-reading' +
+                '"><h3 class="subject-readings__reading-title">Kanjipedia</h3>' +
+                `<p class="subject-readings__reading-items" lang="ja">${kanjipediaReading}</p>` +
+                '</div>',
+            );
+            return clearInterval(kanjipediaReadingPanelInterval);
+          }
+        }, 100);
       }
     });
 
