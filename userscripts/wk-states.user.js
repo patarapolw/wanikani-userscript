@@ -22,6 +22,9 @@
     }
   });
 
+  let lastState = null;
+  let questionType = '';
+
   wkItemInfo.append('WK States History', (o) => {
     if (o.on === 'itemPage') {
       currentInfo = null;
@@ -36,6 +39,7 @@
 
     const currentEl = document.createElement('details');
     const summary = document.createElement('summary');
+    summary.lang = 'ja';
     summary.style.cursor = 'pointer';
     summary.innerHTML = `${
       properName
@@ -54,6 +58,7 @@
         p.append(
           (() => {
             const a = document.createElement('a');
+            a.lang = 'ja';
             a.href = properName
               ? `https://www.wanikani.com/radicals/${properName}`
               : `https://www.wanikani.com/${o.type}/${o.characters}`;
@@ -65,10 +70,19 @@
           document.createTextNode('・'),
           (() => {
             const a = document.createElement('a');
-            a.href = `https://www.wanikani.com/subjects/lesson/quiz?queue=${o.id}`;
+            a.href = `https://www.wanikani.com/subjects/${o.id}/lesson?queue=${o.id}`;
             a.rel = 'noreferer';
             a.target = '_blank';
             a.innerText = 'Lesson';
+            return a;
+          })(),
+          document.createTextNode('・'),
+          (() => {
+            const a = document.createElement('a');
+            a.href = `https://www.wanikani.com/subjects/lesson/quiz?queue=${o.id}`;
+            a.rel = 'noreferer';
+            a.target = '_blank';
+            a.innerText = 'Lesson Quiz';
             return a;
           })(),
         );
@@ -77,6 +91,7 @@
       })(),
       (() => {
         const pre = document.createElement('pre');
+        pre.lang = 'ja';
         pre.style.fontFamily = 'monospace';
         pre.style.margin = '0 2em';
         pre.textContent = JSON.stringify(currentInfo || o, null, 2);
@@ -118,7 +133,18 @@
       );
     }
 
-    queue.push(currentEl);
+    if (
+      !lastState ||
+      lastState.on !== o.on ||
+      lastState.id !== o.id ||
+      questionType !== currentInfo?.questionType
+    ) {
+      queue.push(currentEl);
+    }
+
+    lastState = o;
+    questionType = currentInfo?.questionType;
+
     return div;
   });
 })();
