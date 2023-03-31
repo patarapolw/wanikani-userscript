@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.1.2
+// @version      1.1.3
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -541,13 +541,10 @@
               const m = reYomi.exec(t);
               if (m) {
                 if (!reading.length) return 0;
+                if (isKanji) return reading.length;
 
                 let readingIdx = reading.indexOf(m[2]);
                 if (readingIdx === -1) return 100;
-
-                if (isKanji) {
-                  readingIdx += 0.5;
-                }
 
                 if (isSuffix && t.includes('接尾')) {
                   readingIdx -= 0.5;
