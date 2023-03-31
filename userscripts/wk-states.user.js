@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         Wanikani States
+// @name         Wanikani States History
 // @namespace    polv/wanikani
 // @version      0.1
-// @description  Wanikani State, hyperlink, and history queue
+// @description  Wanikani States History, with hyperlink to itemPage and dummy lesson
 // @author       polv
 // @match        https://www.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
+// @license      MIT
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1166918
-// @require      https://unpkg.com/js-yaml
 // @grant        none
 // ==/UserScript==
 
@@ -22,7 +22,7 @@
     }
   });
 
-  wkItemInfo.append('WK States', (o) => {
+  wkItemInfo.append('WK States History', (o) => {
     if (o.on === 'itemPage') {
       currentInfo = null;
     }
@@ -37,8 +37,8 @@
     const currentEl = document.createElement('details');
     const summary = document.createElement('summary');
     summary.style.cursor = 'pointer';
-    summary.innerText = `${o.characters || properName} (${o.type} ${
-      currentInfo ? currentInfo.questionType : o.on
+    summary.innerText = `${properName || o.characters} (${o.type} ${
+      currentInfo?.questionType || o.on
     })`;
 
     currentEl.append(
@@ -73,7 +73,7 @@
         const pre = document.createElement('pre');
         pre.style.fontFamily = 'monospace';
         pre.style.margin = '0 2em';
-        pre.textContent = jsyaml.dump(currentInfo || o);
+        pre.textContent = JSON.stringify(currentInfo || o, null, 2);
 
         return pre;
       })(),
