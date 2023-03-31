@@ -37,9 +37,15 @@
     const currentEl = document.createElement('details');
     const summary = document.createElement('summary');
     summary.style.cursor = 'pointer';
-    summary.innerText = `${properName || o.characters} (${o.type} ${
-      currentInfo?.questionType || o.on
-    })`;
+    summary.innerHTML = `${
+      properName
+        ? `${
+            o.characters && typeof o.characters === 'object'
+              ? `<img src="${o.characters.url}" alt="${o.characters.meaning}" style="filter: invert" width=16 height=16>`
+              : o.characters || ''
+          } ${properName}`
+        : o.characters
+    } (${o.type} ${currentInfo?.questionType || o.on})`;
 
     currentEl.append(
       summary,
@@ -88,7 +94,24 @@
           const summary = document.createElement('summary');
           summary.style.cursor = 'pointer';
           summary.innerText = 'History';
-          details.append(summary, ...queue);
+
+          const block = document.createElement('ol');
+          block.style.paddingLeft = '1em';
+          block.style.listStyle = 'decimal';
+          block.append(
+            ...queue.map((it) => {
+              const li = document.createElement('li');
+              li.style.paddingLeft = '0.5em';
+              li.append(it);
+              return li;
+            }),
+          );
+
+          block.querySelectorAll('details').forEach((el) => {
+            el.open = false;
+          });
+
+          details.append(summary, block);
 
           return details;
         })(),
