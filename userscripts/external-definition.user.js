@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.1.1
+// @version      1.1.2
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
 // @match        *://www.wanikani.com/*
 // @match        *://preview.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
+// @license      MIT
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1166918
 // @grant        GM_xmlhttpRequest
@@ -539,18 +540,21 @@
               reYomi.lastIndex = 0;
               const m = reYomi.exec(t);
               if (m) {
-                const readingIdx = reading.indexOf(m[2]);
+                if (!reading.length) return 0;
 
-                if (reading.length && readingIdx === -1) {
-                  return isKanji ? 100 : 90;
+                let readingIdx = reading.indexOf(m[2]);
+                if (readingIdx === -1) return 100;
+
+                if (isKanji) {
+                  readingIdx += 0.5;
                 }
 
-                if (isSuffix) {
-                  if (t.includes('接尾')) return -1;
+                if (isSuffix && t.includes('接尾')) {
+                  readingIdx -= 0.5;
                 }
 
-                if (isSuru) {
-                  if (t.includes('スル')) return -1;
+                if (isSuru && t.includes('スル')) {
+                  readingIdx -= 0.5;
                 }
 
                 return readingIdx;
