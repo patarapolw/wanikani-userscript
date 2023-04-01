@@ -35,7 +35,7 @@
     },
     filterFirst: [
       'Death Note',
-      'Kino',
+      /Kino.* Journey/i,
       'anohana',
       'alchemist',
       'hunter',
@@ -329,11 +329,15 @@
             new MakeHTMLElement('div', 'anime-example')
               .apply((a) => {
                 a.onclick = function () {
-                  displayEl.querySelectorAll('audio').forEach((a) => {
-                    a.pause();
-                    a.currentTime = 0;
-                  });
-                  let audio = this.querySelector('audio');
+                  let audio = /** @type {HTMLAudioElement} */ (
+                    this.querySelector('audio')
+                  );
+                  if (audio.paused) {
+                    displayEl.querySelectorAll('audio').forEach((a) => {
+                      a.pause();
+                      a.currentTime = 0;
+                    });
+                  }
                   audio.play();
                 };
               })
@@ -371,7 +375,7 @@
                             'audio-btn audio-play fa-solid fa-volume-high',
                           );
                         };
-                        a.onended = () => {
+                        a.onpause = () => {
                           const button = a.parentNode.querySelector('button');
                           if (!button) return;
                           button.setAttribute(
