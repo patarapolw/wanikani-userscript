@@ -260,6 +260,7 @@
       sentencesEl.textContent = '';
 
       const displayEl = document.createElement('div');
+      let subExample = /** @type {Array} */ (examples);
 
       sentencesEl.append(
         new MakeHTMLElement(
@@ -267,10 +268,33 @@
         ).apply((el) => {
           const inputEl = /** @type {HTMLInputElement} */ (el);
           inputEl.oninput = () => {
-            const { value } = inputEl;
-            displayEl.setAttribute(ATTR_INDEX, '0');
+            subExample = examples;
+            let q = inputEl.value.trim();
+            if (q) {
+              q.split(/([\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}]+)/gu).map(
+                (s, i) => {
+                  s = s.trim();
+                  if (!s) return;
 
-            displayEl.textContent = value;
+                  if (i % 2) {
+                    subExample = subExample.filter(
+                      (ex) =>
+                        ex.sentence.includes(s) ||
+                        ex.sentence_with_furigana.includes(s),
+                    );
+                  } else {
+                    subExample = subExample.filter(
+                      (ex) =>
+                        ex.deck_name.includes(s) || ex.translation.includes(s),
+                    );
+                  }
+                },
+              );
+            }
+
+            displayEl.setAttribute(ATTR_INDEX, '0');
+            displayEl.textContent = '';
+            loadExample();
           };
         }).el,
         displayEl,
@@ -278,13 +302,11 @@
       displayEl.setAttribute(ATTR_INDEX, '0');
 
       const loadExample = () => {
-        const allExs = /** @type {Array} */ (examples);
-
         const idx = Number(displayEl.getAttribute(ATTR_INDEX) || '0');
-        if (idx >= allExs.length) return;
+        if (idx >= subExample.length) return;
 
         const BATCH_SIZE = 20;
-        const currentExs = allExs.slice(idx, idx + BATCH_SIZE);
+        const currentExs = subExample.slice(idx, idx + BATCH_SIZE);
 
         displayEl.setAttribute(ATTR_INDEX, idx + BATCH_SIZE);
 
