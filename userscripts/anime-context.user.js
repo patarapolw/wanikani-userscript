@@ -33,7 +33,14 @@
       sentenceLengthSort: 'asc',
       filterWaniKaniLevel: true,
     },
-    filterFirst: ['Death Note', 'hunter', 'Kino', /Code Geass/i],
+    filterFirst: [
+      'Death Note',
+      'Kino',
+      'anohana',
+      'alchemist',
+      'hunter',
+      /Code Geass/i,
+    ],
     filterOut: [],
     item: null, // current vocab from wkinfo
     userLevel: '', // most recent level progression
@@ -322,6 +329,10 @@
             new MakeHTMLElement('div', 'anime-example')
               .apply((a) => {
                 a.onclick = function () {
+                  displayEl.querySelectorAll('audio').forEach((a) => {
+                    a.pause();
+                    a.currentTime = 0;
+                  });
                   let audio = this.querySelector('audio');
                   audio.play();
                 };
