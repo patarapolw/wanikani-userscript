@@ -32,11 +32,9 @@
       showFurigana: 'onhover',
       sentenceLengthSort: 'asc',
       filterWaniKaniLevel: true,
-      filterAnimeShows: {},
-      filterAnimeMovies: {},
-      // Some Ghibli films are enabled by default
-      filterGhibli: { 4: true, 5: true, 6: true, 7: true, 8: true },
     },
+    filterFirst: ['Death Note', /Code Geass/i, /Kino/i],
+    filterOut: [],
     item: null, // current vocab from wkinfo
     userLevel: '', // most recent level progression
     immersionKitData: null, // cached so sentences can be re-rendered after settings change
@@ -204,43 +202,37 @@
       });
   }
 
-  function getDesiredShows() {
-    // Convert settings dictionaries to array of titles
-    let titles = [];
-    for (const [key, value] of Object.entries(
-      state.settings.filterAnimeShows,
-    )) {
-      if (value === true) {
-        titles.push(animeShows[key]);
-      }
-    }
-    for (const [key, value] of Object.entries(
-      state.settings.filterAnimeMovies,
-    )) {
-      if (value === true) {
-        titles.push(animeMovies[key]);
-      }
-    }
-    for (const [key, value] of Object.entries(state.settings.filterGhibli)) {
-      if (value === true) {
-        titles.push(ghibliTitles[key]);
-      }
-    }
-    return titles;
-  }
-
   function renderSentences() {
     // Called from immersionkit response, and on settings save
     let examples = state.immersionKitData;
     const exampleLenBeforeFilter = examples.length;
 
-    // Exclude non-selected titles
-    // let desiredTitles = getDesiredShows()
-    // examples = examples.filter(ex => desiredTitles.includes(ex.deck_name))
+    // Filter out excluded titles
+    if (state.filterOut.length) {
+      const filter = new Set(state.filterOut);
+      examples = examples.filter((ex) => filter.has(ex.deck_name));
+    }
+
     if (state.settings.sentenceLengthSort === 'asc') {
       examples.sort((a, b) => a.sentence.length - b.sentence.length);
-    } else {
-      // examples.sort((a, b) => b.sentence.length - a.sentence.length)
+    }
+
+    // Filter selected titles first
+    if (state.filterFirst.length) {
+      const fn = (s) => {
+        let i = 0;
+        for (const f of state.filterFirst) {
+          if (f instanceof RegExp) {
+            if (f.test(s.deck_name)) break;
+          } else {
+            if (f === s.deck_name) break;
+          }
+          i++;
+        }
+
+        return i;
+      };
+      examples = examples.sort((a, b) => fn(a) - fn(b));
     }
 
     let showJapanese = state.settings.showJapanese;
@@ -248,85 +240,142 @@
     let showFurigana = state.settings.showFurigana;
     let playbackRate = state.settings.playbackRate;
 
-    let html = '';
+    const sentencesEl = /** @type {HTMLDivElement} */ (state.sentencesEl);
+
+    sentencesEl.onscroll = null;
+
+    const ATTR_INDEX = 'data-examples-index';
+    sentencesEl.removeAttribute(ATTR_INDEX);
+
+    const ATTR_SEARCH = 'data-examples-search';
+    sentencesEl.removeAttribute(ATTR_SEARCH);
+
     if (exampleLenBeforeFilter === 0) {
-      html = 'No sentences found.';
+      sentencesEl.innerText = 'No sentences found.';
     } else if (examples.length === 0 && exampleLenBeforeFilter > 0) {
       // TODO show which titles have how many examples
-      html = 'No sentences found for your selected movies & shows.';
+      sentencesEl.innerText =
+        'No sentences found for your selected movies & shows.';
     } else {
-      let lim = Math.min(examples.length, 50);
+      sentencesEl.textContent = '';
 
-      for (var i = 0; i < lim; i++) {
-        const example = examples[i];
+      const displayEl = document.createElement('div');
 
-        let japaneseText =
-          state.settings.showFurigana === 'never'
-            ? example.sentence
-            : new Furigana(example.sentence_with_furigana).ReadingHtml;
+      sentencesEl.append(
+        new MakeHTMLElement(
+          '<input class="quiz-input__input" autocomplete="off" autocapitalize="none" autocorrect="off" id="user-response" name="anime-context-filter" placeholder="Filter" type="text" autofocus="" enabled="true">',
+        ).apply((el) => {
+          const inputEl = /** @type {HTMLInputElement} */ (el);
+          inputEl.oninput = () => {
+            const { value } = inputEl;
+            displayEl.setAttribute(ATTR_INDEX, '0');
 
-        html += `
-  <div class="anime-example">
-      <img src="${example.image_url}" alt="">
-      <div class="anime-example-text">
-          <div class="title" title="${example.id}">${example.deck_name}</div>
-          <div class="ja">
-              <span class="${
-                showJapanese === 'onhover' ? 'show-on-hover' : ''
-              } ${showFurigana === 'onhover' ? 'show-ruby-on-hover' : ''}  ${
-          showJapanese === 'onclick' ? 'show-on-click' : ''
-        }">${japaneseText}</span>
-              <span><button class="audio-btn audio-idle fa-solid fa-volume-off"></button></span>
-              <audio src="${example.sound_url}"></audio>
-          </div>
-          <div class="en">
-              <span class="${
-                showEnglish === 'onhover' ? 'show-on-hover' : ''
-              } ${showEnglish === 'onclick' ? 'show-on-click' : ''}">${
-          example.translation
-        }</span>
-          </div>
-      </div>
-  </div>`;
-      }
+            displayEl.textContent = value;
+          };
+        }).el,
+        displayEl,
+      );
+      displayEl.setAttribute(ATTR_INDEX, '0');
+
+      const loadExample = () => {
+        const allExs = /** @type {Array} */ (examples);
+
+        const idx = Number(displayEl.getAttribute(ATTR_INDEX) || '0');
+        if (idx >= allExs.length) return;
+
+        const BATCH_SIZE = 20;
+        const currentExs = allExs.slice(idx, idx + BATCH_SIZE);
+
+        displayEl.setAttribute(ATTR_INDEX, idx + BATCH_SIZE);
+
+        for (const example of currentExs) {
+          const japaneseText =
+            state.settings.showFurigana === 'never'
+              ? example.sentence
+              : new Furigana(example.sentence_with_furigana).ReadingHtml;
+
+          displayEl.append(
+            new MakeHTMLElement('div', 'anime-example')
+              .apply((a) => {
+                a.onclick = function () {
+                  let audio = this.querySelector('audio');
+                  audio.play();
+                };
+              })
+              .append(
+                new MakeHTMLElement('img').attr({ src: example.image_url }),
+                new MakeHTMLElement('div', 'anime-example-text').append(
+                  new MakeHTMLElement('div', 'title')
+                    .attr({ title: example.id })
+                    .append(example.deck_name),
+                  new MakeHTMLElement('div', 'ja').attr({ lang: 'ja' }).append(
+                    new MakeHTMLElement(
+                      'span',
+                      showJapanese === 'onhover' ? 'show-on-hover' : '',
+                      showFurigana === 'onhover' ? 'show-ruby-on-hover' : '',
+                      showJapanese === 'onclick' ? 'show-on-click' : '',
+                    ).innerHTML(japaneseText),
+                    new MakeHTMLElement('span').append(
+                      new MakeHTMLElement(
+                        'button',
+                        'audio-btn audio-idle fa-solid fa-volume-off',
+                      ),
+                    ),
+                    new MakeHTMLElement('audio')
+                      .attr({ src: example.sound_url })
+                      .apply((el) => {
+                        const a = /** @type {HTMLAudioElement} */ (el);
+                        a.preload = 'none';
+                        a.playbackRate = playbackRate;
+
+                        a.onplay = () => {
+                          const button = a.parentNode.querySelector('button');
+                          if (!button) return;
+                          button.setAttribute(
+                            'class',
+                            'audio-btn audio-play fa-solid fa-volume-high',
+                          );
+                        };
+                        a.onended = () => {
+                          const button = a.parentNode.querySelector('button');
+                          if (!button) return;
+                          button.setAttribute(
+                            'class',
+                            'audio-btn audio-idle fa-solid fa-volume-off',
+                          );
+                        };
+                      }),
+                  ),
+                  new MakeHTMLElement('div', 'en')
+                    .attr({ lang: 'en' })
+                    .append(
+                      new MakeHTMLElement(
+                        'span',
+                        showEnglish === 'onhover' ? 'show-on-hover' : '',
+                        showEnglish === 'onclick' ? 'show-on-click' : '',
+                      ).append(example.translation),
+                    ),
+                ),
+              )
+              .apply((el) => {
+                el.querySelectorAll('.show-on-click').forEach((a) => {
+                  a.onclick = function () {
+                    this.classList.toggle('show-on-click');
+                  };
+                });
+              }).el,
+          );
+        }
+      };
+
+      displayEl.onscroll = ({ target }) => {
+        const { clientHeight, scrollHeight, scrollTop } = target;
+        if (clientHeight + scrollTop >= scrollHeight) {
+          loadExample();
+        }
+      };
+      loadExample();
     }
-
-    let sentencesEl = state.sentencesEl;
-    sentencesEl.innerHTML = html;
-
-    let audios = document.querySelectorAll('.anime-example audio');
-    audios.forEach((a) => {
-      a.playbackRate = playbackRate;
-      let button = a.parentNode.querySelector('button');
-      a.onplay = () => {
-        button.setAttribute(
-          'class',
-          'audio-btn audio-play fa-solid fa-volume-high',
-        );
-      };
-      a.onended = () => {
-        button.setAttribute(
-          'class',
-          'audio-btn audio-idle fa-solid fa-volume-off',
-        );
-      };
-    });
-
-    // Click anywhere plays the audio
-    let exampleEls = document.querySelectorAll('.anime-example');
-    exampleEls.forEach((a) => {
-      a.onclick = function () {
-        let audio = this.querySelector('audio');
-        audio.play();
-      };
-    });
-
-    // Assigning onclick function to .show-on-click elements
-    document.querySelectorAll('.show-on-click').forEach((a) => {
-      a.onclick = function () {
-        this.classList.toggle('show-on-click');
-      };
-    });
   }
 
   //--------------------------------------------------------------------------------------------------------------//
@@ -471,62 +520,67 @@
     const style = document.createElement('style');
     style.setAttribute('id', 'anime-sentences-style');
     // language=CSS
-    style.innerHTML = `
-          #anime-sentences-parent > div {
-              overflow-y: auto;
-              max-height: 280px;
-          }
+    style.innerHTML = /* css */ `
+            #anime-sentences-parent > div {
+                display: grid;
+                grid-template-rows: 1fr auto;
+                max-height: 350px;
+            }
 
-          #anime-sentences-parent .fa-solid {
-              border: none;
-              font-size: 100%;
-          }
+            #anime-sentences-parent > div > div {
+                overflow-y: scroll;
+            }
 
-          .anime-example {
-              display: flex;
-              align-items: center;
-              margin-bottom: 1em;
-              cursor: pointer;
-          }
-          
-          .audio-btn {
-              background-color: transparent;
-          }
+            #anime-sentences-parent .fa-solid {
+                border: none;
+                font-size: 100%;
+            }
 
-          /* Make text and background color the same to hide text */
-          .anime-example-text .show-on-hover, .anime-example-text .show-on-click {
-              background: #ccc;
-              color: #ccc;
-              text-shadow: none;
-          }
+            .anime-example {
+                display: flex;
+                align-items: center;
+                margin-bottom: 1em;
+                cursor: pointer;
+            }
 
-          .anime-example-text .show-on-hover:hover {
-              background: inherit;
-              color: inherit
-          }
+            .audio-btn {
+                background-color: transparent;
+            }
 
-          /* Furigana hover*/
-          .anime-example-text .show-ruby-on-hover ruby rt {
-              visibility: hidden;
-          }
+            /* Make text and background color the same to hide text */
+            .anime-example-text .show-on-hover, .anime-example-text .show-on-click {
+                background: #ccc;
+                color: #ccc;
+                text-shadow: none;
+            }
 
-          .anime-example-text:hover .show-ruby-on-hover ruby rt {
-              visibility: visible;
-          }
+            .anime-example-text .show-on-hover:hover {
+                background: inherit;
+                color: inherit
+            }
 
-          .anime-example .title {
-              font-weight: 700;
-          }
+            /* Furigana hover*/
+            .anime-example-text .show-ruby-on-hover ruby rt {
+                visibility: hidden;
+            }
 
-          .anime-example .ja {
-              font-size: 2em;
-          }
+            .anime-example-text:hover .show-ruby-on-hover ruby rt {
+                visibility: visible;
+            }
 
-          .anime-example img {
-              margin-right: 1em;
-              max-width: 200px;
-          }
-      `;
+            .anime-example .title {
+                font-weight: 700;
+            }
+
+            .anime-example .ja {
+                font-size: 1.3em;
+            }
+
+            .anime-example img {
+                margin-right: 1em;
+                max-width: 200px;
+            }
+        `;
 
     document.querySelector('head').append(style);
   }
@@ -649,5 +703,90 @@
     }
 
     return segments;
+  }
+
+  class MakeHTMLElement {
+    /**
+     * @type {HTMLElement}
+     */
+    el;
+
+    /**
+     *
+     * @param {string | HTMLElement} tag
+     * @param {string[]} classList
+     */
+    constructor(tag, ...classList) {
+      if (tag instanceof HTMLElement) {
+        this.el = tag;
+        this.el.classList.add(...classList);
+      } else if (tag[0] === '<') {
+        const div = document.createElement('div');
+        div.innerHTML = tag;
+        this.el = div.firstChild || document.createElement('div');
+      } else {
+        this.el = document.createElement(tag);
+      }
+
+      const { className } = this.el;
+      if (className) {
+        this.el.className = className + ' ' + classList.join(' ');
+      } else {
+        this.el.className = classList.join(' ');
+      }
+    }
+
+    /**
+     *
+     * @param {(el: HTMLElement) => void} fn
+     * @returns
+     */
+    apply(fn) {
+      fn(this.el);
+      return this;
+    }
+
+    /**
+     *
+     * @param {Record<string, string>} map
+     */
+    attr(map) {
+      Object.entries(map).map(([k, v]) => {
+        this.el.setAttribute(k, v);
+      });
+      return this;
+    }
+
+    /**
+     *
+     * @param  {(MakeHTMLElement | string)[]} nodes
+     */
+    append(...nodes) {
+      this.el.append(
+        ...nodes.map((n) => (n instanceof MakeHTMLElement ? n.el : n)),
+      );
+      return this;
+    }
+
+    /**
+     *
+     * @param  {(MakeHTMLElement | string)[]} nodes
+     */
+    prepend(...nodes) {
+      this.el.prepend(
+        ...nodes.map((n) => (n instanceof MakeHTMLElement ? n.el : n)),
+      );
+      return this;
+    }
+
+    /**
+     *
+     * @param {string} html
+     * @returns
+     */
+    innerHTML(html) {
+      this.el.innerHTML = html;
+      return this;
+    }
   }
 })();
