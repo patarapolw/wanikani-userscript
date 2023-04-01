@@ -139,7 +139,7 @@
       lastState.id !== o.id ||
       questionType !== currentInfo?.questionType
     ) {
-      queue.push(currentEl);
+      queue.unshift(currentEl);
     }
 
     lastState = o;
