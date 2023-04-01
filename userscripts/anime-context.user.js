@@ -33,7 +33,7 @@
       sentenceLengthSort: 'asc',
       filterWaniKaniLevel: true,
     },
-    filterFirst: ['Death Note', /Code Geass/i, /Kino/i],
+    filterFirst: ['Death Note', 'hunter', 'Kino', /Code Geass/i],
     filterOut: [],
     item: null, // current vocab from wkinfo
     userLevel: '', // most recent level progression
@@ -225,7 +225,8 @@
           if (f instanceof RegExp) {
             if (f.test(s.deck_name)) break;
           } else {
-            if (f === s.deck_name) break;
+            if (s.deck_name.toLocaleLowerCase().includes(f.toLocaleLowerCase()))
+              break;
           }
           i++;
         }
@@ -264,15 +265,16 @@
 
       sentencesEl.append(
         new MakeHTMLElement(
-          '<input class="quiz-input__input" autocomplete="off" autocapitalize="none" autocorrect="off" id="user-response" name="anime-context-filter" placeholder="Filter" type="text" autofocus="" enabled="true">',
+          '<input class="quiz-input__input" autocomplete="off" autocapitalize="none" autocorrect="off" id="user-response" name="anime-context-filter" placeholder="Filter" type="text" enabled="true">',
         ).apply((el) => {
           const inputEl = /** @type {HTMLInputElement} */ (el);
           inputEl.oninput = () => {
             subExample = examples;
             let q = inputEl.value.trim();
             if (q) {
-              q.split(/([\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}]+)/gu).map(
-                (s, i) => {
+              q.toLocaleLowerCase()
+                .split(/([\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}]+)/gu)
+                .map((s, i) => {
                   s = s.trim();
                   if (!s) return;
 
@@ -285,11 +287,11 @@
                   } else {
                     subExample = subExample.filter(
                       (ex) =>
-                        ex.deck_name.includes(s) || ex.translation.includes(s),
+                        ex.deck_name.toLocaleLowerCase().includes(s) ||
+                        ex.translation.toLocaleLowerCase().includes(s),
                     );
                   }
-                },
-              );
+                });
             }
 
             displayEl.setAttribute(ATTR_INDEX, '0');
