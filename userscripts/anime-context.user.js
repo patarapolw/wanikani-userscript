@@ -15,6 +15,38 @@
 // @grant        none
 // ==/UserScript==
 
+/**
+ * Searching works by
+ * - EN: category, series title, tags, translation
+ * - JA: Kanji, Kana of both kinds
+ *
+ * Further settings in `let state = { filterFirst: [], filterOut: [] }`
+ *
+ * @typedef {{
+ *   author_japanese: string; // !empty string
+ *   category: 'anime' | 'drama' | 'games' | 'literature' | string;
+ *   channel: string; // !empty string
+ *   deck_name: string; // *series title
+ *   deck_name_japanese: string; // !empty string, even for Romaji titles
+ *   episode: string; // !empty string
+ *   id: number;
+ *   image_url: string;
+ *   sentence: string;
+ *   sentence_id: string;
+ *   sentence_with_furigana: string; // *Anki style Furigana
+ *   sound_begin: string; // !empty string
+ *   sound_end: string; // !empty string
+ *   sound_url: string;
+ *   tags: ('Comedy' | 'Manga' | 'School Life' | 'Fantasy' | 'Romance' | 'Action' | 'Super Power' | 'Drama' | 'SciFi' | 'Ecchi' | 'Daily Life' | 'High School' | 'TYPE-MOON' | 'Dystopian' | 'Female Protagonist' | 'School' | 'Adventure' | 'Supernatural' | 'Parody' | 'Netflix' | 'Slice Of Life' | 'Magic' | 'Slice of Life' | 'Game' | 'Novel' | 'Parallel World' | 'Science Fiction' | 'Dystopia' | 'Cyberpunk' | 'Isekai' | 'Slife of Life' | 'Time Travel' | 'Visual Novel' | 'A-1 Pictures' | 'Light Novel' | 'Hulu' | string)[];
+ *   timestamp: string;  // !empty string
+ *   translation: string;
+ *   translation_word_index: number[];
+ *   translation_word_list: string[];
+ *   word_index: number[];
+ *   word_list: string[];
+ * }} ImmersionkitExample
+ */
+
 (() => {
   //--------------------------------------------------------------------------------------------------------------//
   //-----------------------------------------------INITIALIZATION-------------------------------------------------//
@@ -41,10 +73,10 @@
       'hunter',
       /Code Geass/i,
     ],
-    filterOut: [],
+    filterOut: /** @type {string | RegExp} */ ([]),
     item: null, // current vocab from wkinfo
     userLevel: '', // most recent level progression
-    immersionKitData: null, // cached so sentences can be re-rendered after settings change
+    immersionKitData: /** @type {ImmersionkitExample[]} */ ([]), // cached so sentences can be re-rendered after settings change
     sentencesEl: null, // referenced so sentences can be re-rendered after settings change
   };
 
@@ -209,15 +241,35 @@
       });
   }
 
+  const setCategory = new Set();
+  const setDeckName = new Set();
+  const setTags = new Set();
+
   function renderSentences() {
     // Called from immersionkit response, and on settings save
     let examples = state.immersionKitData;
     const exampleLenBeforeFilter = examples.length;
 
+    // examples.map((ex) => {
+    //   setCategory.add(ex.category);
+    //   setDeckName.add(ex.deck_name);
+    //   ex.tags.map((t) => setTags.add(t));
+    // });
+    // console.log(examples[0], setCategory, setDeckName, setTags);
+
     // Filter out excluded titles
     if (state.filterOut.length) {
-      const filter = new Set(state.filterOut);
-      examples = examples.filter((ex) => filter.has(ex.deck_name));
+      examples = examples.filter((s) => {
+        for (const f of state.filterOut) {
+          if (f instanceof RegExp) {
+            if (f.test(s.deck_name)) return false;
+          } else {
+            if (s.deck_name.toLocaleLowerCase().includes(f.toLocaleLowerCase()))
+              return false;
+          }
+        }
+        return true;
+      });
     }
 
     if (state.settings.sentenceLengthSort === 'asc') {
@@ -268,7 +320,7 @@
       sentencesEl.textContent = '';
 
       const displayEl = document.createElement('div');
-      let subExample = /** @type {Array} */ (examples);
+      let subExample = examples;
 
       sentencesEl.append(
         new MakeHTMLElement(
@@ -280,22 +332,26 @@
             let q = inputEl.value.trim();
             if (q) {
               q.toLocaleLowerCase()
-                .split(/([\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}]+)/gu)
+                .split(/([\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}ー]+)/gu)
                 .map((s, i) => {
                   s = s.trim();
                   if (!s) return;
 
                   if (i % 2) {
-                    subExample = subExample.filter(
-                      (ex) =>
-                        ex.sentence.includes(s) ||
-                        ex.sentence_with_furigana.includes(s),
+                    s = toHiragana(s);
+                    subExample = subExample.filter((ex) =>
+                      [ex.sentence, ex.sentence_with_furigana].some((t) =>
+                        toHiragana(t).includes(s),
+                      ),
                     );
                   } else {
-                    subExample = subExample.filter(
-                      (ex) =>
-                        ex.deck_name.toLocaleLowerCase().includes(s) ||
-                        ex.translation.toLocaleLowerCase().includes(s),
+                    subExample = subExample.filter((ex) =>
+                      [
+                        ex.deck_name,
+                        ex.category,
+                        ...ex.tags,
+                        ex.translation,
+                      ].some((t) => t.toLocaleLowerCase().includes(s)),
                     );
                   }
                 });
@@ -314,7 +370,7 @@
         const idx = Number(displayEl.getAttribute(ATTR_INDEX) || '0');
         if (idx >= subExample.length) return;
 
-        const BATCH_SIZE = 20;
+        const BATCH_SIZE = 10;
         const currentExs = subExample.slice(idx, idx + BATCH_SIZE);
 
         displayEl.setAttribute(ATTR_INDEX, idx + BATCH_SIZE);
@@ -342,7 +398,9 @@
                 };
               })
               .append(
-                new MakeHTMLElement('img').attr({ src: example.image_url }),
+                example.image_url
+                  ? new MakeHTMLElement('img').attr({ src: example.image_url })
+                  : null,
                 new MakeHTMLElement('div', 'anime-example-text').append(
                   new MakeHTMLElement('div', 'title')
                     .attr({ title: example.id })
@@ -617,7 +675,9 @@
 
             .anime-example img {
                 margin-right: 1em;
-                max-width: 200px;
+                width: 200px;
+                height: 115px;
+                object-fit: contain;
             }
         `;
 
@@ -744,6 +804,19 @@
     return segments;
   }
 
+  const CP_KATA_A = 'ア'.charCodeAt(0);
+  const CP_HIRA_A = 'あ'.charCodeAt(0);
+
+  /**
+   *
+   * @param {string} s
+   */
+  function toHiragana(s) {
+    return s.replace(/\p{sc=Katakana}/gu, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - CP_KATA_A + CP_HIRA_A),
+    );
+  }
+
   class MakeHTMLElement {
     /**
      * @type {HTMLElement}
@@ -802,7 +875,9 @@
      */
     append(...nodes) {
       this.el.append(
-        ...nodes.map((n) => (n instanceof MakeHTMLElement ? n.el : n)),
+        ...nodes
+          .filter((n) => n)
+          .map((n) => (n instanceof MakeHTMLElement ? n.el : n)),
       );
       return this;
     }
@@ -813,7 +888,9 @@
      */
     prepend(...nodes) {
       this.el.prepend(
-        ...nodes.map((n) => (n instanceof MakeHTMLElement ? n.el : n)),
+        ...nodes
+          .filter((n) => n)
+          .map((n) => (n instanceof MakeHTMLElement ? n.el : n)),
       );
       return this;
     }
