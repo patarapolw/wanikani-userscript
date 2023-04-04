@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.1.4
+// @version      1.1.5
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -68,6 +68,9 @@
   }
   .${entryClazz} a {
     text-decoration: none;
+  }
+  .${entryClazz} a.external {
+    text-decoration: underline;
   }
   .${entryClazz} ol {
     list-style: revert;
@@ -274,7 +277,10 @@
         vocab = fixVocab(subject.characters);
         reading = subject.readings.map((r) => r.reading);
       } else {
-        kanji = subject.characters || getRadicalKanji(subject.meanings[0]);
+        kanji =
+          typeof subject.characters === 'string'
+            ? subject.characters
+            : getRadicalKanji(subject.meanings);
       }
     }
 
@@ -332,14 +338,17 @@
       output.lang = 'ja';
       output.innerHTML = definition;
 
-      const a = document.createElement('a');
-      a.innerText = 'Click for full entry';
-      a.href = full_url;
+      if (full_url) {
+        const a = document.createElement('a');
+        a.className = 'external';
+        a.innerText = 'Click for full entry';
+        a.href = full_url;
 
-      const p = document.createElement('p');
-      p.style.marginTop = '0.5em';
-      p.append(a);
-      output.append(p);
+        const p = document.createElement('p');
+        p.style.marginTop = '0.5em';
+        p.append(a);
+        output.append(p);
+      }
 
       output.querySelectorAll('a').forEach((a) => {
         a.target = '_blank';
@@ -514,10 +523,20 @@
     async function searchWeblio(vocab) {
       /**
        *
-       * @param {EntryWeblio} r
+       * @param {EntryWeblio} [r]
        */
       const setContent = (r) => {
-        if (!r.definitions.length) return '';
+        if (!r || !r.definitions.length) {
+          if (kanji) {
+            return insertDefinition(
+              `No entries found. Try <a class="external" href="https://en.wiktionary.org/wiki/${kanji}" target="_blank" rel="noopener noreferrer">${kanji} - Wiktionary</a>`,
+              '',
+              'Wiktionary',
+            );
+          }
+
+          return '';
+        }
         const reYomi = /(読み方：)([\p{sc=Katakana}\p{sc=Hiragana}ー]+)/gu;
         const makeYomiSpoiler = (s) =>
           qType === 'meaning' && sType !== 'Radical'
@@ -598,6 +617,8 @@
         return insertDefinition(vocabDefinition, r.url, 'Weblio');
       };
 
+      console.log(vocab);
+
       const r = await db.weblio.get(vocab);
       if (r) {
         return setContent(r);
@@ -608,6 +629,7 @@
       return new Promise((resolve, reject) => {
         function onerror(e) {
           (window.unsafeWindow || window).console.error(arguments);
+          setContent();
           reject(e);
         }
 
@@ -617,7 +639,7 @@
           onerror,
           onload: function (data) {
             if (!data.responseText) {
-              resolve('');
+              resolve(setContent());
               return;
             }
 
@@ -640,7 +662,7 @@
             div.remove();
 
             if (!definitions.length) {
-              resolve('');
+              resolve(setContent());
               return;
             }
 
@@ -743,8 +765,13 @@
       } else {
         if (state.type === 'vocabulary') {
           if (fixedCharacters !== vocab) return;
-        } else if (!(kanji && kanji === state.characters)) {
-          return;
+        } else if (kanji) {
+          if (
+            typeof state.characters === 'string'
+              ? kanji !== state.characters
+              : kanji !== getRadicalKanji(state.meaning)
+          )
+            return;
         }
       }
 
@@ -832,8 +859,14 @@
     const [en] = meanings;
     if (!en) return;
     const ks = radicalMap[en];
-    if (!ks || !ks[0]) return;
-    console.log(`${entryClazz}: converted ${en} to ${ks.join(', ')}`);
+    if (!ks) return;
+    console.log(
+      `${entryClazz}: ${
+        ks.length
+          ? `converted ${en} to ${ks.join(', ')}`
+          : `cannot convert ${en} to Kanji`
+      }`,
+    );
     return ks[0];
   }
 })();
