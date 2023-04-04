@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.1.3
+// @version      1.1.4
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -777,6 +777,10 @@
       clearInterval(kanjipediaReadingPanelInterval);
 
       if (state.on === 'itemPage') {
+        document
+          .querySelectorAll(`.${entryClazz}-reading`)
+          .forEach((el) => el.remove());
+
         const dst = document.querySelector('.subject-readings');
 
         if (dst) {
@@ -828,7 +832,8 @@
     const [en] = meanings;
     if (!en) return;
     const ks = radicalMap[en];
-    if (!ks) return;
+    if (!ks || !ks[0]) return;
+    console.log(`${entryClazz}: converted ${en} to ${ks.join(', ')}`);
     return ks[0];
   }
 })();
