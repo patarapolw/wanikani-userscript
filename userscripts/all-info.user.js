@@ -4,7 +4,14 @@
 // @version      0.2
 // @description  Automatically click "Show All Information"
 // @author       polv
-// @match        *://www.wanikani.com/*/session*
+// @match        https://www.wanikani.com/extra_study/session*
+// @match        https://www.wanikani.com/review/session*
+// @match        https://www.wanikani.com/subjects/review*
+// @match        https://www.wanikani.com/subjects/extra_study*
+// @match        https://preview.wanikani.com/extra_study/session*
+// @match        https://preview.wanikani.com/review/session*
+// @match        https://preview.wanikani.com/subjects/review*
+// @match        https://preview.wanikani.com/subjects/extra_study*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @grant        none
 // ==/UserScript==
