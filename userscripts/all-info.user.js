@@ -20,7 +20,9 @@
 (function () {
   'use strict';
 
+  /** @type {'meaning' | 'reading' | ''} question type */
   let qType = '';
+  /** @type {'Vocabulary' | 'Radical' | 'Kanji' | ''} subject type  */
   let sType = '';
 
   const inputObserver = new MutationObserver((muts) => {
@@ -28,11 +30,16 @@
 
     setTimeout(() => {
       for (const m of muts) {
-        const { target } = m;
-        if (
-          target instanceof HTMLDivElement &&
+        const target = /** @type {HTMLDivElement} */ (m.target);
+        /**
+         * @type {'true' | 'false'}
+         * whether it is answered correctly. Must be non-empty string.
+         */
+        const attrCorrect = /** @type {'true' | 'false'} */ (
           target.getAttribute('correct')
-        ) {
+        );
+
+        if (attrCorrect) {
           const btn = document.querySelector(
             '.additional-content__item--item-info',
           );
