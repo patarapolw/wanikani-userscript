@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.1.5
+// @version      1.2.0
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -18,7 +18,6 @@
 // ==/UserScript==
 
 // @ts-check
-/// <reference path="./types/wanikani.d.ts" />
 /// <reference path="./types/item-info.d.ts" />
 /// <reference path="./types/gm.d.ts" />
 (function () {
@@ -230,30 +229,6 @@
   let weblioDefinition;
   let kanjipediaReading;
 
-  const inputObserver = new MutationObserver((muts) => {
-    // if (qType !== 'meaning') return;
-
-    setTimeout(() => {
-      for (const m of muts) {
-        const { target } = m;
-        if (
-          target instanceof HTMLDivElement &&
-          target.getAttribute('correct')
-        ) {
-          const btn = document.querySelector(
-            '.additional-content__item--item-info',
-          );
-          if (btn && !btn.className.includes('--open')) {
-            // @ts-ignore
-            btn.click();
-          }
-          return;
-        }
-      }
-    }, 100);
-  });
-  /** @type {Element | null} */
-  let inputContainer = null;
   let qType = '';
   let sType = '';
 
@@ -285,15 +260,6 @@
     }
 
     updateInfo();
-
-    const newInput = document.querySelector('.quiz-input__input-container');
-    if (newInput && newInput !== inputContainer) {
-      inputContainer = newInput;
-      inputObserver.observe(inputContainer, {
-        attributes: true,
-        attributeFilter: ['correct'],
-      });
-    }
   });
 
   /**
