@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.2.0
+// @version      1.2.1
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -35,6 +35,11 @@
   const style = document.createElement('style');
   style.appendChild(
     document.createTextNode(/* css */ `
+
+  .${entryClazz} {
+    --kanji-variant-size: 64px;
+  }
+
   .${entryClazz} details {
     margin-top: 1em;
   }
@@ -125,16 +130,18 @@
   }
 
   .${entryClazz} .kanji-variant {
-    display: inline-block;
-    text-align: center;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
     width: 100%;
-    font-size: 2em;
-    font-family: serif;
+    font-size: var(--kanji-variant-size, 64px);
+    font-family: "HiraMinProN-W3", "Hiragino Mincho ProN W3", "Hiragino Mincho ProN", "ヒラギノ明朝 ProN W3", "游明朝", YuMincho, "HG明朝E", "ＭＳ Ｐ明朝", "MS PMincho", "MS 明朝", "MS Mincho", serif; /* Font list from Jisho.org */
     margin-top: 0;
     margin-bottom: 0;
   }
   .${entryClazz} .kanji-variant img {
-    height: 2em;
+    height: var(--kanji-variant-size, 64px);
   }
   .${entryClazz} .kanji-variant + .kanji-variant {
     margin-left: 1em;
@@ -353,9 +360,15 @@
             r.variant = `<div>${r.variant}</div>`;
           }
 
+          const el = document.createElement('div');
+          el.innerHTML = r.variant;
+          el.querySelectorAll('img').forEach((it) => {
+            it.removeAttribute('style');
+          });
+
           htmlVar = [
             '<li class="kanji-variant-header">異体字</li>',
-            `<div class="kanji-variant">${r.variant}</div>`,
+            `<div class="kanji-variant">${el.innerHTML}</div>`,
           ].join('\n');
 
           kanjipediaReading += htmlVar;
@@ -464,7 +477,6 @@
                       v.classList.add('kanji-variant');
                       v.querySelectorAll('img').forEach((img) => {
                         img.removeAttribute('width');
-                        img.style.height = '2em';
                       });
                     });
 
