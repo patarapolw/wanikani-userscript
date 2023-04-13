@@ -2,7 +2,7 @@
 // @name        WK Custom Review Question (KunOn+)
 // @namespace   WK_KunOn
 // @description Changes the text of the Review or Lesson Quiz question. Specifies ON or KUN reading for Kanji. Options to have the text in English or Japanese.
-// @author      polv (originally hoovard)
+// @author      polv
 // @match       https://www.wanikani.com/extra_study/session*
 // @match       https://www.wanikani.com/review/session*
 // @match       https://www.wanikani.com/subjects/review*
