@@ -16,7 +16,7 @@
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @homepage    https://community.wanikani.com/t/userscript-wk-custom-review-question-kunon-2023-version/61449
 // @source      https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
-// @version     1.0.0
+// @version     1.0.1
 // @license     MIT
 // @grant       none
 // ==/UserScript==
@@ -79,9 +79,7 @@
   }
 
   ${SEL_questionType} {
-    ${
-      strLang === 'ja' && !has_subjectType ? 'font-weight: unset;' : ''
-    } /* Probably uncomment this from strLang = 'ja' */
+    ${strLang === 'ja' ? 'font-weight: unset;' : ''}
   }
   `);
 
