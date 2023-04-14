@@ -16,7 +16,7 @@
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @homepage    https://community.wanikani.com/t/userscript-wk-custom-review-question-kunon-2023-version/61449
 // @source      https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
-// @version     1.0.1
+// @version     1.0.2
 // @license     MIT
 // @grant       none
 // ==/UserScript==
@@ -47,11 +47,14 @@
 
   // questionType strings
   let strMeaning = 'Meaning';
+  let strName = 'Name';
+
   let strReading = 'Reading';
+
+  let strReadingKan = 'Reading';
   let strOn = "On'yomi";
   let strKun = "Kun'yomi";
   let strNan = 'Nanori';
-  let strName = 'Name';
 
   // Translations
   switch (strLang) {
@@ -61,11 +64,14 @@
       strVocab = '単語:';
 
       strMeaning = '意味';
-      strReading = '読み';
+      strName = '名前';
+
+      strReading = '読み方';
+
+      strReadingKan = '読み';
       strOn = '音読み';
       strKun = '訓読み';
       strNan = '名乗り';
-      strName = '名前';
       break;
   }
 
@@ -120,13 +126,16 @@
           el_questionType.setAttribute('lang', strLang);
           el_questionType.textContent = (() => {
             if (questionType === 'reading') {
-              switch (subject.primary_reading_type) {
-                case 'onyomi':
-                  return strOn;
-                case 'kunyomi':
-                  return strKun;
-                case 'nanori':
-                  return strNan;
+              if (subject.primary_reading_type) {
+                switch (subject.primary_reading_type) {
+                  case 'onyomi':
+                    return strOn;
+                  case 'kunyomi':
+                    return strKun;
+                  case 'nanori':
+                    return strNan;
+                }
+                return strReadingKan;
               }
               return strReading;
             }
