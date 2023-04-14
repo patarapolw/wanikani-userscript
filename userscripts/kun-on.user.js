@@ -14,9 +14,10 @@
 // @match       https://preview.wanikani.com/subjects/extra_study*
 // @match       https://preview.wanikani.com/subjects/lesson/quiz*
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
-// @homepage    https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
+// @homepage    https://community.wanikani.com/t/userscript-wk-custom-review-question-kunon-2023-version/61449
+// @source      https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
 // @version     1.0.0
-// @license     Do what you want with it (Preferably improve it).
+// @license     MIT
 // @grant       none
 // ==/UserScript==
 
@@ -30,10 +31,21 @@
    */
   let strLang = 'en';
 
-  // Vars to compose the replacement question string
+  /**
+   * Whether to hide subjectType string, and rely on color instead.
+   */
+  let has_subjectType = true;
+
+  //
+  // Edit replacement string to your heart's content.
+  //
+
+  // subjectType strings
   let strKanji = 'Kanji';
   let strRadical = 'Radical';
   let strVocab = 'Vocabulary';
+
+  // questionType strings
   let strMeaning = 'Meaning';
   let strReading = 'Reading';
   let strOn = "On'yomi";
@@ -44,9 +56,10 @@
   // Translations
   switch (strLang) {
     case 'ja':
-      strKanji = '漢字';
-      strRadical = '部首';
-      strVocab = '単語';
+      strKanji = '漢字:';
+      strRadical = '部首:';
+      strVocab = '単語:';
+
       strMeaning = '意味';
       strReading = '読み';
       strOn = '音読み';
@@ -55,6 +68,22 @@
       strName = '名前';
       break;
   }
+
+  const SEL_category = '[data-quiz-input-target="category"]';
+  const SEL_questionType = '[data-quiz-input-target="questionType"]';
+
+  // CSS
+  add_css(/* css */ `
+  ${SEL_category} {
+
+  }
+
+  ${SEL_questionType} {
+    ${
+      strLang === 'ja' && !has_subjectType ? 'font-weight: unset;' : ''
+    } /* Probably uncomment this from strLang = 'ja' */
+  }
+  `);
 
   window.addEventListener('willShowNextQuestion', (e) => {
     if ('detail' in e) {
@@ -67,25 +96,24 @@
        *  }
        * }} */ (e.detail);
 
-      const el_category = document.querySelector(
-        '[data-quiz-input-target="category"]',
-      );
-      const el_questionType = document.querySelector(
-        '[data-quiz-input-target="questionType"]',
-      );
+      const el_category = document.querySelector(SEL_category);
+      const el_questionType = document.querySelector(SEL_questionType);
 
       if (el_category && el_questionType) {
         const obs_category = new MutationObserver(() => {
           el_category.setAttribute('lang', strLang);
-          el_category.textContent = (() => {
-            switch (subject.type) {
-              case 'Radical':
-                return strRadical;
-              case 'Kanji':
-                return strKanji;
-            }
-            return strVocab;
-          })();
+          el_category.textContent = has_subjectType
+            ? (() => {
+                switch (subject.type) {
+                  case 'Radical':
+                    return strRadical;
+                  case 'Kanji':
+                    return strKanji;
+                }
+                return strVocab;
+              })()
+            : '';
+
           obs_category.disconnect();
         });
         obs_category.observe(el_category, { childList: true });
@@ -116,4 +144,10 @@
       }
     }
   });
+
+  function add_css(css) {
+    const style = document.createElement('style');
+    style.append(document.createTextNode(css));
+    document.head.append(style);
+  }
 })();
