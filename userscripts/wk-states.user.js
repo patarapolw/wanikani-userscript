@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani States History
 // @namespace    polv/wanikani
-// @version      0.1.1
+// @version      0.1.2
 // @description  Wanikani States History, with hyperlink to itemPage and dummy lesson
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -45,7 +45,7 @@
       properName
         ? `${
             o.characters && typeof o.characters === 'object'
-              ? `<img src="${o.characters.url}" alt="${o.characters.meaning}" style="filter: invert" width=16 height=16>`
+              ? `<img src="${o.characters.url}" alt="${o.characters.meaning}" style="filter: invert(1)" width=16 height=16>`
               : o.characters || ''
           } ${properName}`
         : o.characters
