@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani States History
 // @namespace    polv/wanikani
-// @version      0.1.2
+// @version      0.1.3
 // @description  Wanikani States History, with hyperlink to itemPage and dummy lesson
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -90,13 +90,18 @@
         return p;
       })(),
       (() => {
-        const pre = document.createElement('pre');
-        pre.lang = 'ja';
-        pre.style.fontFamily = 'monospace';
-        pre.style.margin = '0 2em';
-        pre.textContent = JSON.stringify(currentInfo || o, null, 2);
+        const block = document.createElement('blockquote');
+        block.lang = 'ja';
+        block.style.margin = '0 2em';
+        block.append(
+          ...JSON.stringify(currentInfo || o, null, '　　')
+            .split('\n')
+            .map((s) =>
+              Object.assign(document.createElement('p'), { textContent: s }),
+            ),
+        );
 
-        return pre;
+        return block;
       })(),
     );
     div.append(currentEl);
