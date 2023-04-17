@@ -8,11 +8,13 @@
 // @match       https://www.wanikani.com/subjects/review*
 // @match       https://www.wanikani.com/subjects/extra_study*
 // @match       https://www.wanikani.com/subjects/lesson/quiz*
+// @match       https://www.wanikani.com/subjects/*/lesson*
 // @match       https://preview.wanikani.com/extra_study/session*
 // @match       https://preview.wanikani.com/review/session*
 // @match       https://preview.wanikani.com/subjects/review*
 // @match       https://preview.wanikani.com/subjects/extra_study*
 // @match       https://preview.wanikani.com/subjects/lesson/quiz*
+// @match       https://preview.wanikani.com/subjects/*/lesson*
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @homepage    https://community.wanikani.com/t/userscript-wk-custom-review-question-kunon-2023-version/61449
 // @source      https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
@@ -276,12 +278,12 @@
    *    type: 'Radical' | 'Kanji' | 'Vocabulary',
    *    primary_reading_type?: 'onyomi' | 'kunyomi' | 'nanori'
    *  }
-   * }}
+   * } | null}
    */
-  let itemDetail;
+  let itemDetail = null;
 
   function setSubjectType() {
-    if (typeof itemDetail === 'undefined') return;
+    if (!itemDetail) return;
 
     const el_category = document.querySelector(SEL_category);
     if (!el_category) return;
@@ -305,7 +307,7 @@
   }
 
   function setQuestionType() {
-    if (typeof itemDetail === 'undefined') return;
+    if (!itemDetail) return;
 
     const el_questionType = document.querySelector(SEL_questionType);
     if (!el_questionType) return;
@@ -360,6 +362,15 @@
         });
         obs_questionType.observe(el_questionType, { childList: true });
       }
+    }
+  });
+
+  window.addEventListener('didAnswerQuestion ', () => {
+    if (
+      location.pathname.includes('lesson') &&
+      !location.pathname.includes('quiz')
+    ) {
+      itemDetail = null;
     }
   });
 
