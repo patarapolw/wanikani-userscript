@@ -18,14 +18,14 @@
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @homepage    https://community.wanikani.com/t/userscript-wk-custom-review-question-kunon-2023-version/61449
 // @source      https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
-// @version     1.1.0
+// @version     1.1.1
 // @license     MIT
 // @grant       none
 // ==/UserScript==
 
 // @ts-check
 /// <reference path="./types/wkof.d.ts" />
-(async function () {
+(function () {
   'use strict';
 
   /**
@@ -72,21 +72,20 @@
   const jaKun = '<span style="color: cyan">くんよ</span>み';
   const jaNanori = '名乗り (^o^)';
 
+  /**
+   * Whether to use wkof Settings dialog and ignore in-script settings
+   */
+  const USE_WKOF = true;
+
+  // CONSTANTS
   const SCRIPT_ID = 'WK_KunOn';
   const SEL_category = '[data-quiz-input-target="category"]';
   const SEL_questionType = '[data-quiz-input-target="questionType"]';
 
-  /**
-   * Whether to use wkof Settings dialog and ignore in-script settings
-   */
-  let USE_WKOF = true;
-
-  /**
-   * @type {HTMLStyleElement}
-   */
-  let elStyle;
-
   let cfg = USE_WKOF ? /** @type {ScriptSettings} */ ({}) : newScriptSettings();
+
+  /** @type {HTMLStyleElement} */
+  let elStyle;
   setScriptCSS();
 
   /**
@@ -366,12 +365,14 @@
   });
 
   window.addEventListener('didAnswerQuestion ', () => {
-    if (
-      location.pathname.includes('lesson') &&
-      !location.pathname.includes('quiz')
-    ) {
-      itemDetail = null;
-    }
+    setTimeout(() => {
+      if (
+        location.pathname.includes('lesson') &&
+        !location.pathname.includes('quiz')
+      ) {
+        itemDetail = null;
+      }
+    }, 100);
   });
 
   function setScriptCSS() {
