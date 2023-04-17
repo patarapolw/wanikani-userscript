@@ -16,7 +16,7 @@
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @homepage    https://community.wanikani.com/t/userscript-wk-custom-review-question-kunon-2023-version/61449
 // @source      https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
-// @version     1.0.2
+// @version     1.1.0
 // @license     MIT
 // @grant       none
 // ==/UserScript==
@@ -40,38 +40,36 @@
   // Edit replacement string to your heart's content.
   //
 
-  // subjectType strings
-  let strKanji = 'Kanji';
-  let strRadical = 'Radical';
-  let strVocab = 'Vocabulary';
+  // subjectType HTML
+  let htmlKanji = 'Kanji';
+  let htmlRadical = 'Radical';
+  let htmlVocab = 'Vocabulary';
 
-  // questionType strings
-  let strMeaning = 'Meaning';
-  let strName = 'Name';
+  // questionType HTML
+  let htmlMeaning = 'Meaning';
+  let htmlName = 'Name';
 
-  let strReading = 'Reading';
+  let htmlReading = 'Reading';
 
-  let strReadingKan = 'Reading';
-  let strOn = "On'yomi";
-  let strKun = "Kun'yomi";
-  let strNan = 'Nanori';
+  let htmlOn = "ON'YOMI";
+  let htmlKun = `<span style="color: cyan">kun'yo</span>mi`;
+  let htmlNanori = 'Nanori (^o^)';
 
-  // Translations
+  // Translations HTML
   switch (strLang) {
     case 'ja':
-      strKanji = '漢字:';
-      strRadical = '部首:';
-      strVocab = '単語:';
+      htmlKanji = '漢字:';
+      htmlRadical = '部首:';
+      htmlVocab = '単語:';
 
-      strMeaning = '意味';
-      strName = '名前';
+      htmlMeaning = '意味';
+      htmlName = '名前';
 
-      strReading = '読み方';
+      htmlReading = '読み方';
 
-      strReadingKan = '読み';
-      strOn = '音読み';
-      strKun = '訓読み';
-      strNan = '名乗り';
+      htmlOn = '音読み';
+      htmlKun = '<span style="color: cyan">くんよ</span>み';
+      htmlNanori = '名乗り (^o^)';
       break;
   }
 
@@ -81,11 +79,16 @@
   // CSS
   add_css(/* css */ `
   ${SEL_category} {
-
+    text-transform: unset;
   }
 
   ${SEL_questionType} {
+    text-transform: unset;
     ${strLang === 'ja' ? 'font-weight: unset;' : ''}
+  }
+
+  ${SEL_questionType} [data-kunon-reading-type="nanori"] {
+    color: bisque;
   }
   `);
 
@@ -106,17 +109,21 @@
       if (el_category && el_questionType) {
         const obs_category = new MutationObserver(() => {
           el_category.setAttribute('lang', strLang);
-          el_category.textContent = has_subjectType
-            ? (() => {
-                switch (subject.type) {
-                  case 'Radical':
-                    return strRadical;
-                  case 'Kanji':
-                    return strKanji;
-                }
-                return strVocab;
-              })()
-            : '';
+          el_category.innerHTML = `<span data-kunon-subject-type="${
+            subject.type
+          }">${
+            has_subjectType
+              ? (() => {
+                  switch (subject.type) {
+                    case 'Radical':
+                      return htmlRadical;
+                    case 'Kanji':
+                      return htmlKanji;
+                  }
+                  return htmlVocab;
+                })()
+              : ''
+          }</span>`;
 
           obs_category.disconnect();
         });
@@ -124,26 +131,30 @@
 
         const obs_questionType = new MutationObserver(() => {
           el_questionType.setAttribute('lang', strLang);
-          el_questionType.textContent = (() => {
+          el_questionType.innerHTML = `<span data-kunon-question-type="${questionType}">${(() => {
             if (questionType === 'reading') {
-              if (subject.primary_reading_type) {
-                switch (subject.primary_reading_type) {
-                  case 'onyomi':
-                    return strOn;
-                  case 'kunyomi':
-                    return strKun;
-                  case 'nanori':
-                    return strNan;
-                }
-                return strReadingKan;
+              const { primary_reading_type } = subject;
+
+              if (primary_reading_type) {
+                return `<span data-kunon-reading-type="${primary_reading_type}">${(() => {
+                  switch (primary_reading_type) {
+                    case 'onyomi':
+                      return htmlOn;
+                    case 'kunyomi':
+                      return htmlKun;
+                    case 'nanori':
+                      return htmlNanori;
+                  }
+                  return htmlReading;
+                })()}</span>`;
               }
-              return strReading;
+              return htmlReading;
             }
 
-            if (subject.type === 'Radical') return strName;
+            if (subject.type === 'Radical') return htmlName;
 
-            return strMeaning;
-          })();
+            return htmlMeaning;
+          })()}</span>`;
 
           obs_questionType.disconnect();
         });
