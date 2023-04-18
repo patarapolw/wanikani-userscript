@@ -18,7 +18,7 @@
 // @icon        https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @homepage    https://community.wanikani.com/t/userscript-wk-custom-review-question-kunon-2023-version/61449
 // @source      https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/kun-on.user.js
-// @version     1.1.1
+// @version     1.1.2
 // @license     MIT
 // @grant       none
 // ==/UserScript==
@@ -55,8 +55,8 @@
 
   const enReading = 'Reading';
 
-  const enOn = `<span style="color: yellow">ON'YOMI</span>`;
-  const enKun = `<span style="color: cyan">kun'yo</span>mi`;
+  const enOn = `ON'YOMI`;
+  const enKun = `kun'yo<span style="color: white">mi</span>`;
   const enNanori = 'Nanori (^o^)';
 
   const jaKanji = '漢字:';
@@ -68,14 +68,28 @@
 
   const jaReading = '読み方';
 
-  const jaOn = '<span style="color: yellow">音読み</span>';
-  const jaKun = '<span style="color: cyan">くんよ</span>み';
+  const jaOn = '音読み';
+  const jaKun = 'くんよ<span style="color: white">み</span>';
   const jaNanori = '名乗り (^o^)';
 
   /**
    * Whether to use wkof Settings dialog and ignore in-script settings
    */
   const USE_WKOF = true;
+
+  const defaultCSS = cleanCSS(/* css */ `
+  [data-kunon-subject-type="Kanji"][data-kunon-question-type] [data-kunon-reading-type="onyomi"] {
+    color: yellow;
+  }
+
+  [data-kunon-subject-type="Kanji"][data-kunon-question-type] [data-kunon-reading-type="kunyomi"] {
+    color: cyan;
+  }
+
+  [data-kunon-subject-type="Kanji"][data-kunon-question-type] [data-kunon-reading-type="nanori"] {
+    color: bisque;
+  }
+  `);
 
   // CONSTANTS
   const SCRIPT_ID = 'WK_KunOn';
@@ -92,7 +106,7 @@
    *
    * @typedef {{
    *   Language: string
-   *   'Hide Subject Type': boolean
+   *   HideSubjectType: boolean
    *   Radical: string
    *   Kanji: string
    *   Vocabulary: string
@@ -102,12 +116,17 @@
    *   Kunyomi: string
    *   Onyomi: string
    *   Nanori: string
+   *   CSS: string
    * }} ScriptSettings
    */
 
   function newScriptSettings(o = /** @type {ScriptSettings} */ ({})) {
     o.Language = o.Language || defaultLang;
-    o['Hide Subject Type'] = !default_has_subjectType;
+    o.HideSubjectType =
+      typeof o.HideSubjectType !== 'undefined'
+        ? o.HideSubjectType
+        : !default_has_subjectType;
+    o.CSS = typeof o.CSS !== 'undefined' ? o.CSS : defaultCSS;
 
     o.Radical = o.Language === 'ja' ? jaRadical : enRadical;
     o.Kanji = o.Language === 'ja' ? jaKanji : enKanji;
@@ -160,107 +179,158 @@
     }
 
     function openSettings() {
+      /** @type {JQuery<HTMLElement>} */
+      let $textarea;
+
       const dialog = new WKOF.Settings({
         script_id: SCRIPT_ID,
-        title: 'Custom Review Question Settings',
+        title: 'Custom Review Question (KunOn+) Settings',
+        pre_open: ($) => {
+          $textarea = $.find('textarea[name="CSS_textarea"]').val(
+            typeof cfg.CSS !== 'undefined' ? cfg.CSS : defaultCSS,
+          );
+        },
         on_save: () => {
+          cfg.CSS = /** @type {string} */ ($textarea.val());
           updateSettings();
         },
         content: {
-          Language: {
-            type: 'dropdown',
-            label: 'Language',
-            default: 'en',
+          tabset: {
+            type: 'tabset',
             content: {
-              en: 'English',
-              ja: 'Japanese',
-            },
-            on_change: function (k, v) {
-              WKOF.settings[SCRIPT_ID][k] = v;
-              newScriptSettings(/** @type {any} */ (WKOF.settings[SCRIPT_ID]));
-              updateSettings();
-              dialog.refresh();
-            },
-          },
-          'Hide Subject Type': {
-            type: 'checkbox',
-            label: 'Hide Subject Type',
-            hover_tip: `Don't show whether it is Radical, Kanji or Vocabulary`,
-            default: !default_has_subjectType,
-          },
-          divider: {
-            type: 'divider',
-          },
-          Subject: {
-            type: 'group',
-            label: 'Subject Label',
-            content: {
-              Radical: {
-                type: 'input',
-                label: 'Radical',
-                default: enRadical,
-              },
-              Kanji: {
-                type: 'input',
-                label: 'Kanji',
-                default: enKanji,
-              },
-              Vocabulary: {
-                type: 'input',
-                label: 'Vocabulary',
-                default: enVocab,
-              },
-            },
-          },
-          QuestionType: {
-            type: 'group',
-            label: 'Question Type',
-            content: {
-              Meaning: {
-                type: 'input',
-                label: 'Meaning',
-                default: enMeaning,
-              },
-              Reading: {
-                type: 'input',
-                label: 'Reading',
-                default: enReading,
-              },
-              RadicalName: {
-                type: 'input',
-                label: 'Radical name',
-                default: enName,
-              },
-              'Kanji Reading': {
-                type: 'group',
-                label: 'Kanji Reading',
+              fieldLabels: {
+                type: 'page',
+                label: 'Field Names',
                 content: {
-                  Kunyomi: {
-                    type: 'input',
-                    label: `Kun'yomi`,
-                    default: enKun,
+                  Language: {
+                    type: 'dropdown',
+                    label: 'Language',
+                    default: 'en',
+                    content: {
+                      en: 'English',
+                      ja: 'Japanese',
+                    },
+                    on_change: function (k, v) {
+                      WKOF.settings[SCRIPT_ID][k] = v;
+                      newScriptSettings(
+                        /** @type {any} */ (WKOF.settings[SCRIPT_ID]),
+                      );
+                      updateSettings();
+                      dialog.refresh();
+                    },
                   },
-                  Onyomi: {
-                    type: 'input',
-                    label: `On'yomi`,
-                    default: enOn,
+                  HideSubjectType: {
+                    type: 'checkbox',
+                    label: 'Hide Subject Type',
+                    hover_tip: `Don't show whether it is Radical, Kanji or Vocabulary`,
+                    default: !default_has_subjectType,
                   },
-                  Nanori: {
-                    type: 'input',
-                    label: 'Nanori',
-                    default: enName,
+                  divider: {
+                    type: 'divider',
+                  },
+                  Subject: {
+                    type: 'group',
+                    label: 'Subject Label',
+                    content: {
+                      Radical: {
+                        type: 'input',
+                        label: 'Radical',
+                        default: enRadical,
+                      },
+                      Kanji: {
+                        type: 'input',
+                        label: 'Kanji',
+                        default: enKanji,
+                      },
+                      Vocabulary: {
+                        type: 'input',
+                        label: 'Vocabulary',
+                        default: enVocab,
+                      },
+                    },
+                  },
+                  QuestionType: {
+                    type: 'group',
+                    label: 'Question Type',
+                    content: {
+                      Meaning: {
+                        type: 'input',
+                        label: 'Meaning',
+                        default: enMeaning,
+                      },
+                      Reading: {
+                        type: 'input',
+                        label: 'Reading',
+                        default: enReading,
+                      },
+                      RadicalName: {
+                        type: 'input',
+                        label: 'Radical name',
+                        default: enName,
+                      },
+                      KanjiReading: {
+                        type: 'group',
+                        label: 'Kanji Reading',
+                        content: {
+                          Kunyomi: {
+                            type: 'input',
+                            label: `Kun'yomi`,
+                            default: enKun,
+                          },
+                          Onyomi: {
+                            type: 'input',
+                            label: `On'yomi`,
+                            default: enOn,
+                          },
+                          Nanori: {
+                            type: 'input',
+                            label: 'Nanori',
+                            default: enName,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  resetLabels: {
+                    type: 'button',
+                    label: 'Reset Labels',
+                    text: 'Reset',
+                    on_click: () => {
+                      newScriptSettings(
+                        /** @type {any} */ (WKOF.settings[SCRIPT_ID]),
+                      );
+                      updateSettings();
+                      dialog.refresh();
+                    },
                   },
                 },
               },
-            },
-          },
-          'Reset Settings': {
-            type: 'button',
-            label: 'Reset Settings',
-            on_click: () => {
-              newScriptSettings(/** @type {any} */ (WKOF.settings[SCRIPT_ID]));
-              updateSettings();
-              dialog.refresh();
+              cssLabel: {
+                type: 'page',
+                label: 'CSS',
+                content: {
+                  cssHTML: {
+                    type: 'html',
+                    html: `<textarea id="${SCRIPT_ID}_CSS_textrea" name="CSS_textarea" class="settings" style="font-family: monospace"
+                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>`,
+                  },
+                  CSS: {
+                    type: 'input',
+                    subtype: 'hidden',
+                    default: defaultCSS,
+                  },
+                  resetCSS: {
+                    type: 'button',
+                    label: 'Reset CSS',
+                    text: 'Reset',
+                    on_click: () => {
+                      WKOF.settings[SCRIPT_ID].CSS = defaultCSS;
+                      updateSettings();
+                      $textarea.val(defaultCSS);
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -291,7 +361,7 @@
     el_category.innerHTML = `<span data-kunon-subject-type="${
       itemDetail.subject.type
     }">${
-      cfg['Hide Subject Type']
+      cfg.HideSubjectType
         ? ''
         : (() => {
             switch (itemDetail.subject.type) {
@@ -317,7 +387,7 @@
     } = itemDetail;
 
     el_questionType.setAttribute('lang', cfg.Language);
-    el_questionType.innerHTML = `<span data-kunon-question-type="${questionType}">${(() => {
+    el_questionType.innerHTML = `<span data-kunon-subject-type="${type}" data-kunon-question-type="${questionType}">${(() => {
       if (questionType === 'reading') {
         if (primary_reading_type) {
           return `<span data-kunon-reading-type="${primary_reading_type}">${(() => {
@@ -375,20 +445,47 @@
     }, 100);
   });
 
+  /**
+   *
+   * @param {string} css
+   * @returns
+   */
+  function cleanCSS(css) {
+    const indents = [];
+    const lines = css
+      .trim()
+      .split('\n')
+      .map((ln) => {
+        const m = /^ +[^ ]/.exec(ln);
+        if (m) {
+          const idx = m[0].length - 1;
+          indents.push(idx);
+        }
+        return ln;
+      });
+    if (!indents.length) return css;
+    const re = new RegExp(`^ {0,${Math.min(...indents)}}`);
+    return lines.map((ln) => ln.replace(re, '')).join('\n');
+  }
+
   function setScriptCSS() {
     const css = /* css */ `
-    ${SEL_category} [data-kunon-subject-type] {
+    [data-kunon-subject-type] {
       text-transform: unset;
     }
 
-    ${SEL_questionType} [data-kunon-question-type] {
+    [data-kunon-question-type] {
       text-transform: unset;
       ${cfg.Language === 'ja' ? 'font-weight: normal;' : ''}
     }
 
-    ${SEL_questionType} [data-kunon-question-type] [data-kunon-reading-type="nanori"] {
-      color: bisque;
+    #wkofs_${SCRIPT_ID} textarea {
+      width: 100%;
+      height: 300px;
+      font-family: monospace;
     }
+
+    ${cfg.CSS}
     `;
 
     if (elStyle) {
