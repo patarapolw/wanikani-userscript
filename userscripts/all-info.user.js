@@ -1,17 +1,15 @@
 // ==UserScript==
 // @name         WaniKani All Info Expander
 // @namespace    http://www.wanikani.com
-// @version      0.2
+// @version      0.2.1
 // @description  Automatically click "Show All Information"
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
 // @match        https://www.wanikani.com/review/session*
-// @match        https://www.wanikani.com/subjects/review*
-// @match        https://www.wanikani.com/subjects/extra_study*
+// @match        https://www.wanikani.com/subjects/*
 // @match        https://preview.wanikani.com/extra_study/session*
 // @match        https://preview.wanikani.com/review/session*
-// @match        https://preview.wanikani.com/subjects/review*
-// @match        https://preview.wanikani.com/subjects/extra_study*
+// @match        https://preview.wanikani.com/subjects*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @grant        none
 // ==/UserScript==
@@ -68,7 +66,7 @@
     const newInput = document.querySelector('.quiz-input__input-container');
     if (newInput && newInput !== inputContainer) {
       inputContainer = newInput;
-      inputObserver.observe(inputContainer, {
+      inputObserver.observe(newInput, {
         attributes: true,
         attributeFilter: ['correct'],
       });
