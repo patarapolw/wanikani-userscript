@@ -11,6 +11,7 @@
 // @match        https://preview.wanikani.com/review/session*
 // @match        https://preview.wanikani.com/subjects*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
+// @license      MIT
 // @homepage     https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/no-scroll.user.js
 // @grant        none
 // ==/UserScript==
