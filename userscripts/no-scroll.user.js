@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani No Scroll
 // @namespace    http://www.wanikani.com
-// @version      0.1.1
+// @version      0.1.2
 // @description  Don't scroll on "Show Information"
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -75,7 +75,7 @@
     }
   };
 
-  // startScript();
+  startScript();
 
   window.addEventListener('turbo:load', (e) => {
     // @ts-ignore
