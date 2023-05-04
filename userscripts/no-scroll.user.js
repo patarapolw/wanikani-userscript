@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani No Scroll
 // @namespace    http://www.wanikani.com
-// @version      0.1
+// @version      0.1.1
 // @description  Don't scroll on "Show Information"
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -81,7 +81,7 @@
     // @ts-ignore
     const url = e.detail.url;
     if (!url) return;
-    if (/(session|quiz)/.test(url)) {
+    if (/(session|quiz|review)/.test(url)) {
       startScript();
     } else {
       stopScript();
