@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani Anime Sentences
 // @description  Adds example sentences from anime movies and shows for vocabulary from immersionkit.com
-// @version      1.1.3
+// @version      1.1.4
 // @author       psdcon, edited by polv
 // @namespace    wkanimesentences/polv
 
@@ -78,6 +78,7 @@
     userLevel: '', // most recent level progression
     immersionKitData: /** @type {ImmersionkitExample[]} */ ([]), // cached so sentences can be re-rendered after settings change
     sentencesEl: null, // referenced so sentences can be re-rendered after settings change
+    queryString: '',
   };
 
   // Titles taken from https://www.immersionkit.com/information
@@ -228,11 +229,15 @@
       }
     }
 
-    const queryString = state.item.characters.replace('〜', ''); // for "counter" kanji
+    doSearch(state.item.characters.replace('〜', '')); // for "counter" kanji
+  }
+
+  function doSearch(q) {
+    state.queryString = q;
     const wkLevelFilter = state.settings.filterWaniKaniLevel
       ? state.userLevel
       : '';
-    let url = `https://api.immersionkit.com/look_up_dictionary?keyword=${queryString}&tags=&jlpt=&wk=${wkLevelFilter}`;
+    let url = `https://api.immersionkit.com/look_up_dictionary?keyword=${state.queryString}&tags=&jlpt=&wk=${wkLevelFilter}`;
     fetch(url)
       .then((response) => response.json())
       .then((data) => {
@@ -241,9 +246,9 @@
       });
   }
 
-  const setCategory = new Set();
-  const setDeckName = new Set();
-  const setTags = new Set();
+  // const setCategory = new Set();
+  // const setDeckName = new Set();
+  // const setTags = new Set();
 
   function renderSentences() {
     // Called from immersionkit response, and on settings save
@@ -319,7 +324,62 @@
     } else {
       sentencesEl.textContent = '';
 
+      const filterExamples = (q) => {
+        let filterIn = examples;
+        const filterOut = [];
+
+        if (q) {
+          q.split(/([\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}ー]+)/gu).map(
+            (s, i) => {
+              s = s.trim();
+              if (!s) return;
+
+              if (i % 2) {
+                s = toHiragana(s);
+
+                const exExact = [];
+                const exRe = [];
+
+                const re = new RegExp(
+                  `${s.replace(/\p{sc=Hiragana}/gu, '$&?')}$`,
+                );
+                filterIn.map((ex) => {
+                  for (let t of [ex.sentence, ex.sentence_with_furigana]) {
+                    t = toHiragana(t);
+                    if (t.includes(s)) return exExact.push(ex);
+                    if (re.test(t)) return exRe.push(ex);
+                  }
+                  filterOut.push(ex);
+                });
+
+                filterIn = [...exExact, ...exRe];
+              } else {
+                s = s.toLocaleLowerCase();
+
+                filterIn = filterIn.filter((ex) => {
+                  if (
+                    [
+                      ex.deck_name,
+                      ex.category,
+                      ...ex.tags,
+                      ex.translation,
+                    ].some((t) => t.toLocaleLowerCase().includes(s))
+                  ) {
+                    return true;
+                  }
+                  filterOut.push(ex);
+                });
+              }
+            },
+          );
+        }
+
+        return { filterIn, filterOut };
+      };
+
       const displayEl = document.createElement('div');
+      const x = filterExamples(state.queryString);
+      examples = [...x.filterIn, ...x.filterOut];
       let subExample = examples;
 
       sentencesEl.append(
@@ -327,39 +387,20 @@
           '<input class="quiz-input__input" autocomplete="off" autocapitalize="none" autocorrect="off" id="user-response" name="anime-context-filter" placeholder="Filter" type="text" enabled="true">',
         ).apply((el) => {
           const inputEl = /** @type {HTMLInputElement} */ (el);
+          inputEl.value = state.queryString;
+
           inputEl.oninput = () => {
-            subExample = examples;
-            let q = inputEl.value.trim();
-            if (q) {
-              q.toLocaleLowerCase()
-                .split(/([\p{sc=Han}\p{sc=Katakana}\p{sc=Hiragana}ー]+)/gu)
-                .map((s, i) => {
-                  s = s.trim();
-                  if (!s) return;
-
-                  if (i % 2) {
-                    s = toHiragana(s);
-                    subExample = subExample.filter((ex) =>
-                      [ex.sentence, ex.sentence_with_furigana].some((t) =>
-                        toHiragana(t).includes(s),
-                      ),
-                    );
-                  } else {
-                    subExample = subExample.filter((ex) =>
-                      [
-                        ex.deck_name,
-                        ex.category,
-                        ...ex.tags,
-                        ex.translation,
-                      ].some((t) => t.toLocaleLowerCase().includes(s)),
-                    );
-                  }
-                });
-            }
-
+            subExample = filterExamples(inputEl.value.trim()).filterIn;
             displayEl.setAttribute(ATTR_INDEX, '0');
             displayEl.textContent = '';
             loadExample();
+          };
+
+          inputEl.onkeydown = (ev) => {
+            if (ev.key === 'Enter') {
+              const q = inputEl.value.trim();
+              if (q) doSearch(q);
+            }
           };
         }).el,
         displayEl,
