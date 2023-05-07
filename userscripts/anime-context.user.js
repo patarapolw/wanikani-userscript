@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani Anime Sentences
 // @description  Adds example sentences from anime movies and shows for vocabulary from immersionkit.com
-// @version      1.1.4
+// @version      1.1.5
 // @author       psdcon, edited by polv
 // @namespace    wkanimesentences/polv
 
@@ -341,7 +341,11 @@
                 const exRe = [];
 
                 const re = new RegExp(
-                  `${s.replace(/\p{sc=Hiragana}/gu, '$&?')}$`,
+                  `${s.replace(/\p{sc=Hiragana}+/gu, (p) => {
+                    return `(${Array.from(p)
+                      .map((_, i) => p.substring(0, i + 1))
+                      .join('|')})?`;
+                  })}`,
                 );
                 filterIn.map((ex) => {
                   for (let t of [ex.sentence, ex.sentence_with_furigana]) {
