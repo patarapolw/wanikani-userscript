@@ -189,10 +189,31 @@
               ...auxiliary_meanings.map((m) => m.meaning),
             ]
               .map((m) => {
-                return m
-                  .split(' ')
-                  .map((t) => makePlural(t))
-                  .join(' ?');
+                m = m.toLocaleLowerCase();
+
+                const tokens = m.split(' ');
+                const isVerb = tokens[0] === 'to';
+
+                const out = [];
+
+                tokens.map((t, i) => {
+                  let ed = ' ';
+                  if (!/^(to|on|of|and|with)$/i.test(t)) {
+                    if (!isVerb) {
+                      t = makePlural(t);
+                    }
+                    if (t === 'something') {
+                      t = t + '?';
+                    } else {
+                      ed = ' *';
+                    }
+                  }
+                  out.push(t);
+                  if (i < tokens.length - 1) {
+                    out.push(ed);
+                  }
+                });
+                return out.join('');
               })
               .join('|')})$`,
             'i',
@@ -210,7 +231,6 @@
   };
 
   function makePlural(s) {
-    // if (s === 'to') return s;
     if (s.length > 2) {
       if (s.endsWith('y')) {
         return s.substring(0, s.length - 1) + '(y|ies)';
