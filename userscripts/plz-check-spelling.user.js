@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.1.3
+// @version      0.1.4
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -202,7 +202,7 @@
       /** @type {string} */
       var response = getResponse();
 
-      // console.log(answerChecker.oldEvaluate(e, n, i, t));
+      // console.log(arguments, answerChecker.oldEvaluate(e, n, i, t));
 
       if (isWrongAnswer) {
         return {
@@ -223,7 +223,7 @@
       } else {
         const result = answerChecker.oldEvaluate(e, n, i, t);
         if (result.passed && !result.accurate) {
-          response = response.toLocaleLowerCase();
+          response = response.toLocaleLowerCase().trim();
           const {
             meanings = [],
             auxiliary_meanings = [],
@@ -234,7 +234,9 @@
             `^\\W*(${[
               ...meanings,
               ...userSynonyms,
-              ...auxiliary_meanings.map((m) => m.meaning),
+              ...auxiliary_meanings
+                .filter((m) => m.type === 'whitelist')
+                .map((m) => m.meaning),
             ]
               .map((m) => {
                 m = m.toLocaleLowerCase();
@@ -288,10 +290,14 @@
         }
       }
 
-      if (s.endsWith('s')) {
-        s = s.substring(0, s.length - 1);
+      const sPlural = ['s', 'es'];
+      for (const p of sPlural) {
+        if (s.endsWith(p)) {
+          return s.substring(0, s.length - p.length) + `(${p})?`;
+        }
       }
-      return s + 's?';
+
+      return s + `(${sPlural.join('|')})?`;
     }
 
     return s;
