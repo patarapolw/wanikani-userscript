@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.1.5
+// @version      0.2.0
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -9,7 +9,7 @@
 // @match        https://www.wanikani.com/subjects/*
 // @match        https://preview.wanikani.com/extra_study/session*
 // @match        https://preview.wanikani.com/review/session*
-// @match        https://preview.wanikani.com/subjects*
+// @match        https://preview.wanikani.com/subjects/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
 // @homepage     https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/plz-check-spelling.user.js
@@ -140,7 +140,7 @@
     }
   });
 
-  /** @typedef Evaluation
+  /** @typedef EvaluationOld
    * @property {boolean} [accurate] - If true, the answer matched one of the possible answers
    * @property {boolean | string} [exception] - If true, the exception animation will run and the answer will not be processed.
    * @property {boolean} [multipleAnswers] - If true, Wanikani has more than one correct answer for the ReviewItem, a notification will be shown saying this.
@@ -172,6 +172,16 @@
       }
     */
 
+    /**
+     * @typedef {{
+     *   action: 'pass' | 'fail' | 'retry'
+     *   message: null | {
+     *     text: string
+     *     type: 'itemInfoException' | 'answerException'
+     *   }
+     * }} Evaluation
+     */
+
     /**@typedef {'whitelist' | 'blacklist' | 'warning'} AuxillaryType */
 
     /**
@@ -191,8 +201,8 @@
      *       meaning: string
      *       type: AuxillaryType
      *     }[]
-     *     userSynonyms: string[]
      *   }
+     *   userSynonyms: string[]
      *   response: string
      * }} e
      * @param {*} n
@@ -208,14 +218,12 @@
       const cI = e.item.characters;
       const response = e.response.toLocaleLowerCase().trim();
 
-      // console.log(arguments, answerChecker.oldEvaluate(e, n, i, t));
+      console.log(answerChecker.oldEvaluate(...arguments), ...arguments);
 
       if (isWrongAnswer) {
         return {
-          passed: false,
-          accurate: false,
-          multipleAnswers: false,
-          exception: false,
+          action: 'pass',
+          message: null,
         };
       }
 
@@ -223,18 +231,24 @@
         if (category === 'vocabulary') {
           // https://community.wanikani.com/t/do-you-even-kana-okurigana-matcher/8440
           if (!makeRegex(cI).test(response)) {
-            return { exception: 'Bro, Do you even Kana?' };
+            return {
+              action: 'retry',
+              message: {
+                text: 'Bro, Do you even Kana?',
+                type: 'answerException',
+              },
+            };
           }
         }
       } else {
         /** @type {Evaluation} */
         const result = answerChecker.oldEvaluate(e, n, i, t);
-        if (result.passed && !result.accurate) {
-          const {
-            meanings = [],
-            auxiliary_meanings = [],
-            userSynonyms = [],
-          } = e.item;
+        if (
+          result.action === 'pass' &&
+          result.message?.type === 'itemInfoException'
+        ) {
+          const { meanings = [], auxiliary_meanings = [] } = e.item;
+          const { userSynonyms = [] } = e;
 
           const re = new RegExp(
             `^\\W*(${[
@@ -288,7 +302,13 @@
           console.log(re, result);
           if (!re.test(response)) {
             // https://community.wanikani.com/t/userscript-prevent-your-answer-was-a-bit-off-answers-from-being-accepted-aka-close-but-no-cigar/7134
-            result.exception = 'Close, but no cigar! Please try again';
+            return {
+              action: 'retry',
+              message: {
+                text: 'Close, but no cigar! Please try again',
+                type: 'answerException',
+              },
+            };
           }
         }
         return result;
