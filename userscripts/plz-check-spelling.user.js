@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.1.4
+// @version      0.1.5
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -19,20 +19,6 @@
 // @ts-check
 (function () {
   'use strict';
-
-  // Hook into App Store
-  try {
-    $('.app-store-menu-item').remove();
-    $(
-      '<li class="app-store-menu-item"><a href="https://community.wanikani.com/t/there-are-so-many-user-scripts-now-that-discovering-them-is-hard/20709">App Store</a></li>',
-    ).insertBefore($('.navbar .dropdown-menu .nav-header:contains("Account")'));
-    // @ts-ignore
-    window.appStoreRegistry = window.appStoreRegistry || {};
-    // @ts-ignore
-    window.appStoreRegistry[GM_info.script.uuid] = GM_info;
-    // @ts-ignore
-    localStorage.appStoreRegistry = JSON.stringify(appStoreRegistry);
-  } catch (e) {}
 
   //Create regex profiles (katakana matches need hiragana counterparts included)
   /** Prepends Hiragana counterpart to any Katakana string input
@@ -53,14 +39,15 @@
   }
 
   /** Returns true if the character is Kana
+   * @param {String} char
    */
   function isKana(char) {
     return /^[\u3040-\u30ff]$/.test(char);
   }
 
   /** Creates regex from a vocabulary item that matches the Kana in that item.
-
-*/
+   * @param {string} cV
+   */
   function makeRegex(cV) {
     var r = '^'; //start the regex string
     for (var c = 0; c < cV.length; c++) {
@@ -81,8 +68,12 @@
     return new RegExp(r);
   }
 
-  //Get answerChecker Object
   //Stimulus.controllers.filter((x)=>{return x.answerChecker;})[0]
+  /**
+   * Get answerChecker Object
+   * @param {number} timeout
+   * @returns
+   */
   var getAnswerChecker = function (timeout) {
     var start = Date.now();
 
@@ -126,12 +117,20 @@
         el.addEventListener('keydown', (ev) => {
           if (el.getAttribute('enabled') !== 'true') return;
           if (ev.key === 'Escape' || ev.code === 'Escape') {
-            isWrongAnswer = true;
             // https://community.wanikani.com/t/userscript-i-dont-know-button/7231
-            el.value =
+            const msg =
               qType === 'reading'
                 ? 'えぇぇーさっぱりわからないぃぃぃ'
                 : 'Aargh! What does that even mean? (╯°□°)╯︵ ┻━┻';
+
+            if (el.value === msg) {
+              el.value = '';
+              isWrongAnswer = false;
+            } else {
+              el.value = msg;
+              isWrongAnswer = true;
+            }
+
             // manual submit
           } else if (ev.code.startsWith('Key')) {
             isWrongAnswer = false;
@@ -143,12 +142,13 @@
 
   /** @typedef Evaluation
    * @property {boolean} [accurate] - If true, the answer matched one of the possible answers
-   * @property {boolean} [exception] - If true, the exception animation will run and the answer will not be processed.
+   * @property {boolean | string} [exception] - If true, the exception animation will run and the answer will not be processed.
    * @property {boolean} [multipleAnswers] - If true, Wanikani has more than one correct answer for the ReviewItem, a notification will be shown saying this.
-   * @property {boolean} [passed] - If true, The answer is determined to be close enough to pass. In the case that accurate is false, the answer will pass with a notification to check your answer.
+   * @property {boolean} [passed] - If true, The answer is determined to be close enough to pass.
+   * In the case that accurate is false, the answer will pass with a notification to check your answer.
+   * Can be either a meaning or a reading
    */
-  /** Can be either a meaning or a reading
-   */
+
   var dyek = function (answerChecker) {
     //console.log("main function loading");
     //Get the answerChecker object out of Stimulus Controllers
@@ -156,51 +156,57 @@
     //var answerChecker = quizController&&quizController.answerChecker;
 
     //Boy, I do love to wrap this function don't I?
-    answerChecker.oldEvaluate = answerChecker.evaluate.bind(answerChecker);
-    /** New evaluate function to send an exception if it doesn't meet our requirements
+    /**
+     * @type {EvaluationFunction}
      */
+    answerChecker.oldEvaluate = answerChecker.evaluate.bind(answerChecker);
+    /** New evaluate function to send an exception if it doesn't meet our requirements */
 
     /* April 2023 evaluate now takes an object as its only argument
-  {
-          questionType: this.currentQuestionType,
-          response: e,
-          item: this.currentSubject,
-          userSynonyms: t,
-          inputChars: this.inputChars
+      {
+        questionType: this.currentQuestionType,
+        response: e,
+        item: this.currentSubject,
+        userSynonyms: t,
+        inputChars: this.inputChars
       }
-  */
+    */
+
+    /**@typedef {'whitelist' | 'blacklist' | 'warning'} AuxillaryType */
+
+    /**
+     * @callback EvaluationFunction
+     * @param {{
+     *   questionType: string
+     *   item: {
+     *     type: string
+     *     characters: string
+     *     readings?: string[]
+     *     auxiliary_readings?: {
+     *       reading: string
+     *       type: AuxillaryType
+     *     }[]
+     *     meanings: string[]
+     *     auxiliary_meanings: {
+     *       meaning: string
+     *       type: AuxillaryType
+     *     }[]
+     *     userSynonyms: string[]
+     *   }
+     *   response: string
+     * }} e
+     * @param {*} n
+     * @param {*} i
+     * @param {*} t
+     * @returns {Evaluation}
+     */
+
+    /** @type {EvaluationFunction} */
     answerChecker.evaluate = function (e, n, i, t) {
-      var getQuestionType = function () {
-        return e.questionType; //this.currentQuestionType?
-        //return $(".quiz-input__question-type").innerHTML.toLowerCase();
-      };
-      var getQuestionCategory = function () {
-        return e.item.type.toLowerCase();
-        //return i.subject_category.toLowerCase();
-        //return $(".quiz-input__question-category").innerHTML.toLowerCase();
-      };
-      var isVoc = (() => {
-        return getQuestionCategory() === 'vocabulary';
-      })();
-
-      var getCurrentItem = function () {
-        return e.item.characters;
-        //return answerChecker.currentSubject.characters;
-      };
-
-      var getResponse = function () {
-        return e.response;
-      };
-
-      //jStorage no longer used in WaniKani
-      /** @type {string} */
-      var questionType = getQuestionType();
-      /** @type {string} */
-      var category = getQuestionCategory();
-      /** @type {string} */
-      var cI = getCurrentItem();
-      /** @type {string} */
-      var response = getResponse();
+      const questionType = e.questionType;
+      const category = e.item.type.toLocaleLowerCase();
+      const cI = e.item.characters;
+      const response = e.response.toLocaleLowerCase().trim();
 
       // console.log(arguments, answerChecker.oldEvaluate(e, n, i, t));
 
@@ -221,9 +227,9 @@
           }
         }
       } else {
+        /** @type {Evaluation} */
         const result = answerChecker.oldEvaluate(e, n, i, t);
         if (result.passed && !result.accurate) {
-          response = response.toLocaleLowerCase().trim();
           const {
             meanings = [],
             auxiliary_meanings = [],
@@ -248,7 +254,18 @@
 
                 tokens.map((t, i) => {
                   let ed = '\\W+';
-                  if (!/^(to|on|of|and|with)$/i.test(t)) {
+                  if (
+                    ![
+                      'to',
+                      'in',
+                      'on',
+                      'at',
+                      'of',
+                      'and',
+                      'with',
+                      'be',
+                    ].includes(t)
+                  ) {
                     if (!isVerb) {
                       t = makePlural(t);
                     }
