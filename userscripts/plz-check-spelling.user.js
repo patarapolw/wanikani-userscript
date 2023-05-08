@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.1.0
+// @version      0.1.2
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -124,6 +124,7 @@
       if (inputContainer) {
         const el = inputContainer;
         el.addEventListener('keydown', (ev) => {
+          if (el.getAttribute('enabled') !== 'true') return;
           if (ev.key === 'Escape' || ev.code === 'Escape') {
             isWrongAnswer = true;
             // https://community.wanikani.com/t/userscript-i-dont-know-button/7231
@@ -238,13 +239,13 @@
               .map((m) => {
                 m = m.toLocaleLowerCase();
 
-                const tokens = m.split(' ');
+                const tokens = m.split(/\W+/g);
                 const isVerb = tokens[0] === 'to';
 
                 const out = [];
 
                 tokens.map((t, i) => {
-                  let ed = ' ';
+                  let ed = '\\W+';
                   if (!/^(to|on|of|and|with)$/i.test(t)) {
                     if (!isVerb) {
                       t = makePlural(t);
@@ -252,7 +253,7 @@
                     if (t === 'something') {
                       t = `(${t})?`;
                     } else {
-                      ed = ' *';
+                      ed = '\\W*';
                     }
                   }
                   out.push(t);
@@ -267,7 +268,8 @@
           );
           console.log(re, result);
           if (!re.test(response)) {
-            result.exception = 'Please check if your spelling is correct';
+            // https://community.wanikani.com/t/userscript-prevent-your-answer-was-a-bit-off-answers-from-being-accepted-aka-close-but-no-cigar/7134
+            result.exception = 'Close, but no cigar! Please try again';
           }
         }
         return result;
