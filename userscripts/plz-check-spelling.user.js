@@ -2,7 +2,7 @@
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
 // @version      0.1.0
-// @description  A lenient no-misspelling script (No Cigar)
+// @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
 // @match        https://www.wanikani.com/review/session*
@@ -107,6 +107,39 @@
     return new Promise(waitForAnswerChecker);
   };
 
+  /** @type {HTMLInputElement | null} */
+  let inputContainer = null;
+  let qType = '';
+  let isWrongAnswer = false;
+
+  addEventListener('willShowNextQuestion', (e) => {
+    // @ts-ignore
+    const { questionType } = e.detail;
+    qType = questionType;
+
+    isWrongAnswer = false;
+
+    if (!inputContainer) {
+      inputContainer = document.querySelector('input[name="user-response"]');
+      if (inputContainer) {
+        const el = inputContainer;
+        el.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape' || ev.code === 'Escape') {
+            isWrongAnswer = true;
+            // https://community.wanikani.com/t/userscript-i-dont-know-button/7231
+            el.value =
+              qType === 'reading'
+                ? 'えぇぇーさっぱりわからないぃぃぃ'
+                : 'Aargh! What does that even mean? (╯°□°)╯︵ ┻━┻';
+            // manual submit
+          } else if (ev.code.startsWith('Key')) {
+            isWrongAnswer = false;
+          }
+        });
+      }
+    }
+  });
+
   /** @typedef Evaluation
    * @property {boolean} [accurate] - If true, the answer matched one of the possible answers
    * @property {boolean} [exception] - If true, the exception animation will run and the answer will not be processed.
@@ -165,17 +198,31 @@
       var category = getQuestionCategory();
       /** @type {string} */
       var cI = getCurrentItem();
+      /** @type {string} */
+      var response = getResponse();
+
+      // console.log(answerChecker.oldEvaluate(e, n, i, t));
+
+      if (isWrongAnswer) {
+        return {
+          passed: false,
+          accurate: false,
+          multipleAnswers: false,
+          exception: false,
+        };
+      }
 
       if (questionType === 'reading') {
         if (category === 'vocabulary') {
-          if (!makeRegex(cI).test(getResponse())) {
+          // https://community.wanikani.com/t/do-you-even-kana-okurigana-matcher/8440
+          if (!makeRegex(cI).test(response)) {
             return { exception: 'Bro, Do you even Kana?' };
           }
         }
       } else {
         const result = answerChecker.oldEvaluate(e, n, i, t);
         if (result.passed && !result.accurate) {
-          const response = getResponse().toLocaleLowerCase();
+          response = response.toLocaleLowerCase();
           const {
             meanings = [],
             auxiliary_meanings = [],
@@ -183,7 +230,7 @@
           } = e.item;
 
           const re = new RegExp(
-            `^(${[
+            `^\\W*(${[
               ...meanings,
               ...userSynonyms,
               ...auxiliary_meanings.map((m) => m.meaning),
@@ -203,7 +250,7 @@
                       t = makePlural(t);
                     }
                     if (t === 'something') {
-                      t = t + '?';
+                      t = `(${t})?`;
                     } else {
                       ed = ' *';
                     }
@@ -215,7 +262,7 @@
                 });
                 return out.join('');
               })
-              .join('|')})$`,
+              .join('|')})\\W*$`,
             'i',
           );
           console.log(re, result);
