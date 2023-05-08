@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.1.2
+// @version      0.1.3
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -281,12 +281,11 @@
 
   function makePlural(s) {
     if (s.length > 2) {
-      if (s.endsWith('y')) {
-        return s.substring(0, s.length - 1) + '(y|ies)';
-      }
-
-      if (s.endsWith('ies')) {
-        return s.substring(0, s.length - 3) + '(y|ies)';
+      const yPlural = ['y', 'ys', 'ies'];
+      for (const p of yPlural) {
+        if (s.endsWith(p)) {
+          return s.substring(0, s.length - p.length) + `(${yPlural.join('|')})`;
+        }
       }
 
       if (s.endsWith('s')) {
