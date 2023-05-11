@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.2.2
+// @version      0.2.3
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -273,7 +273,7 @@
                 const out = [];
 
                 tokens.map((t, i) => {
-                  let ed = '\\W+';
+                  let ed = '\\W*';
                   if (
                     ![
                       'to',
@@ -288,11 +288,10 @@
                   ) {
                     if (!isVerb) {
                       t = makePlural(t);
+                      ed = '\\W+';
                     }
-                    if (t === 'something') {
+                    if (['something', 'a', 'an', 'the'].includes(t)) {
                       t = `(${t})?`;
-                    } else {
-                      ed = '\\W*';
                     }
                   }
                   out.push(t);
