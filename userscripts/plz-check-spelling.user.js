@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.2.0
+// @version      0.2.2
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -12,7 +12,8 @@
 // @match        https://preview.wanikani.com/subjects/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
-// @homepage     https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/plz-check-spelling.user.js
+// @homepage     https://community.wanikani.com/t/userscript-plz-check-spelling-no-cigar-but-accept-plural-and-no-space-variants/61763
+// @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/plz-check-spelling.user.js
 // @grant        none
 // ==/UserScript==
 
@@ -102,6 +103,7 @@
   let inputContainer = null;
   let qType = '';
   let isWrongAnswer = false;
+  let isForcedAccept = false;
 
   addEventListener('willShowNextQuestion', (e) => {
     // @ts-ignore
@@ -132,6 +134,8 @@
             }
 
             // manual submit
+          } else if (ev.key === 'Enter') {
+            isForcedAccept = ev.shiftKey || ev.ctrlKey;
           } else if (ev.code.startsWith('Key')) {
             isWrongAnswer = false;
           }
@@ -182,7 +186,7 @@
      * }} Evaluation
      */
 
-    /**@typedef {'whitelist' | 'blacklist' | 'warning'} AuxillaryType */
+    /**@typedef {'whitelist' | 'blacklist' | 'warning'} AuxiliaryType */
 
     /**
      * @callback EvaluationFunction
@@ -199,7 +203,7 @@
      *     meanings: string[]
      *     auxiliary_meanings: {
      *       meaning: string
-     *       type: AuxillaryType
+     *       type: AuxiliaryType
      *     }[]
      *   }
      *   userSynonyms: string[]
@@ -213,12 +217,16 @@
 
     /** @type {EvaluationFunction} */
     answerChecker.evaluate = function (e, n, i, t) {
+      /** @type {Evaluation} */
+      const result = answerChecker.oldEvaluate(...arguments);
+      if (isForcedAccept) return result;
+
       const questionType = e.questionType;
       const category = e.item.type.toLocaleLowerCase();
       const cI = e.item.characters;
       const response = e.response.toLocaleLowerCase().trim();
 
-      console.log(answerChecker.oldEvaluate(...arguments), ...arguments);
+      console.log(result, ...arguments);
 
       if (isWrongAnswer) {
         return {
@@ -241,8 +249,6 @@
           }
         }
       } else {
-        /** @type {Evaluation} */
-        const result = answerChecker.oldEvaluate(e, n, i, t);
         if (
           result.action === 'pass' &&
           result.message?.type === 'itemInfoException'
