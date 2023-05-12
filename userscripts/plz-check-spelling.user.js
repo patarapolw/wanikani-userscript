@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.2.3
+// @version      0.2.4
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -12,7 +12,8 @@
 // @match        https://preview.wanikani.com/subjects/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
-// @homepage     https://community.wanikani.com/t/userscript-plz-check-spelling-no-cigar-but-accept-plural-and-no-space-variants/61763
+// @homepage     https://greasyfork.org/en/scripts/465750-wanikani-please-check-spelling
+// @supportURL   https://community.wanikani.com/t/userscript-plz-check-spelling-no-cigar-but-accept-plural-and-no-space-variants/61763
 // @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/plz-check-spelling.user.js
 // @grant        none
 // ==/UserScript==
@@ -273,7 +274,7 @@
                 const out = [];
 
                 tokens.map((t, i) => {
-                  let ed = '\\W*';
+                  let ed = '\\W+';
                   if (
                     ![
                       'to',
@@ -288,12 +289,21 @@
                   ) {
                     if (!isVerb) {
                       t = makePlural(t);
-                      ed = '\\W+';
-                    }
-                    if (['something', 'a', 'an', 'the'].includes(t)) {
-                      t = `(${t})?`;
                     }
                   }
+
+                  if (isVerb) {
+                    if (['something'].includes(t)) {
+                      t = `(${t})?`;
+                      ed = '\\W*';
+                    }
+                  }
+
+                  if (['something', 'a', 'an', 'the'].includes(t)) {
+                    t = `(${t})?`;
+                    ed = '\\W*';
+                  }
+
                   out.push(t);
                   if (i < tokens.length - 1) {
                     out.push(ed);
