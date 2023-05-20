@@ -254,10 +254,12 @@
     if ('detail' in e) {
       const { subject, questionType } = /** @type {any} */ (e.detail);
       qType = questionType;
-      sType = subject.type;
-      if (subject.type === 'Vocabulary') {
+      sType = subject.subject_category || subject.type;
+      if (sType === 'Vocabulary') {
         vocab = fixVocab(subject.characters);
-        reading = subject.readings.map((r) => r.reading);
+        reading = subject.readings
+          ? subject.readings.map((r) => r.reading)
+          : [subject.characters];
       } else {
         kanji =
           typeof subject.characters === 'string'
@@ -276,7 +278,7 @@
    */
   function fixVocab(v) {
     const suru = 'する';
-    isSuru = v.endsWith(suru);
+    isSuru = v.endsWith(suru) && v !== suru;
     if (isSuru) {
       v = v.substring(0, v.length - suru.length);
       reading = reading.map((r) => r.replace(new RegExp(suru + '$'), ''));
@@ -594,8 +596,6 @@
 
         return insertDefinition(vocabDefinition, r.url, 'Weblio');
       };
-
-      console.log(vocab);
 
       const r = await db.weblio.get(vocab);
       if (r) {
