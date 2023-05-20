@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Multiple Answer Input (2023)
 // @namespace    http://www.wanikani.com
-// @version      2.0.3
+// @version      2.0.4
 // @description  Input multiple readings/meanings into Wanikani
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -40,6 +40,8 @@
    *       meaning: string
    *       type: AuxiliaryType
    *     }[]
+   *     subject_category: string
+   *     primary_reading_type?: string
    *   }
    *   userSynonyms: string[]
    *   response: string
@@ -145,6 +147,8 @@
    */
   modAnswerChecker.register((e, tryCheck) => {
     const splitter = e.questionType === 'reading' ? /・/g : /(?:;|\/)/g;
+    const isKanjiReading =
+      e.item.subject_category === 'Kanji' && e.questionType === 'reading';
 
     /** @type {Record<string, Evaluation[]>} */
     const evalActionMap = {};
@@ -162,10 +166,15 @@
 
     for (const actionType of ['fail', 'retry', 'pass']) {
       if (evalActionMap[actionType]) {
-        return (
+        const result =
           evalActionMap[actionType].find((r) => r.message) ||
-          evalActionMap[actionType][0]
-        );
+          evalActionMap[actionType][0];
+
+        if (actionType === 'retry' && isKanjiReading && evalActionMap['pass']) {
+          result.action = 'pass';
+        }
+
+        return result;
       }
     }
 
