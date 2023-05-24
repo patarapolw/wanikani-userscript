@@ -1,15 +1,11 @@
 // ==UserScript==
 // @name         WaniKani Multiple Answer Input (2023)
 // @namespace    http://www.wanikani.com
-// @version      2.0.4
+// @version      2.1.0
 // @description  Input multiple readings/meanings into Wanikani
 // @author       polv
-// @match        https://www.wanikani.com/extra_study/session*
-// @match        https://www.wanikani.com/review/session*
-// @match        https://www.wanikani.com/subjects/*
-// @match        https://preview.wanikani.com/extra_study/session*
-// @match        https://preview.wanikani.com/review/session*
-// @match        https://preview.wanikani.com/subjects/*
+// @match        https://www.wanikani.com/*
+// @match        https://preview.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
 // @homepage     https://greasyfork.org/en/scripts/466680-wanikani-multiple-answer-input-2023
@@ -66,6 +62,13 @@
      * @type {TryEvaluationFunction[]}
      */
     mods = [];
+    /**
+     * @type {{
+     *   oldEvaluate?: EvaluationFunction
+     *   evaluate: EvaluationFunction
+     * } | null}
+     */
+    answerChecker = null;
 
     /**
      *
@@ -81,55 +84,63 @@
     }
 
     async init() {
-      const answerChecker = await this.getAnswerChecker(60000);
-
-      answerChecker.oldEvaluate = answerChecker.evaluate.bind(answerChecker);
-
-      /** @type {(fns: TryEvaluationFunction[]) => EvaluationFunction} */
-      const evaluateWith = (fns) => {
-        return (e) => {
-          for (const fn of fns) {
-            const r = fn(e, evaluateWith(fns.filter((it) => it !== fn)));
-            if (r) return r;
-          }
-          return answerChecker.oldEvaluate(e);
-        };
-      };
-
-      answerChecker.evaluate = evaluateWith(this.mods);
-    }
-
-    /**
-     * Get answerChecker Object
-     * @param {number} timeout
-     * @returns {Promise<{
-     *   oldEvaluate: EvaluationFunction
-     *   evaluate: EvaluationFunction
-     * }>}
-     */
-    async getAnswerChecker(timeout) {
-      //Stimulus.controllers.filter((x)=>{return x.answerChecker;})[0]
-      const start = Date.now();
-
-      function waitForAnswerChecker(resolve, reject) {
+      window.addEventListener('turbo:load', (e) => {
         // @ts-ignore
-        const Stimulus = window.Stimulus;
-        if (
-          Stimulus &&
-          Stimulus.controllers.filter((x) => {
-            return x.answerChecker;
-          })[0]
-        ) {
-          var answerChecker = Stimulus.controllers.filter((x) => {
-            return x.answerChecker;
-          })[0].answerChecker;
-          resolve(answerChecker);
-        } else if (timeout && Date.now() - start >= timeout)
-          reject(new Error('timeout'));
-        else setTimeout(waitForAnswerChecker.bind(this, resolve, reject), 30);
-      }
+        const url = e.detail.url;
+        if (!url) return;
 
-      return new Promise(waitForAnswerChecker);
+        /**
+         * e.g.
+         * https://www.wanikani.com/subjects/lesson/quiz?queue=${subjectIds.join('-')}
+         * https://www.wanikani.com/subjects/review
+         * https://www.wanikani.com/subjects/extra_study?queue_type=${queueType}
+         */
+        if (/(session|quiz|review|extra_study)/.test(url)) {
+          // @ts-ignore
+          const Stimulus = window.Stimulus;
+          if (!Stimulus) return;
+
+          const startDate = +new Date();
+          const intervalId = setInterval(() => {
+            this.answerChecker =
+              Stimulus.controllers.find((x) => {
+                return x.answerChecker;
+              })?.answerChecker || null;
+
+            if (this.answerChecker) {
+              clearInterval(intervalId);
+
+              if (this.answerChecker.oldEvaluate) return;
+              const answerChecker = this.answerChecker;
+
+              console.log('Found new answerChecker');
+
+              const oldEvaluate = answerChecker.evaluate.bind(answerChecker);
+              answerChecker.oldEvaluate = oldEvaluate;
+
+              /** @type {(fns: TryEvaluationFunction[]) => EvaluationFunction} */
+              const evaluateWith = (fns) => {
+                return (e) => {
+                  for (const fn of fns) {
+                    const r = fn(
+                      e,
+                      evaluateWith(fns.filter((it) => it !== fn)),
+                    );
+                    if (r) return r;
+                  }
+                  return oldEvaluate(e);
+                };
+              };
+
+              answerChecker.evaluate = evaluateWith(this.mods);
+            }
+
+            if (startDate + 5000 < +new Date()) {
+              clearInterval(intervalId);
+            }
+          }, 500);
+        }
+      });
     }
   }
 
