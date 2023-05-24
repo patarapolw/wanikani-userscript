@@ -2,10 +2,11 @@
 // @name         WaniKani Review Button always clickable
 // @namespace    http://wanikani.com
 // @version      0.1
-// @description   Sorry! You have no items to review right now, or maybe you do.
+// @description  Sorry! You have no items to review right now, or maybe you do.
 // @author       polv
 // @match        https://www.wanikani.com/dashboard
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
+// @license      MIT
 // @grant        none
 // ==/UserScript==
 
