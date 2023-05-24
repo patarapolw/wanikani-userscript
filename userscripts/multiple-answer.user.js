@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Multiple Answer Input (2023)
 // @namespace    http://www.wanikani.com
-// @version      2.1.0
+// @version      2.1.1
 // @description  Input multiple readings/meanings into Wanikani
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -80,10 +80,6 @@
 
     constructor() {
       // Automatically init on new instance
-      this.init();
-    }
-
-    async init() {
       window.addEventListener('turbo:load', (e) => {
         // @ts-ignore
         const url = e.detail.url;
