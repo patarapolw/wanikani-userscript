@@ -4,6 +4,7 @@
   "author": "polv",
   "license": "MIT",
   "devDependencies": {
+    "@toast-ui/editor": "^3.2.2",
     "@types/jquery": "^3.5.14",
     "prettier": "^2.7.1"
   },
