@@ -7,8 +7,8 @@
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1173815
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=markdownguide.org
-// @include      *://www.wanikani.com/*
-// @include      *://preview.wanikani.com/*
+// @match        *://www.wanikani.com/*
+// @match        *://preview.wanikani.com/*
 // @license      MIT
 // @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/markdown-notes.user.js
 // @supportURL   https://community.wanikani.com/t/userscript-markdown-editor-notes-2023/62246
