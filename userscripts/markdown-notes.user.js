@@ -17,7 +17,6 @@
 
 // @ts-check
 /// <reference path="./types/item-info.d.ts" />
-/// <reference path="./types/wkof.d.ts" />
 (function () {
   'use strict';
 
@@ -51,7 +50,7 @@
   let state;
 
   const injector = wkItemInfo
-    .under('reading')
+    .under('meaning,reading')
     .spoiling('nothing')
     .append('Markdown Notes', (o) => {
       if (editor) {
