@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani JJ External Definition
 // @namespace    http://www.wanikani.com
-// @version      1.3.0
+// @version      1.4.0
 // @description  Get JJ External Definition from Weblio, Kanjipedia
 // @author       polv
 // @author       NicoleRauch
@@ -10,7 +10,7 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @license      MIT
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1173815
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1207013
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
@@ -706,13 +706,17 @@
         qType = '';
       }
 
+      const isVocabulary = state.type
+        .toLocaleLowerCase()
+        .endsWith('vocabulary');
+
       let fixedCharacters = state.characters;
-      if (state.type === 'vocabulary') {
+      if (isVocabulary) {
         fixedCharacters = fixVocab(state.characters);
       }
 
       if (state.on === 'itemPage') {
-        if (state.type === 'vocabulary') {
+        if (isVocabulary) {
           kanji = '';
           if (vocab !== fixedCharacters) {
             reading = state.reading;
@@ -735,7 +739,7 @@
           if (!kanji) return;
         }
       } else {
-        if (state.type === 'vocabulary') {
+        if (isVocabulary) {
           if (fixedCharacters !== vocab) return;
         } else if (kanji) {
           if (

@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Wanikani Anime Sentences
 // @description  Adds example sentences from anime movies and shows for vocabulary from immersionkit.com
-// @version      1.1.5
+// @version      1.2.0
 // @author       psdcon, edited by polv
 // @namespace    wkanimesentences/polv
 
 // @match        https://www.wanikani.com/*
 // @match        https://preview.wanikani.com/*
 
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1166918
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1207013
 // @copyright    2021+, Paul Connolly
 // @license      MIT; http://opensource.org/licenses/MIT
 // @run-at       document-end
@@ -161,7 +161,7 @@
   function main() {
     init(() =>
       wkItemInfo
-        .forType(`vocabulary`)
+        .forType(`vocabulary,kanaVocabulary`)
         .under(`examples`)
         .notify((item) => onExamplesVisible(item)),
     );
