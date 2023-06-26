@@ -2,7 +2,7 @@
 // @name         WaniKani Markdown Editor Notes (2023)
 // @namespace    wanikani
 // @description  Write Markdown and HTML in the notes
-// @version      2.1.0
+// @version      2.1.1
 // @require      https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1207013
@@ -198,6 +198,8 @@
 
             // @ts-ignore
             editor = new toastui.Editor(opts);
+            // @ts-ignore
+            window.wkMarkdownEditor = editor;
 
             const elSave = document.createElement('button');
             elSave.type = 'button';
@@ -260,11 +262,17 @@
 
   const isClickedClass = 'is-clicked';
 
-  add_css(/* css */ `
+  (function add_css() {
+    const style = document.createElement('style');
+
+    const K = '.toastui-editor-defaultUI';
+
+    style.append(
+      document.createTextNode(/* css */ `
     @import url("https://uicdn.toast.com/editor/latest/toastui-editor.min.css");
 
-    .toastui-editor-defaultUI {
-       /* Font list from Jisho.org */
+    ${K} {
+      /* Font list from Jisho.org */
       --md-font-family-sans-serif: "Source Han Sans", "源ノ角ゴシック", "Hiragino Sans", "HiraKakuProN-W3", "Hiragino Kaku Gothic ProN W3", "Hiragino Kaku Gothic ProN", "ヒラギノ角ゴ ProN W3", "Noto Sans", "Noto Sans CJK JP", "メイリオ", Meiryo, "游ゴシック", YuGothic, "ＭＳ Ｐゴシック", "MS PGothic", "ＭＳ ゴシック", "MS Gothic", sans-serif;
       --md-font-family-serif: "HiraMinProN-W3", "Hiragino Mincho ProN W3", "Hiragino Mincho ProN", "ヒラギノ明朝 ProN W3", "游明朝", YuMincho, "HG明朝E", "ＭＳ Ｐ明朝", "MS PMincho", "MS 明朝", "MS Mincho", serif;
       --md-font-family: var(--md-font-family-sans-serif);
@@ -272,38 +280,44 @@
       background-color: #fff;
     }
 
-    .toastui-editor-defaultUI .ProseMirror {
+    ${K} .ProseMirror {
       font-family: var(--md-font-family);
     }
 
-    .toastui-editor-defaultUI .toastui-editor-md-preview * {
+    ${K} .toastui-editor-md-preview * {
       font-family: var(--md-font-family);
     }
 
-    .toastui-editor-defaultUI .serif {
+    ${K} .serif {
       font-family: var(--md-font-family-serif);
     }
 
-    .toastui-editor-defaultUI .sans,
-    .toastui-editor-defaultUI .sans-serif {
+    ${K} .sans,
+    ${K} .sans-serif {
       font-family: var(--md-font-family-sans-serif);
     }
 
-    .toastui-editor-defaultUI button.save-button {
+    ${K} big {
+      font-size: 1.7em;
+    }
+
+    ${K} small {
+      font-size: 0.7em;
+    }
+
+    ${K} button.save-button {
       position: relative;
       background: transparent;
       font-size: 1em;
       bottom: 0.5em;
     }
 
-    .toastui-editor-defaultUI button.save-button.${isClickedClass} {
+    ${K} button.save-button.${isClickedClass} {
       background-color: gray;
     }
-  `);
+    `),
+    );
 
-  function add_css(css) {
-    const style = document.createElement('style');
-    style.append(document.createTextNode(css));
     document.head.append(style);
-  }
+  })();
 })();
