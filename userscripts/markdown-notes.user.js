@@ -2,7 +2,7 @@
 // @name         WaniKani Markdown Editor Notes (2023)
 // @namespace    wanikani
 // @description  Write Markdown and HTML in the notes
-// @version      2.0.2
+// @version      2.0.3
 // @require      https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1207013
@@ -161,9 +161,27 @@
       background-color: #fff;
     }
 
-    .toastui-editor-defaultUI .ProseMirror,
+    .toastui-editor-defaultUI .ProseMirror {
+      font-family: var(--md-font-family);
+    }
+
+    .toastui-editor-defaultUI .toastui-editor-md-preview {
+      zoom: 1.5;
+      padding-left: 1rem;
+      margin-top: -0.5rem;
+    }
+
     .toastui-editor-defaultUI .toastui-editor-md-preview * {
       font-family: var(--md-font-family);
+    }
+
+    .toastui-editor-defaultUI .serif {
+      font-family: var(--md-font-family-serif);
+    }
+
+    .toastui-editor-defaultUI .sans,
+    .toastui-editor-defaultUI .sans-serif {
+      font-family: var(--md-font-family-sans-serif);
     }
 
     .toastui-editor-defaultUI button.save-button {
