@@ -191,15 +191,19 @@
 
     let readings = e.item.auxiliary_readings || [];
     let meanings = e.item.auxiliary_meanings;
-
-    const norm = (s) => s.toLocaleLowerCase().replace(/\W/g, ' ').trim();
+    let synonyms = e.userSynonyms;
 
     for (const { questionType, ...it } of entry.aux) {
       if (questionType === 'reading') {
-        readings = readings.filter((a) => norm(a.reading) !== norm(it.text));
+        readings = readings.filter(
+          (a) => normalize(a.reading) !== normalize(it.text),
+        );
         readings.unshift({ ...it, reading: it.text });
       } else {
-        meanings = meanings.filter((a) => norm(a.meaning) !== norm(it.text));
+        meanings = meanings.filter(
+          (a) => normalize(a.meaning) !== normalize(it.text),
+        );
+        synonyms = synonyms.filter((s) => normalize(s) !== normalize(it.text));
         meanings.unshift({ ...it, meaning: it.text });
       }
     }
@@ -208,6 +212,7 @@
       e.item.auxiliary_readings = readings;
     }
     e.item.auxiliary_meanings = meanings;
+    e.userSynonyms = synonyms;
 
     return tryCheck(e);
   });
@@ -261,10 +266,7 @@
           : true,
       )
       .map((it) => {
-        const t = it.type.replace(
-          /[a-z]+/gi,
-          (p) => p[0].toLocaleUpperCase() + p.substring(1),
-        );
+        const t = capitalize(it.type);
         listing[t] = listing[t] || [];
         listing[t].push(it.text);
       });
@@ -324,6 +326,8 @@
 
     if (!subject_id) return;
 
+    let isFirstRender = true;
+
     updateAux = () => {
       updateListing();
 
@@ -338,8 +342,14 @@
       const elInput = elContainer.querySelector('input[type="text"]');
       if (!(elInput instanceof HTMLInputElement)) return;
 
-      elInput.value = answerCheckerParam?.response || '';
+      if (isFirstRender && answerCheckerParam?.questionType === 'meaning') {
+        elInput.value = answerCheckerParam?.response || '';
+        isFirstRender = false;
+      }
       elInput.autocomplete = 'off';
+      elInput.onkeydown = (ev) => {
+        ev.stopPropagation();
+      };
 
       elForm.onsubmit = (ev) => {
         let [, sign, str] = elInput.value.split(/([\-?])/);
@@ -414,10 +424,7 @@
           const h = document.createElement('h2');
           h.className =
             'wk-title wk-title--medium wk-title--underlined wk-title-custom';
-          h.innerText = a.type.replace(
-            /[a-z]+/gi,
-            (p) => p[0].toLocaleUpperCase() + p.substring(1),
-          );
+          h.innerText = capitalize(a.type);
 
           elExtraContainer.append(h);
           elExtraContainer.append(elAux);
@@ -456,52 +463,63 @@
           ? item.auxiliary_readings || []
           : item.auxiliary_meanings;
 
-      elExtraContainer.append(
-        (() => {
-          const elDetails = document.createElement('details');
+      if (aux.length) {
+        elExtraContainer.append(
+          (() => {
+            const elDetails = document.createElement('details');
 
-          const title = document.createElement('summary');
-          elDetails.append(title);
-          title.innerText = `Auxiliary ${questionType}s`;
+            const title = document.createElement('summary');
+            elDetails.append(title);
+            title.innerText = `Auxiliary ${questionType}s`;
 
-          const elButtonSet = document.createElement('div');
-          elDetails.append(elButtonSet);
-          elButtonSet.className = 'user-synonyms__synonym-buttons';
+            const elButtonSet = document.createElement('div');
+            elDetails.append(elButtonSet);
+            elButtonSet.className = 'user-synonyms__synonym-buttons';
 
-          for (const a of aux) {
-            let elAux = elDetails.querySelector(
-              `[data-${entryClazz}="wk-${a.type}"]`,
-            );
-            if (!elAux) {
-              elAux = document.createElement('div');
-              elAux.className = 'user-synonyms__synonym-buttons';
-              elAux.setAttribute(`data-${entryClazz}`, `wk-${a.type}`);
-
-              const h = document.createElement('h2');
-              h.className =
-                'wk-title wk-title--medium wk-title--underlined wk-title-custom';
-              h.innerText = a.type.replace(
-                /[a-z]+/gi,
-                (p) => p[0].toLocaleUpperCase() + p.substring(1),
+            for (const a of aux) {
+              let elAux = elDetails.querySelector(
+                `[data-${entryClazz}="wk-${a.type}"]`,
               );
+              if (!elAux) {
+                elAux = document.createElement('div');
+                elAux.className = 'user-synonyms__synonym-buttons';
+                elAux.setAttribute(`data-${entryClazz}`, `wk-${a.type}`);
 
-              elDetails.append(h);
-              elDetails.append(elAux);
+                const h = document.createElement('h2');
+                h.className =
+                  'wk-title wk-title--medium wk-title--underlined wk-title-custom';
+                h.innerText = capitalize(a.type);
+
+                elDetails.append(h);
+                elDetails.append(elAux);
+              }
+
+              const span = document.createElement('span');
+              elAux.append(span);
+              span.className = 'user-synonym__button-text';
+              span.innerText =
+                // @ts-ignore
+                questionType === 'reading' ? a.reading : a.meaning;
             }
-
-            const span = document.createElement('span');
-            elAux.append(span);
-            span.className = 'user-synonym__button-text';
-            // @ts-ignore
-            span.innerText = questionType === 'reading' ? a.reading : a.meaning;
-          }
-          return elDetails;
-        })(),
-      );
+            return elDetails;
+          })(),
+        );
+      }
     };
 
     updateAux();
   });
+
+  function capitalize(s) {
+    return s.replace(
+      /[a-z]+/gi,
+      (p) => p[0].toLocaleUpperCase() + p.substring(1),
+    );
+  }
+
+  function normalize(s) {
+    return s.toLocaleLowerCase().replace(/\W/g, ' ').trim();
+  }
 
   (function add_css() {
     const style = document.createElement('style');
