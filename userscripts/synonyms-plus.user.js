@@ -148,7 +148,116 @@
 
   //////////////////////////////////////////////////////////////////////////////
 
+  /** @type {EvaluationParam | null} */
+  let answerCheckerParam = null;
+
   modAnswerChecker.register((e, tryCheck) => {
+    answerCheckerParam = e;
     return null;
   });
+
+  addEventListener('willShowNextQuestion', (ev) => {
+    answerCheckerParam = null;
+  });
+
+  addEventListener('turbo:load', (ev) => {
+    // @ts-ignore
+    const url = e.detail.url;
+    if (!url) return;
+
+    /**
+     * e.g.
+     * https://www.wanikani.com/subjects/lesson/quiz?queue=${subjectIds.join('-')}
+     * https://www.wanikani.com/subjects/review
+     * https://www.wanikani.com/subjects/extra_study?queue_type=${queueType}
+     */
+    if (!/(session|quiz|review|extra_study)/.test(url)) {
+      answerCheckerParam = null;
+    }
+  });
+
+  addEventListener('turbo:frame-render', (ev) => {
+    const el = /** @type {HTMLElement} */ (ev.target);
+    // @ts-ignore
+    const { fetchResponse } = ev.detail;
+
+    const [, subject_id] =
+      /wanikani\.com\/user_synonyms\/new\?.*subject_id=(\d+)/.exec(
+        fetchResponse.response.url,
+      ) || [];
+    if (!subject_id) return;
+
+    const elContainer = el.querySelector('.user-synonyms__form_container');
+    if (!elContainer) return;
+
+    const elForm = el.querySelector('form.user-synonyms__form');
+    if (!(elForm instanceof HTMLFormElement)) return;
+
+    const elInput = el.querySelector('input[type="text"]');
+    if (!(elInput instanceof HTMLInputElement)) return;
+
+    elForm.addEventListener('submit', (ev) => {
+      let [, sign, str] = elInput.value.split(/([\-?])/);
+      if (str) {
+        ev.preventDefault();
+      }
+    });
+
+    if (answerCheckerParam) {
+      const { questionType, item } = answerCheckerParam;
+      const aux =
+        questionType === 'reading'
+          ? item.auxiliary_readings || []
+          : item.auxiliary_meanings;
+
+      elContainer.append(
+        (() => {
+          const el = document.createElement('details');
+
+          const title = document.createElement('summary');
+          el.append(title);
+          title.innerText = 'WK Auxiliary';
+          title.style.cursor = 'pointer';
+
+          const elButtonSet = document.createElement('div');
+          el.append(elButtonSet);
+          elButtonSet.className = 'user-synonyms__synonym-buttons';
+
+          for (const a of aux) {
+            const elButton = document.createElement('a');
+            elButton.className = 'user-synonyms__synonym-button';
+            elButton.setAttribute('data-auxiliary-type', a.type);
+
+            const btn = document.createElement('i');
+            btn.className = 'wk-icon fa-regular fa-times';
+            elButton.append(btn);
+
+            const label = document.createElement('span');
+            label.className = 'user-synonym__button-text';
+            label.innerText = 'reading' in a ? a.reading : a.meaning;
+            elButton.append(label);
+
+            elButtonSet.append(elButton);
+          }
+          return el;
+        })(),
+      );
+    }
+  });
+
+  (function add_css() {
+    const style = document.createElement('style');
+    const css = document.createTextNode(/* css */ `
+    .user-synonyms__synonym-buttons [data-auxiliary-type^="w"] {
+      background-color: yellow;
+    }
+
+    .user-synonyms__synonym-buttons [data-auxiliary-type^="b"] {
+      background-color: red;
+    }
+    `);
+
+    style.append(css);
+    document.head.append(style);
+  })();
 })();
