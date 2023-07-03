@@ -259,17 +259,11 @@
 
     const listing = {};
 
-    entry.aux
-      .filter((it) =>
-        answerCheckerParam
-          ? it.questionType === answerCheckerParam.questionType
-          : true,
-      )
-      .map((it) => {
-        const t = capitalize(it.type);
-        listing[t] = listing[t] || [];
-        listing[t].push(it.text);
-      });
+    entry.aux.map((it) => {
+      const t = capitalize(it.type);
+      listing[t] = listing[t] || [];
+      listing[t].push(it.text);
+    });
 
     for (const [k, vs] of Object.entries(listing)) {
       const div = document.createElement('div');
@@ -306,6 +300,7 @@
   addEventListener('turbo:frame-render', (ev) => {
     // @ts-ignore
     const { fetchResponse } = ev.detail;
+    console.log(fetchResponse);
 
     let m;
     if (
@@ -318,13 +313,18 @@
     }
 
     const [, subject_id] =
-      /wanikani\.com\/user_synonyms\/new\?.*subject_id=(\d+)/.exec(
+      /wanikani\.com\/user_synonyms.*\?.*subject_id=(\d+)/.exec(
         fetchResponse.response.url,
-      ) ||
-      /wanikani\.com\/subject_info\/(\d+)/.exec(fetchResponse.response.url) ||
-      [];
+      ) || [];
 
     if (!subject_id) return;
+
+    db.synonym.get(subject_id).then((it) => {
+      if (it) {
+        entry = it;
+        updateAux();
+      }
+    });
 
     let isFirstRender = true;
 
@@ -355,18 +355,7 @@
         let [, sign, str] = elInput.value.split(/([\-?])/);
         if (!str) return;
 
-        let questionType = answerCheckerParam?.questionType;
-        if (!questionType) {
-          if (/^[\p{sc=Katakana}\p{sc=Hiragana}]+$/u.test(str)) {
-            const kataDiff = 'ア'.charCodeAt(0) - 'あ'.charCodeAt(0);
-            str = str.replace(/\p{sc=Katakana}/gu, (p) =>
-              String.fromCharCode(p.charCodeAt(0) - kataDiff + 1),
-            );
-            questionType = 'reading';
-          } else {
-            questionType = 'meaning';
-          }
-        }
+        const questionType = 'meaning';
 
         /** @type {AuxiliaryType | null} */
         let type = null;
@@ -409,10 +398,6 @@
       elExtraContainer.textContent = '';
 
       for (const a of entry.aux) {
-        if (answerCheckerParam) {
-          if (answerCheckerParam.questionType !== a.questionType) continue;
-        }
-
         let elAux = elExtraContainer.querySelector(
           `[data-${entryClazz}="${a.type}"]`,
         );
@@ -435,12 +420,7 @@
         btn.className = 'user-synonyms__synonym-button';
 
         btn.addEventListener('click', () => {
-          entry.aux = entry.aux.filter(
-            (a0) =>
-              a0.questionType !== questionType ||
-              a0.type !== a.type ||
-              a0.text !== a.text,
-          );
+          entry.aux = entry.aux.filter((a0) => a0.text !== a.text);
           db.synonym.put(entry, subject_id);
           updateAux();
         });
@@ -457,11 +437,8 @@
 
       if (!answerCheckerParam) return;
 
-      const { questionType, item } = answerCheckerParam;
-      const aux =
-        questionType === 'reading'
-          ? item.auxiliary_readings || []
-          : item.auxiliary_meanings;
+      const { item } = answerCheckerParam;
+      const aux = item.auxiliary_meanings;
 
       if (aux.length) {
         elExtraContainer.append(
@@ -470,7 +447,7 @@
 
             const title = document.createElement('summary');
             elDetails.append(title);
-            title.innerText = `Auxiliary ${questionType}s`;
+            title.innerText = `Auxiliary meanings`;
 
             const elButtonSet = document.createElement('div');
             elDetails.append(elButtonSet);
@@ -497,9 +474,7 @@
               const span = document.createElement('span');
               elAux.append(span);
               span.className = 'user-synonym__button-text';
-              span.innerText =
-                // @ts-ignore
-                questionType === 'reading' ? a.reading : a.meaning;
+              span.innerText = a.meaning;
             }
             return elDetails;
           })(),
