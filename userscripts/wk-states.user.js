@@ -85,6 +85,24 @@
             a.innerText = 'Lesson Quiz';
             return a;
           })(),
+          document.createTextNode('・'),
+          (() => {
+            const a = document.createElement('a');
+            a.href = `https://www.wanikani.com/subjects/review?queue=${o.id}`;
+            a.rel = 'noreferer';
+            a.target = '_blank';
+            a.innerText = 'Review';
+            return a;
+          })(),
+          document.createTextNode('・'),
+          (() => {
+            const a = document.createElement('a');
+            a.href = `https://www.wanikani.com/subjects/extra_study?Reorder%20Omega&queue_type=recent_lessons&queue=${o.id}`;
+            a.rel = 'noreferer';
+            a.target = '_blank';
+            a.innerText = 'Extra Study';
+            return a;
+          })(),
         );
 
         return p;
