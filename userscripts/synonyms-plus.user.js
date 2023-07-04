@@ -189,30 +189,27 @@
     answerCheckerParam = e;
     e = JSON.parse(JSON.stringify(e));
 
-    let readings = e.item.auxiliary_readings || [];
-    let meanings = e.item.auxiliary_meanings;
-    let synonyms = e.userSynonyms;
+    e.item.readings = e.item.readings || [];
+    e.item.auxiliary_readings = e.item.auxiliary_readings || [];
 
     for (const { questionType, ...it } of entry.aux) {
       if (questionType === 'reading') {
-        readings = readings.filter(
-          (a) => normalize(a.reading) !== normalize(it.text),
+        e.item.readings = e.item.readings.filter((a) => a !== it.text);
+        e.item.auxiliary_readings = e.item.auxiliary_readings.filter(
+          (a) => a.reading !== it.text,
         );
-        readings.unshift({ ...it, reading: it.text });
+        e.item.auxiliary_readings.push({ ...it, reading: it.text });
       } else {
-        meanings = meanings.filter(
-          (a) => normalize(a.meaning) !== normalize(it.text),
+        const text = normalize(it.text);
+
+        e.item.meanings = e.item.meanings.filter((a) => normalize(a) !== text);
+        e.item.auxiliary_meanings = e.item.auxiliary_meanings.filter(
+          (a) => normalize(a.meaning) !== text,
         );
-        synonyms = synonyms.filter((s) => normalize(s) !== normalize(it.text));
-        meanings.unshift({ ...it, meaning: it.text });
+        e.userSynonyms = e.userSynonyms.filter((s) => normalize(s) !== text);
+        e.item.auxiliary_meanings.push({ ...it, meaning: it.text });
       }
     }
-
-    if (readings.length) {
-      e.item.auxiliary_readings = readings;
-    }
-    e.item.auxiliary_meanings = meanings;
-    e.userSynonyms = synonyms;
 
     return tryCheck(e);
   });
@@ -240,21 +237,19 @@
     }
   });
 
-  /** @type {HTMLDivElement | null} */
-  let divList = null;
-
   const updateListing = () => {
     const frame = document.querySelector(
-      '.subject-section__meanings:nth-child(2)',
-    );
-    if (frame) {
-      if (!divList) {
-        divList = document.createElement('div');
-        frame.insertAdjacentElement('afterend', divList);
-      }
+      'turbo-frame.user-synonyms',
+    )?.parentElement;
+    if (!frame?.parentElement) return;
+
+    let divList = frame.parentElement.querySelector(`.${entryClazz}`);
+    if (!divList) {
+      divList = document.createElement('div');
+      divList.className = entryClazz;
+      frame.insertAdjacentElement('beforebegin', divList);
     }
 
-    if (!divList) return;
     divList.textContent = '';
 
     const listing = {};
@@ -300,7 +295,6 @@
   addEventListener('turbo:frame-render', (ev) => {
     // @ts-ignore
     const { fetchResponse } = ev.detail;
-    console.log(fetchResponse);
 
     let m;
     if (
@@ -348,6 +342,7 @@
       }
       elInput.autocomplete = 'off';
       elInput.onkeydown = (ev) => {
+        ev.stopImmediatePropagation();
         ev.stopPropagation();
       };
 
@@ -375,7 +370,10 @@
 
           if (
             !entry.aux.find(
-              (a) => a.questionType === questionType && a.type === type,
+              (a) =>
+                a.questionType === questionType &&
+                a.type === type &&
+                a.text === str,
             )
           ) {
             entry.aux.push({
@@ -389,7 +387,7 @@
         }
       };
 
-      let elExtraContainer = document.querySelector(`.${entryClazz}`);
+      let elExtraContainer = elContainer.querySelector(`.${entryClazz}`);
       if (!elExtraContainer) {
         elExtraContainer = document.createElement('div');
         elExtraContainer.className = entryClazz;
@@ -500,34 +498,39 @@
     const style = document.createElement('style');
     style.append(
       document.createTextNode(/* css */ `
-    .user-synonym__button-text + .user-synonym__button-text::before {
-      content: ', ';
-    }
+      :root {
+        --color-modal-mask: unset;
+      }
 
-    .user-synonyms__form_container details,
-    .user-synonyms__form_container .wk-title-custom {
-      margin-top: 1em;
-    }
+      .wk-modal__content {
+        /* top: unset;
+        bottom: 0; */
+        border-radius: 5px;
+        box-shadow: 0 0 4px 2px gray;
+      }
 
-    .user-synonyms__form_container summary {
-      cursor: pointer;
-    }
+      .subject-section__meanings-title {
+        min-width: 6em;
+      }
 
-    :root {
-      --color-modal-mask: unset;
-    }
+      .${entryClazz} .user-synonym__button-text + .user-synonym__button-text::before,
+      .${entryClazz} .user-synonyms_item + .user-synonyms_item::before {
+        content: ', ';
+      }
 
-    .wk-modal__content {
-      /* top: unset;
-      bottom: 0; */
-      border-radius: 5px;
-      box-shadow: 0 0 4px 2px gray;
-    }
+      .${entryClazz} details,
+      .${entryClazz} .wk-title-custom {
+        margin-top: 1em;
+      }
 
-    .user-synonyms__form_container::-webkit-scrollbar {
-      display: none;
-    }
-    `),
+      .${entryClazz} summary {
+        cursor: pointer;
+      }
+
+      .${entryClazz}  .user-synonyms__form_container::-webkit-scrollbar {
+        display: none;
+      }
+      `),
     );
     document.head.append(style);
   })();
