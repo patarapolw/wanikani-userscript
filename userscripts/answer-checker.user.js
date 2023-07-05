@@ -8,6 +8,7 @@
 // @match        https://preview.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
+// @homepage     https://greasyfork.org/en/scripts/470201-wanikani-answer-checker
 // @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/answer-checker.user.js
 // @grant        none
 // ==/UserScript==
