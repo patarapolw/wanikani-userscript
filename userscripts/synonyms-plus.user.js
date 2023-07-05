@@ -9,8 +9,8 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @homepage     https://greasyfork.org/en/scripts/?
-// @supportURL   https://community.wanikani.com/t/?/?
+// @homepage     https://greasyfork.org/en/scripts/470180-wanikani-user-synonyms
+// @supportURL   https://community.wanikani.com/t/userscript-user-synonyms/62481
 // @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/synonyms-plus.user.js
 // @grant        none
 // ==/UserScript==
@@ -185,6 +185,8 @@
     aux: [],
   };
 
+  let isFirstRender = false;
+
   modAnswerChecker.register((e, tryCheck) => {
     answerCheckerParam = e;
     e = JSON.parse(JSON.stringify(e));
@@ -219,6 +221,7 @@
     // @ts-ignore
     entry.id = String(ev.detail.subject.id);
     entry.aux = [];
+    isFirstRender = true;
 
     db.synonym.get(entry.id).then((it) => {
       if (it) {
@@ -296,12 +299,7 @@
     // @ts-ignore
     const { fetchResponse } = ev.detail;
 
-    let m;
-    if (
-      (m = /wanikani\.com\/subject_info\/(\d+)/.exec(
-        fetchResponse.response.url,
-      ))
-    ) {
+    if (/wanikani\.com\/subject_info\/(\d+)/.test(fetchResponse.response.url)) {
       updateListing();
       return;
     }
@@ -320,8 +318,6 @@
       }
     });
 
-    let isFirstRender = true;
-
     updateAux = () => {
       updateListing();
 
@@ -338,15 +334,25 @@
 
       if (isFirstRender && answerCheckerParam?.questionType === 'meaning') {
         elInput.value = answerCheckerParam?.response || '';
-        isFirstRender = false;
       }
+
       elInput.autocomplete = 'off';
       elInput.onkeydown = (ev) => {
+        if (ev.key === 'Escape' || ev.code === 'Escape') {
+          if (elInput.value) {
+            elInput.value = '';
+          } else {
+            return;
+          }
+        }
+
         ev.stopImmediatePropagation();
         ev.stopPropagation();
       };
 
       elForm.onsubmit = (ev) => {
+        isFirstRender = false;
+
         let [, sign, str] = elInput.value.split(/([\-?])/);
         if (!str) return;
 
