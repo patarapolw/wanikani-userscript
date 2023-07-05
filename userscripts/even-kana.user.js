@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Do You Even Kana? (ModAnswerChecker register)
 // @namespace    http://www.wanikani.com
-// @version      1.0.0
+// @version      1.1.0
 // @description  Check that the okurigana matches the answer
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -12,6 +12,7 @@
 // @match        https://preview.wanikani.com/subjects/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
+// @require      https://greasyfork.org/scripts/470201-wanikani-answer-checker/code/WaniKani%20Answer%20Checker.js?version=1215595
 // @homepage     https://greasyfork.org/en/scripts/465750-wanikani-please-check-spelling
 // @supportURL   https://community.wanikani.com/t/userscript-plz-check-spelling-no-cigar-but-accept-plural-and-no-space-variants/61763
 // @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/plz-check-spelling.user.js
@@ -19,131 +20,15 @@
 // ==/UserScript==
 
 // @ts-check
+/// <reference path="./types/answer-checker.d.ts" />
 (function () {
   'use strict';
-
-  /** @typedef {'whitelist' | 'blacklist' | 'warning'} AuxiliaryType */
-
-  /**
-   * @typedef {{
-   *   questionType: string
-   *   item: {
-   *     type: string
-   *     characters: string
-   *     readings?: string[]
-   *     auxiliary_readings?: {
-   *       reading: string
-   *       type: AuxiliaryType
-   *     }[]
-   *     meanings: string[]
-   *     auxiliary_meanings: {
-   *       meaning: string
-   *       type: AuxiliaryType
-   *     }[]
-   *   }
-   *   userSynonyms: string[]
-   *   response: string
-   * }} EvaluationParam
-   */
-
-  /**
-   * @typedef {{
-   *   action: 'pass' | 'fail' | 'retry'
-   *   message: null | {
-   *     text: string
-   *     type: 'itemInfoException' | 'answerException'
-   *   }
-   * }} Evaluation
-   */
-
-  /** @typedef {((e: EvaluationParam) => Evaluation)} EvaluationFunction */
-  /** @typedef {((e: EvaluationParam, check: EvaluationFunction) => Evaluation | null)} TryEvaluationFunction */
-
-  class ModAnswerChecker {
-    /**
-     * @type {TryEvaluationFunction[]}
-     */
-    mods = [];
-
-    /**
-     *
-     * @param {TryEvaluationFunction} fn
-     */
-    register(fn) {
-      this.mods.push(fn);
-    }
-
-    constructor() {
-      // Automatically init on new instance
-      this.init();
-    }
-
-    async init() {
-      const answerChecker = await this.getAnswerChecker(60000);
-
-      answerChecker.oldEvaluate = answerChecker.evaluate.bind(answerChecker);
-
-      /** @type {(fns: TryEvaluationFunction[]) => EvaluationFunction} */
-      const evaluateWith = (fns) => {
-        return (e) => {
-          for (const fn of fns) {
-            const r = fn(e, evaluateWith(fns.filter((it) => it !== fn)));
-            if (r) return r;
-          }
-          return answerChecker.oldEvaluate(e);
-        };
-      };
-
-      answerChecker.evaluate = evaluateWith(this.mods);
-    }
-
-    /**
-     * Get answerChecker Object
-     * @param {number} timeout
-     * @returns {Promise<{
-     *   oldEvaluate: EvaluationFunction
-     *   evaluate: EvaluationFunction
-     * }>}
-     */
-    async getAnswerChecker(timeout) {
-      //Stimulus.controllers.filter((x)=>{return x.answerChecker;})[0]
-      const start = Date.now();
-
-      function waitForAnswerChecker(resolve, reject) {
-        // @ts-ignore
-        const Stimulus = window.Stimulus;
-        if (
-          Stimulus &&
-          Stimulus.controllers.filter((x) => {
-            return x.answerChecker;
-          })[0]
-        ) {
-          var answerChecker = Stimulus.controllers.filter((x) => {
-            return x.answerChecker;
-          })[0].answerChecker;
-          resolve(answerChecker);
-        } else if (timeout && Date.now() - start >= timeout)
-          reject(new Error('timeout'));
-        else setTimeout(waitForAnswerChecker.bind(this, resolve, reject), 30);
-      }
-
-      return new Promise(waitForAnswerChecker);
-    }
-  }
-
-  // @ts-ignore
-  window.modAnswerChecker = window.modAnswerChecker || new ModAnswerChecker();
-  /** @type {ModAnswerChecker} */
-  // @ts-ignore
-  const modAnswerChecker = window.modAnswerChecker;
-
-  //////////////////////////////////////////////////////////////////////////////
 
   /**
    * !Okurigana Matcher section
    * @see https://community.wanikani.com/t/do-you-even-kana-okurigana-matcher/8440
    */
-  modAnswerChecker.register((e) => {
+  window.modAnswerChecker.register((e) => {
     if (e.questionType === 'reading' && e.item.type === 'Vocabulary') {
       if (!makeRegex(e.item.characters).test(e.response.trim())) {
         return {
