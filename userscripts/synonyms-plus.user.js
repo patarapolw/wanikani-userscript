@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani User Synonyms++
 // @namespace    http://www.wanikani.com
-// @version      0.1.1
+// @version      0.1.2
 // @description  Better and Not-only User Synonyms
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -411,6 +411,14 @@
         min-width: 6em;
       }
 
+      .user-synonyms__form_container::-webkit-scrollbar {
+        display: none;
+      }
+
+      .${entryClazz} .user-synonym__button-text {
+        line-height: 1.5em;
+      }
+
       .${entryClazz} .user-synonym__button-text + .user-synonym__button-text::before,
       .${entryClazz} .user-synonyms_item + .user-synonyms_item::before {
         content: ', ';
@@ -423,10 +431,6 @@
 
       .${entryClazz} summary {
         cursor: pointer;
-      }
-
-      .${entryClazz}  .user-synonyms__form_container::-webkit-scrollbar {
-        display: none;
       }
       `),
     );
