@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani User Synonyms++
 // @namespace    http://www.wanikani.com
-// @version      0.2.1
+// @version      0.2.2
 // @description  Better and Not-only User Synonyms
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -144,6 +144,8 @@
           (a) => a.questionType !== 'meaning' && a.text !== r,
         );
 
+        let isChanged = false;
+
         if (['kunyomi', 'onyomi', 'nanori'].includes(questionType)) {
           if (wkSynonyms.entry[questionType]) {
             const newArr = wkSynonyms.entry[questionType].filter(
@@ -152,16 +154,15 @@
             if (newArr.length < wkSynonyms.entry[questionType].length) {
               wkSynonyms.entry[questionType] = newArr;
               wkSynonyms.entry.aux = newAux;
-              db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
-              return 'removed';
+              isChanged = true;
             }
           }
-        } else {
-          if (newAux.length < wkSynonyms.entry.aux.length) {
-            wkSynonyms.entry.aux = newAux;
-            db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
-            return 'removed';
-          }
+        }
+
+        if (isChanged || newAux.length < wkSynonyms.entry.aux.length) {
+          wkSynonyms.entry.aux = newAux;
+          db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
+          return 'removed';
         }
 
         return 'not removed';
@@ -189,6 +190,10 @@
       id: '',
       aux: [],
     }),
+    commit() {
+      if (!this.entry.id) return;
+      db.synonym.put(this.entry, this.entry.id);
+    },
   };
   Object.assign(window, { wkSynonyms });
 
@@ -214,7 +219,6 @@
         e.item.auxiliary_readings = e.item.auxiliary_readings.filter(
           (a) => !rs.includes(a.reading),
         );
-        aux = aux.filter((a) => !rs.includes(a.text));
       }
     }
 
@@ -229,11 +233,27 @@
         e.userSynonyms = e.userSynonyms.filter((s) => normalize(s) !== text);
         e.item.auxiliary_meanings.push({ ...it, meaning: it.text });
       } else {
-        e.item.readings = e.item.readings.filter((a) => a !== it.text);
-        e.item.auxiliary_readings = e.item.auxiliary_readings.filter(
+        if (e.item.readings) {
+          e.item.readings = e.item.readings.filter((a) => a !== it.text);
+        }
+
+        for (const kanjiReading of /** @type {('kunyomi' | 'onyomi' | 'nanori')[]} */ ([
+          'kunyomi',
+          'onyomi',
+          'nanori',
+        ])) {
+          const rs = e.item[kanjiReading];
+          if (rs) {
+            e.item[kanjiReading] = rs.filter((a) => a !== it.text);
+          }
+        }
+
+        let { auxiliary_readings = [] } = e.item;
+        auxiliary_readings = auxiliary_readings.filter(
           (a) => a.reading !== it.text,
         );
-        e.item.auxiliary_readings.push({ ...it, reading: it.text });
+        auxiliary_readings.push({ ...it, reading: it.text });
+        e.item.auxiliary_readings = auxiliary_readings;
       }
     }
 
