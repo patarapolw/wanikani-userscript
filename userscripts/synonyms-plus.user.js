@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani User Synonyms++
 // @namespace    http://www.wanikani.com
-// @version      0.2.2
+// @version      0.2.3
 // @description  Better and Not-only User Synonyms
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -237,23 +237,25 @@
           e.item.readings = e.item.readings.filter((a) => a !== it.text);
         }
 
-        for (const kanjiReading of /** @type {('kunyomi' | 'onyomi' | 'nanori')[]} */ ([
-          'kunyomi',
-          'onyomi',
-          'nanori',
-        ])) {
-          const rs = e.item[kanjiReading];
-          if (rs) {
-            e.item[kanjiReading] = rs.filter((a) => a !== it.text);
+        if (!(e.item.type === 'Kanji' && it.type === 'whitelist')) {
+          for (const kanjiReading of /** @type {('kunyomi' | 'onyomi' | 'nanori')[]} */ ([
+            'kunyomi',
+            'onyomi',
+            'nanori',
+          ])) {
+            const rs = e.item[kanjiReading];
+            if (rs) {
+              e.item[kanjiReading] = rs.filter((a) => a !== it.text);
+            }
           }
-        }
 
-        let { auxiliary_readings = [] } = e.item;
-        auxiliary_readings = auxiliary_readings.filter(
-          (a) => a.reading !== it.text,
-        );
-        auxiliary_readings.push({ ...it, reading: it.text });
-        e.item.auxiliary_readings = auxiliary_readings;
+          let { auxiliary_readings = [] } = e.item;
+          auxiliary_readings = auxiliary_readings.filter(
+            (a) => a.reading !== it.text,
+          );
+          auxiliary_readings.push({ ...it, reading: it.text });
+          e.item.auxiliary_readings = auxiliary_readings;
+        }
       }
     }
 
