@@ -5,6 +5,9 @@ interface EvaluationParam {
   item: {
     type: string;
     characters: string;
+    kunyomi?: string[];
+    onyomi?: string[];
+    nanori?: string[];
     readings?: string[];
     auxiliary_readings?: {
       reading: string;
