@@ -70,37 +70,55 @@
       reading(
         r,
         type = /** @type {AuxiliaryType} */ ('whitelist'),
-        kanjiReading,
+        questionType = 'reading',
       ) {
         if (!wkSynonyms.entry.id) return;
-        if (!r) return;
 
         r = toHiragana(r).trim();
         if (!/^\p{sc=Hiragana}+$/u.test(r)) return;
 
-        wkSynonyms.remove._reading(r, type, kanjiReading);
+        wkSynonyms.remove.reading(r, type, questionType);
 
         if (type === 'whitelist') {
-          if (['kunyomi', 'onyomi', 'nanori'].includes(kanjiReading)) {
-            wkSynonyms.entry[kanjiReading] = [
-              ...(wkSynonyms.entry[kanjiReading] || []),
+          if (['kunyomi', 'onyomi', 'nanori'].includes(questionType)) {
+            wkSynonyms.entry[questionType] = [
+              ...(wkSynonyms.entry[questionType] || []),
               r,
             ];
           }
-          wkSynonyms.entry.aux.push({
-            questionType: 'reading',
-            text: r,
-            type,
-            message: '',
-          });
-        } else {
-          wkSynonyms.entry.aux.push({
-            questionType: 'reading',
-            text: r,
-            type,
-            message: 'Not the reading YOU are looking for',
-          });
         }
+
+        wkSynonyms.entry.aux.push({
+          questionType,
+          text: r,
+          type,
+          message:
+            type === 'whitelist'
+              ? ''
+              : `Not the ${questionType} YOU are looking for`,
+        });
+
+        db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
+        return 'added';
+      },
+      meaning(r, type = /** @type {AuxiliaryType} */ ('whitelist')) {
+        if (!wkSynonyms.entry.id) return;
+
+        r = r.trim();
+        if (!r) return;
+
+        wkSynonyms.remove.meaning(r);
+
+        const questionType = 'meaning';
+        wkSynonyms.entry.aux.push({
+          questionType,
+          text: r,
+          type,
+          message:
+            type === 'whitelist'
+              ? ''
+              : `Not the ${questionType} YOU are looking for`,
+        });
 
         db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
         return 'added';
@@ -116,32 +134,23 @@
       nanori(r) {
         return this.reading(r, null, 'nanori');
       },
-      reading(r, _type, kanjiReading) {
-        const op = this._reading(r, _type, kanjiReading);
-        if (op === 'not removed') {
-          wkSynonyms.add.reading(r, 'blacklist', kanjiReading);
-          return 'blacklist';
-        }
-        return op;
-      },
-      _reading(r, _type, kanjiReading) {
+      reading(r, _type, questionType) {
         if (!wkSynonyms.entry.id) return;
-        if (!r) return;
 
         r = toHiragana(r).trim();
         if (!/^\p{sc=Hiragana}+$/u.test(r)) return;
 
         const newAux = wkSynonyms.entry.aux.filter(
-          (a) => a.questionType === 'reading' && a.text !== r,
+          (a) => a.questionType !== 'meaning' && a.text !== r,
         );
 
-        if (['kunyomi', 'onyomi', 'nanori'].includes(kanjiReading)) {
-          if (wkSynonyms.entry[kanjiReading]) {
-            const newArr = wkSynonyms.entry[kanjiReading].filter(
+        if (['kunyomi', 'onyomi', 'nanori'].includes(questionType)) {
+          if (wkSynonyms.entry[questionType]) {
+            const newArr = wkSynonyms.entry[questionType].filter(
               (a) => a !== r,
             );
-            if (newArr.length < wkSynonyms.entry[kanjiReading].length) {
-              wkSynonyms.entry[kanjiReading] = newArr;
+            if (newArr.length < wkSynonyms.entry[questionType].length) {
+              wkSynonyms.entry[questionType] = newArr;
               wkSynonyms.entry.aux = newAux;
               db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
               return 'removed';
@@ -153,6 +162,24 @@
             db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
             return 'removed';
           }
+        }
+
+        return 'not removed';
+      },
+      meaning(r) {
+        if (!wkSynonyms.entry.id) return;
+
+        r = r.trim();
+        if (!r) return;
+
+        const newAux = wkSynonyms.entry.aux.filter(
+          (a) => a.questionType === 'meaning' && a.text !== r,
+        );
+
+        if (newAux.length < wkSynonyms.entry.aux.length) {
+          wkSynonyms.entry.aux = newAux;
+          db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
+          return 'removed';
         }
 
         return 'not removed';
@@ -192,13 +219,7 @@
     }
 
     for (const { questionType, ...it } of aux) {
-      if (questionType === 'reading') {
-        e.item.readings = e.item.readings.filter((a) => a !== it.text);
-        e.item.auxiliary_readings = e.item.auxiliary_readings.filter(
-          (a) => a.reading !== it.text,
-        );
-        e.item.auxiliary_readings.push({ ...it, reading: it.text });
-      } else {
+      if (questionType === 'meaning') {
         const text = normalize(it.text);
 
         e.item.meanings = e.item.meanings.filter((a) => normalize(a) !== text);
@@ -207,6 +228,12 @@
         );
         e.userSynonyms = e.userSynonyms.filter((s) => normalize(s) !== text);
         e.item.auxiliary_meanings.push({ ...it, meaning: it.text });
+      } else {
+        e.item.readings = e.item.readings.filter((a) => a !== it.text);
+        e.item.auxiliary_readings = e.item.auxiliary_readings.filter(
+          (a) => a.reading !== it.text,
+        );
+        e.item.auxiliary_readings.push({ ...it, reading: it.text });
       }
     }
 
@@ -253,13 +280,13 @@
 
     const listing = {};
 
-    wkSynonyms.entry.aux.map((it) => {
-      const t = capitalize(it.type);
+    wkSynonyms.entry.aux.map((a) => {
+      const t = capitalize(a.type);
       listing[t] = listing[t] || [];
-      listing[t].push(it.text);
+      listing[t].push(a);
     });
 
-    for (const [k, vs] of Object.entries(listing)) {
+    for (const [k, auxs] of Object.entries(listing)) {
       const div = document.createElement('div');
       div.className = 'subject-section__meanings';
       divList.append(div);
@@ -273,14 +300,17 @@
       ul.className = 'user-synonyms__items';
       div.append(ul);
 
-      for (const v of vs) {
+      for (const a of auxs) {
         const li = document.createElement('li');
         li.className = 'user-synonyms_item';
         ul.append(li);
 
         const span = document.createElement('span');
         span.className = 'user-synonym';
-        span.innerText = v;
+        span.innerText = a.text;
+        if (a.questionType !== 'meaning') {
+          span.innerText += ` (${a.questionType})`;
+        }
         li.append(span);
       }
     }
@@ -350,27 +380,20 @@
         isFirstRender = false;
 
         if (elInput.value.length < 2) return;
-        const signs = ['-', '*', '?'];
+        const signs = ['-', '*', '?', '+'];
 
         let sign = '';
-        let str = '';
+        let str = elInput.value.trim();
         for (sign of signs) {
-          if (elInput.value.startsWith(sign)) {
-            str = elInput.value.substring(sign.length);
+          if (str.startsWith(sign)) {
+            str = str.substring(sign.length);
             break;
           }
-          if (elInput.value.endsWith(sign)) {
-            str = elInput.value.substring(
-              0,
-              elInput.value.length - sign.length,
-            );
+          if (str.endsWith(sign)) {
+            str = str.substring(0, str.length - sign.length);
             break;
           }
         }
-
-        if (!str) return;
-
-        const questionType = 'meaning';
 
         /** @type {AuxiliaryType | null} */
         let type = null;
@@ -379,31 +402,33 @@
           type = 'blacklist';
         } else if (['?'].includes(sign)) {
           type = 'warn';
+        } else if (['+'].includes(sign)) {
+          type = 'whitelist';
         }
 
-        if (type) {
-          ev.preventDefault();
-          setTimeout(() => {
-            updateAux();
-            elInput.value = '';
-          });
+        let questionType = 'meaning';
+        const [, readingType, reading] =
+          /^(kunyomi|onyomi|nanori|reading):([\p{sc=Hiragana}\p{sc=Katakana}]+)$/iu.exec(
+            str,
+          ) || [];
+        if (reading) {
+          str = reading;
+          questionType = readingType;
+          type = type || 'whitelist';
+        }
 
-          if (
-            !wkSynonyms.entry.aux.find(
-              (a) =>
-                a.questionType === questionType &&
-                a.type === type &&
-                a.text === str,
-            )
-          ) {
-            wkSynonyms.entry.aux.push({
-              questionType,
-              text: str,
-              type,
-              message: 'Not the meaning YOU are looking for',
-            });
-            db.synonym.put(wkSynonyms.entry, subject_id);
-          }
+        if (!type) return;
+
+        ev.preventDefault();
+        setTimeout(() => {
+          updateAux();
+          elInput.value = '';
+        });
+
+        if (questionType === 'meaning') {
+          wkSynonyms.add.meaning(str, type);
+        } else {
+          wkSynonyms.add.reading(str, type, readingType);
         }
       };
 
@@ -438,10 +463,11 @@
         btn.className = 'user-synonyms__synonym-button';
 
         btn.addEventListener('click', () => {
-          wkSynonyms.entry.aux = wkSynonyms.entry.aux.filter(
-            (a0) => a0.text !== a.text,
-          );
-          db.synonym.put(wkSynonyms.entry, subject_id);
+          if (a.questionType === 'meaning') {
+            wkSynonyms.remove.meaning(a.text);
+          } else {
+            wkSynonyms.remove.reading(a.text, null, a.questionType);
+          }
           updateAux();
         });
 
@@ -453,6 +479,9 @@
         btn.append(span);
         span.className = 'user-synonym__button-text';
         span.innerText = a.text;
+        if (a.questionType !== 'meaning') {
+          span.innerText += ` (${a.questionType})`;
+        }
       }
 
       if (!answerCheckerParam) return;
