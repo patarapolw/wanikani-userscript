@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani User Synonyms++
 // @namespace    http://www.wanikani.com
-// @version      0.2.0
+// @version      0.2.1
 // @description  Better and Not-only User Synonyms
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -487,7 +487,23 @@
       if (!answerCheckerParam) return;
 
       const { item } = answerCheckerParam;
-      const aux = item.auxiliary_meanings;
+      const aux = [
+        ...item.auxiliary_meanings.map(({ meaning, ...t }) => ({
+          text: meaning,
+          questionType: 'meaning',
+          ...t,
+        })),
+      ];
+
+      if (item.auxiliary_readings) {
+        aux.push(
+          ...item.auxiliary_readings.map(({ reading, ...t }) => ({
+            text: reading,
+            questionType: 'reading',
+            ...t,
+          })),
+        );
+      }
 
       if (aux.length) {
         elExtraContainer.append(
@@ -496,7 +512,7 @@
 
             const title = document.createElement('summary');
             elDetails.append(title);
-            title.innerText = `Auxiliary meanings`;
+            title.innerText = `WaniKani auxiliaries`;
 
             const elButtonSet = document.createElement('div');
             elDetails.append(elButtonSet);
@@ -523,7 +539,10 @@
               const span = document.createElement('span');
               elAux.append(span);
               span.className = 'user-synonym__button-text';
-              span.innerText = a.meaning;
+              span.innerText = a.text;
+              if (a.questionType !== 'meaning') {
+                span.innerText += ` (${a.questionType})`;
+              }
             }
             return elDetails;
           })(),
