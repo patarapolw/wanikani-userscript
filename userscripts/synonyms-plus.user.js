@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani User Synonyms++
 // @namespace    http://www.wanikani.com
-// @version      0.2.3
+// @version      0.2.4
 // @description  Better and Not-only User Synonyms
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -402,7 +402,7 @@
         isFirstRender = false;
 
         if (elInput.value.length < 2) return;
-        const signs = ['-', '*', '?', '+'];
+        const signs = ['-', '*', '?', '+', ''];
 
         let sign = '';
         let str = elInput.value.trim();
