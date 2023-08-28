@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Wanikani States History
 // @namespace    polv/wanikani
-// @version      0.1.4
+// @version      0.1.5
 // @description  Wanikani States History, with hyperlink to itemPage and dummy lesson
 // @author       polv
 // @match        https://www.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1207013
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1241826
 // @grant        none
 // ==/UserScript==
 
