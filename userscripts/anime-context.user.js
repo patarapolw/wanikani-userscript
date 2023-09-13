@@ -721,6 +721,7 @@
             .anime-example img {
                 margin-right: 1em;
                 width: 200px;
+                max-width: 35%;
                 height: 115px;
                 object-fit: contain;
             }
