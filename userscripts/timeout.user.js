@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Time's Up
 // @namespace    http://www.wanikani.com
-// @version      0.1.1
+// @version      0.1.4
 // @description  Tell when you have taken too long for a question
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -24,6 +24,7 @@
   const TIMEUP_SECONDS = 5;
 
   let currentSubject = null;
+  let currentQuestionType = '';
   let currentAnswer = '';
 
   /** @type {HTMLInputElement | null} */
@@ -34,6 +35,7 @@
     const { detail } = e;
 
     currentSubject = detail.subject;
+    currentQuestionType = detail.questionType;
 
     if (!inputContainer) {
       inputContainer = document.querySelector('input[name="user-response"]');
@@ -51,13 +53,16 @@
     if (inputContainer) {
       const el = inputContainer;
       setTimeout(() => {
-        if (detail.subject === currentSubject) {
+        if (
+          detail.subject === currentSubject &&
+          detail.questionType === currentQuestionType
+        ) {
           currentAnswer = el.value;
 
           // https://community.wanikani.com/t/userscript-i-dont-know-button/7231
           el.value =
             detail.questionType === 'reading'
-              ? 'えぇぇーさっぱりわからないぃぃぃ'
+              ? 'あああああ・むりだあああああ'
               : 'Aargh! What does that even mean? (╯°□°)╯︵ ┻━┻';
         }
       }, 1000 * TIMEUP_SECONDS);
@@ -65,6 +70,12 @@
   });
 
   addEventListener('didAnswerQuestion', () => {
-    currentSubject = null;
+    clear();
   });
+
+  function clear() {
+    currentSubject = null;
+    currentQuestionType = '';
+    currentAnswer = '';
+  }
 })();
