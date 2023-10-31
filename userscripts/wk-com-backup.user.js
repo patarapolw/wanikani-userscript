@@ -18,14 +18,16 @@
       thread_id = 0;
     }
 
-    let thread_name = String(thread_id);
+    let thread_slug = '';
+    let thread_title = '';
+
     if (!thread_id) {
       const [pid, tid, t] = location.href.split('/').reverse();
       if (isNaN(Number(tid))) {
-        thread_name = tid;
+        thread_slug = tid;
         thread_id = Number(pid);
       } else {
-        thread_name = t;
+        thread_slug = t;
         thread_id = Number(tid);
       }
     }
@@ -46,24 +48,35 @@
           (print ? '?print=true' : ''),
       ).then((r) => r.json());
 
+      if (!thread_slug) {
+        thread_slug = obj.slug;
+      }
+      if (!thread_title) {
+        thread_title = obj.unicode_title || obj.title;
+      }
+
       obj.post_stream.posts.map((p) => {
         const { username, cooked, polls, post_number } = p;
         if (post_number > nextCursor) {
           nextCursor = post_number;
-          output.push(
-            `<pre>${JSON.stringify(
-              {
-                username,
-                post_number,
-                polls,
-              },
-              (k, v) => {
-                if (k === 'id') return;
-                return v;
-              },
-              2,
-            )}</pre>${cooked}`,
-          );
+
+          const lines = [];
+          lines.push(`#${post_number}: ${username}`);
+          if (polls) {
+            lines.push(
+              `<details><summary>More Info</summary><pre>${JSON.stringify(
+                { polls },
+                (k, v) => {
+                  if (k === 'id') return;
+                  return v;
+                },
+                2,
+              )}</pre></details>`,
+            );
+          }
+          lines.push(`<div class="cooked">${cooked}</div>`);
+
+          output.push(lines.join('\n'));
         }
       });
 
@@ -73,7 +86,29 @@
       cursor = nextCursor;
     }
 
-    downloadText(output.join('\n<br><br>\n'), thread_name + '.html');
+    if (!thread_slug) {
+      thread_slug = String(thread_id);
+    }
+
+    const header = Array.from(
+      document.querySelectorAll('link[rel="stylesheet"], style'),
+    )
+      .map((el) => el.outerHTML)
+      .join('\n');
+
+    downloadText(
+      [
+        `<style>
+        main {max-width: 1000px; margin: 0 auto;}
+        .cooked {margin: 2em;}
+        </style>'`,
+        header,
+        `<title>${thread_title}</title>`,
+        `<h1>${thread_title}</h1>`,
+        `<main>${output.join('\n\n<hr>\n\n')}</main>`,
+      ].join('\n\n'),
+      thread_slug + '.html',
+    );
   }
 
   function downloadText(text, filename) {
