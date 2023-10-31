@@ -12,9 +12,9 @@
 (function () {
   'use strict';
 
-  async function backupThread(thread_id = 0, print = true) {
+  async function backupThread(thread_id = 0, x1000 = false) {
     if (typeof thread_id === 'boolean') {
-      print = thread_id;
+      x1000 = thread_id;
       thread_id = 0;
     }
 
@@ -45,7 +45,7 @@
           thread_id +
           (cursor ? '/' + cursor : '') +
           '.json' +
-          (print ? '?print=true' : ''),
+          (x1000 ? '?print=true' : ''),
       ).then((r) => r.json());
 
       if (!thread_slug) {
@@ -64,14 +64,18 @@
           lines.push(`#${post_number}: ${username}`);
           if (polls) {
             lines.push(
-              `<details><summary>More Info</summary><pre>${JSON.stringify(
-                { polls },
-                (k, v) => {
-                  if (k === 'id') return;
-                  return v;
-                },
-                2,
-              )}</pre></details>`,
+              `<details><summary>Poll results</summary>${polls.map(
+                (p) =>
+                  `<pre>${JSON.stringify(
+                    p,
+                    (k, v) => {
+                      if (/^(avatar|assign)_/.test(k)) return;
+                      if (v === null || v === '') return;
+                      return v;
+                    },
+                    2,
+                  )}</pre>`,
+              )}</details>`,
             );
           }
           lines.push(`<div class="cooked">${cooked}</div>`);
@@ -91,22 +95,36 @@
     }
 
     const header = Array.from(
-      document.querySelectorAll('link[rel="stylesheet"], style'),
+      document.querySelectorAll(
+        'link[rel="icon"], link[rel="stylesheet"], style',
+      ),
     )
       .map((el) => el.outerHTML)
       .join('\n');
 
     downloadText(
       [
-        `<style>
-        main {max-width: 1000px; margin: 0 auto;}
-        .cooked {margin: 2em;}
-        </style>'`,
-        header,
-        `<title>${thread_title}</title>`,
-        `<h1>${thread_title}</h1>`,
-        `<main>${output.join('\n\n<hr>\n\n')}</main>`,
-      ].join('\n\n'),
+        `<html>`,
+        ...[
+          `<head>`,
+          ...[
+            `<style>
+            main {max-width: 1000px; margin: 0 auto;}
+            .cooked {margin: 2em;}
+            </style>`,
+            header,
+            `<title>${thread_title}</title>`,
+          ],
+          `</head>`,
+          `<body>`,
+          ...[
+            `<h1>${thread_title}</h1>`,
+            `<main>${output.join('\n<hr>\n')}</main>`,
+          ],
+          `</body>`,
+        ],
+        `</html>`,
+      ].join('\n'),
       thread_slug + '.html',
     );
   }
