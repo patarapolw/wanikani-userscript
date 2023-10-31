@@ -4,7 +4,8 @@
 // @version      0.1
 // @description  Backup a thread
 // @author       polv
-// @match        *://*/*
+// @match        *://community.wanikani.com/*
+// @match        *://forums.learnnatively.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=meta.discourse.org
 // @grant        none
 // ==/UserScript==
@@ -22,19 +23,18 @@
     let thread_title = '';
 
     if (!thread_id) {
-      const [pid, tid, t] = location.href.split('/').reverse();
-      if (isNaN(Number(tid))) {
+      const [pid, tid, slug] = location.href.split('/').reverse();
+      thread_id = Number(tid);
+      if (!thread_id) {
         thread_slug = tid;
         thread_id = Number(pid);
       } else {
-        thread_slug = t;
-        thread_id = Number(tid);
+        thread_slug = slug;
       }
     }
     if (!thread_id) return;
 
     const output = [];
-
     let cursor = 0;
     while (true) {
       let nextCursor = cursor;
@@ -56,26 +56,33 @@
       }
 
       obj.post_stream.posts.map((p) => {
-        const { username, cooked, polls, post_number } = p;
+        const { username, cooked, polls, post_number, actions_summary } = p;
         if (post_number > nextCursor) {
           nextCursor = post_number;
 
           const lines = [];
-          lines.push(`#${post_number}: ${username}`);
+          lines.push(
+            `#${post_number}: ${username} ${actions_summary
+              .filter((a) => a.count)
+              .map((a) => `❤️ ${a.count}`)
+              .join(', ')}`,
+          );
           if (polls) {
             lines.push(
-              `<details><summary>Poll results</summary>${polls.map(
-                (p) =>
-                  `<pre>${JSON.stringify(
-                    p,
-                    (k, v) => {
-                      if (/^(avatar|assign)_/.test(k)) return;
-                      if (v === null || v === '') return;
-                      return v;
-                    },
-                    2,
-                  )}</pre>`,
-              )}</details>`,
+              `<details><summary>Poll results</summary>${polls
+                .map(
+                  (p) =>
+                    `<pre>${JSON.stringify(
+                      p,
+                      (k, v) => {
+                        if (/^(avatar|assign)_/.test(k)) return;
+                        if (v === null || v === '') return;
+                        return v;
+                      },
+                      2,
+                    )}</pre>`,
+                )
+                .join('')}</details>`,
             );
           }
           lines.push(`<div class="cooked">${cooked}</div>`);
@@ -89,6 +96,9 @@
       }
       cursor = nextCursor;
     }
+
+    const url =
+      location.origin + '/t/' + (thread_slug || '-') + '/' + thread_id;
 
     if (!thread_slug) {
       thread_slug = String(thread_id);
@@ -111,6 +121,7 @@
             `<style>
             main {max-width: 1000px; margin: 0 auto;}
             .cooked {margin: 2em;}
+            .spoiler:not(:hover):not(:active) {filter:blur(5px);}
             </style>`,
             header,
             `<title>${thread_title}</title>`,
@@ -119,13 +130,14 @@
           `<body>`,
           ...[
             `<h1>${thread_title}</h1>`,
+            `<a href="${url}">${decodeURI(url)}</a>`,
             `<main>${output.join('\n<hr>\n')}</main>`,
           ],
           `</body>`,
         ],
         `</html>`,
       ].join('\n'),
-      thread_slug + '.html',
+      decodeURIComponent(thread_slug) + '.html',
     );
   }
 
