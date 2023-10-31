@@ -70,18 +70,19 @@
           if (polls) {
             lines.push(
               `<details><summary>Poll results</summary>${polls
-                .map(
-                  (p) =>
-                    `<pre>${JSON.stringify(
-                      p,
-                      (k, v) => {
-                        if (/^(avatar|assign)_/.test(k)) return;
-                        if (v === null || v === '') return;
-                        return v;
-                      },
-                      2,
-                    )}</pre>`,
-                )
+                .map((p) => {
+                  const pre = document.createElement('pre');
+                  pre.textContent = JSON.stringify(
+                    p,
+                    (k, v) => {
+                      if (/^(avatar|assign)_/.test(k)) return;
+                      if (v === null || v === '') return;
+                      return v;
+                    },
+                    2,
+                  );
+                  return pre.outerHTML;
+                })
                 .join('')}</details>`,
             );
           }
