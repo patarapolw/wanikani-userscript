@@ -158,7 +158,7 @@
             // https://community.wanikani.com/t/userscript-i-dont-know-button/7231
             const msg =
               qType === 'reading'
-                ? 'えぇぇーさっぱりわからないぃぃぃ'
+                ? 'えええーさっぱりわからないいいい'
                 : 'Aargh! What does that even mean? (╯°□°)╯︵ ┻━┻';
 
             if (el.value === msg) {
