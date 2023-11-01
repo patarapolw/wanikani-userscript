@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Thread Backup
 // @namespace    polv
-// @version      0.2.1
+// @version      0.2.2
 // @description  Backup a thread
 // @author       polv
 // @match        *://community.wanikani.com/*
@@ -38,8 +38,7 @@
     }
     if (!thread_id) return;
 
-    const main = document.createElement('main');
-
+    const output = [];
     let cursor = 0;
 
     const markBatch = 500;
@@ -78,50 +77,41 @@
         if (post_number > nextCursor) {
           nextCursor = post_number;
 
-          const section = document.createElement('section');
-          main.append(section);
+          const lines = [];
 
-          section.append(
-            ((p) => {
-              p.innerText = `#${post_number}: ${username} ${actions_summary
-                .filter((a) => a.count)
-                .map((a) => `❤️ ${a.count}`)
-                .join(', ')}`;
-
-              return p;
-            })(document.createElement('p')),
+          lines.push(
+            `#${post_number}: ${username} ${actions_summary
+              .filter((a) => a.count)
+              .map((a) => `❤️ ${a.count}`)
+              .join(', ')}`,
           );
-
           if (polls?.length) {
-            const details = document.createElement('details');
-            section.append(details);
-
-            const summary = document.createElement('summary');
-            summary.innerText = 'Polls results';
-            details.append(summary);
-
-            polls.map((p) => {
-              const pre = document.createElement('pre');
-              pre.textContent = JSON.stringify(
-                p,
-                (k, v) => {
-                  if (/^(avatar|assign)_/.test(k)) return;
-                  if (v === null || v === '') return;
-                  return v;
-                },
-                2,
-              );
-              details.append(p);
-            });
+            lines.push(
+              `<details><summary>Poll results</summary>${polls
+                .map((p) => {
+                  const pre = document.createElement('pre');
+                  pre.textContent = JSON.stringify(
+                    p,
+                    (k, v) => {
+                      if (/^(avatar|assign)_/.test(k)) return;
+                      if (v === null || v === '') return;
+                      return v;
+                    },
+                    2,
+                  );
+                  return pre.outerHTML;
+                })
+                .join('')}</details>`,
+            );
           }
-
-          section.append(
-            ((div) => {
-              div.className = 'cooked';
-              div.innerHTML = cooked;
-              return div;
-            })(document.createElement('div')),
+          lines.push(
+            `<div class="cooked">${cooked.replace(
+              /<img /g,
+              '<img loading="lazy" ',
+            )}</div>`,
           );
+
+          output.push(lines.join('\n'));
         }
       });
 
@@ -137,84 +127,59 @@
       cursor = nextCursor;
     }
 
-    main.querySelectorAll('img').forEach((img) => {
-      img.loading = 'lazy';
-    });
-
     const url =
       location.origin + '/t/' + (thread_slug || '-') + '/' + thread_id;
+
+    console.log('Downloaded ' + url);
 
     if (!thread_slug) {
       thread_slug = String(thread_id);
     }
 
-    const html = document.createElement('html');
-
-    const head = document.createElement('head');
-    html.append(head);
-
-    head.append(
-      ...Array.from(
-        document.querySelectorAll(
-          'meta[charset], link[rel="icon"], link[rel="stylesheet"], style',
-        ),
-      ).map((el) => el.cloneNode(true)),
-      ((el) => {
-        el.innerText = thread_title;
-        return el;
-      })(document.createElement('title')),
-      ((el) => {
-        el.textContent = /* css */ `
-        main {max-width: 1000px; margin: 0 auto;}
-        .cooked {margin: 2em;}
-        .spoiler:not(:hover):not(:active) {filter:blur(5px);}
-        `;
-        return el;
-      })(document.createElement('style')),
-    );
-
-    const body = document.createElement('body');
-    html.append(body);
-
-    body.append(
-      ((el) => {
-        el.innerText = thread_title;
-        return el;
-      })(document.createElement('h1')),
-      ((el) => {
-        const a1 = document.createElement('a');
-        el.append(a1);
-        a1.href = url;
-        a1.innerText = decodeURI(url);
-        a1.target = '_blank';
-
-        const span = document.createElement('span');
-        el.append(span);
-        span.innerText = '・';
-
-        const a2 = document.createElement('a');
-        el.append(a2);
-        a2.href = url + '.json';
-        a2.innerText = 'JSON';
-        a2.target = '_blank';
-
-        return el;
-      })(document.createElement('p')),
-      main,
-    );
-
     const a = document.createElement('a');
     a.href = URL.createObjectURL(
-      new Blob([html.outerHTML], {
-        type: 'text/html',
-      }),
+      new Blob(
+        [
+          `<html>`,
+          ...[
+            `<head>`,
+            ...[
+              `<style>
+            main {max-width: 1000px; margin: 0 auto;}
+            .cooked {margin: 2em;}
+            .spoiler:not(:hover):not(:active) {filter:blur(5px);}
+            </style>`,
+              Array.from(
+                document.querySelectorAll(
+                  'meta[charset], link[rel="icon"], link[rel="stylesheet"], style',
+                ),
+              )
+                .map((el) => el.outerHTML)
+                .join('\n'),
+              `<title>${thread_title}</title>`,
+            ],
+            `</head>`,
+            `<body>`,
+            ...[
+              `<h1>${thread_title}</h1>`,
+              `<p><a href="${url}" target="_blank">${decodeURI(
+                url,
+              )}</a>・<a href="${url}.json" target="_blank">JSON</p>`,
+              `<main>${output.join('\n<hr>\n')}</main>`,
+            ],
+            `</body>`,
+          ],
+          `</html>`,
+        ],
+        {
+          type: 'text/html',
+        },
+      ),
     );
     a.download = decodeURIComponent(thread_slug) + '.html';
     a.click();
     URL.revokeObjectURL(a.href);
     a.remove();
-
-    html.remove();
   }
 
   Object.assign(window, { backupThread });
