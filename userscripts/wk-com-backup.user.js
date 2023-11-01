@@ -42,17 +42,23 @@
     while (true) {
       let nextCursor = cursor;
 
-      const obj = await fetch(
+      const jsonURL =
         location.origin +
-          '/t/-/' +
-          thread_id +
-          (cursor ? '/' + cursor : '') +
-          '.json' +
-          (x1000 ? '?print=true' : ''),
-      ).then((r) => r.json());
+        '/t/-/' +
+        thread_id +
+        (cursor ? '/' + cursor : '') +
+        '.json' +
+        (x1000 ? '?print=true' : '');
 
-      // TODO: ?print=true is rate limited. Not sure for how long.
-      x1000 = false;
+      const obj = await fetch(jsonURL).then((r) => r.json());
+
+      if (x1000) {
+        // TODO: ?print=true is rate limited. Not sure for how long.
+        x1000 = false;
+        setTimeout(() => {
+          fetch(jsonURL);
+        }, 1 * 60 * 1000);
+      }
 
       if (!thread_slug) {
         thread_slug = obj.slug;
@@ -136,9 +142,11 @@
     html.append(head);
 
     head.append(
-      ...document.querySelectorAll(
-        'link[rel="icon"], link[rel="stylesheet"], style',
-      ),
+      ...Array.from(
+        document.querySelectorAll(
+          'meta[charset], link[rel="icon"], link[rel="stylesheet"], style',
+        ),
+      ).map((el) => el.cloneNode(true)),
       ((el) => {
         el.innerText = thread_title;
         return el;
@@ -181,16 +189,18 @@
       main,
     );
 
-    downloadText(html.outerHTML, decodeURIComponent(thread_slug) + '.html');
-  }
-
-  function downloadText(text, filename) {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-    a.download = filename;
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(
+      new Blob([html.outerHTML], {
+        type: 'text/html',
+      }),
+    );
+    a.download = decodeURIComponent(thread_slug) + '.html';
     a.click();
+    URL.revokeObjectURL(a.href);
     a.remove();
+
+    html.remove();
   }
 
   Object.assign(window, { backupThread });
