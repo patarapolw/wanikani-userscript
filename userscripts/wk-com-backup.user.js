@@ -6,6 +6,8 @@
 // @author       polv
 // @match        *://community.wanikani.com/*
 // @match        *://forums.learnnatively.com/*
+// @license      MIT
+// @supportURL   https://community.wanikani.com/t/a-way-to-backup-discourse-threads/63679/9
 // @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/wk-com-backup.user.js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=meta.discourse.org
 // @grant        none
