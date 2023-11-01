@@ -1,15 +1,17 @@
 // ==UserScript==
 // @name         Discourse Thread Backup
 // @namespace    polv
-// @version      0.1
+// @version      0.2
 // @description  Backup a thread
 // @author       polv
 // @match        *://community.wanikani.com/*
 // @match        *://forums.learnnatively.com/*
+// @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/wk-com-backup.user.js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=meta.discourse.org
 // @grant        none
 // ==/UserScript==
 
+// @ts-check
 (function () {
   'use strict';
 
@@ -23,7 +25,7 @@
     let thread_title = '';
 
     if (!thread_id) {
-      const [pid, tid, slug] = location.href.split('/').reverse();
+      const [pid, tid, slug] = location.pathname.split('/').reverse();
       thread_id = Number(tid);
       if (!thread_id) {
         thread_slug = tid;
@@ -34,7 +36,8 @@
     }
     if (!thread_id) return;
 
-    const output = [];
+    const main = document.createElement('main');
+
     let cursor = 0;
     while (true) {
       let nextCursor = cursor;
@@ -48,6 +51,9 @@
           (x1000 ? '?print=true' : ''),
       ).then((r) => r.json());
 
+      // TODO: ?print=true is rate limited. Not sure for how long.
+      x1000 = false;
+
       if (!thread_slug) {
         thread_slug = obj.slug;
       }
@@ -60,35 +66,50 @@
         if (post_number > nextCursor) {
           nextCursor = post_number;
 
-          const lines = [];
-          lines.push(
-            `#${post_number}: ${username} ${actions_summary
-              .filter((a) => a.count)
-              .map((a) => `❤️ ${a.count}`)
-              .join(', ')}`,
-          );
-          if (polls) {
-            lines.push(
-              `<details><summary>Poll results</summary>${polls
-                .map((p) => {
-                  const pre = document.createElement('pre');
-                  pre.textContent = JSON.stringify(
-                    p,
-                    (k, v) => {
-                      if (/^(avatar|assign)_/.test(k)) return;
-                      if (v === null || v === '') return;
-                      return v;
-                    },
-                    2,
-                  );
-                  return pre.outerHTML;
-                })
-                .join('')}</details>`,
-            );
-          }
-          lines.push(`<div class="cooked">${cooked}</div>`);
+          const section = document.createElement('section');
+          main.append(section);
 
-          output.push(lines.join('\n'));
+          section.append(
+            ((p) => {
+              p.innerText = `#${post_number}: ${username} ${actions_summary
+                .filter((a) => a.count)
+                .map((a) => `❤️ ${a.count}`)
+                .join(', ')}`;
+
+              return p;
+            })(document.createElement('p')),
+          );
+
+          if (polls?.length) {
+            const details = document.createElement('details');
+            section.append(details);
+
+            const summary = document.createElement('summary');
+            summary.innerText = 'Polls results';
+            details.append(summary);
+
+            polls.map((p) => {
+              const pre = document.createElement('pre');
+              pre.textContent = JSON.stringify(
+                p,
+                (k, v) => {
+                  if (/^(avatar|assign)_/.test(k)) return;
+                  if (v === null || v === '') return;
+                  return v;
+                },
+                2,
+              );
+              details.append(p);
+            });
+          }
+
+          section.append(
+            ((div) => {
+              div.className = 'cooked';
+              div.innerHTML = cooked;
+              return div;
+            })(document.createElement('div')),
+          );
         }
       });
 
@@ -98,6 +119,10 @@
       cursor = nextCursor;
     }
 
+    main.querySelectorAll('img').forEach((img) => {
+      img.loading = 'lazy';
+    });
+
     const url =
       location.origin + '/t/' + (thread_slug || '-') + '/' + thread_id;
 
@@ -105,41 +130,58 @@
       thread_slug = String(thread_id);
     }
 
-    const header = Array.from(
-      document.querySelectorAll(
+    const html = document.createElement('html');
+
+    const head = document.createElement('head');
+    html.append(head);
+
+    head.append(
+      ...document.querySelectorAll(
         'link[rel="icon"], link[rel="stylesheet"], style',
       ),
-    )
-      .map((el) => el.outerHTML)
-      .join('\n');
-
-    downloadText(
-      [
-        `<html>`,
-        ...[
-          `<head>`,
-          ...[
-            `<style>
-            main {max-width: 1000px; margin: 0 auto;}
-            .cooked {margin: 2em;}
-            .spoiler:not(:hover):not(:active) {filter:blur(5px);}
-            </style>`,
-            header,
-            `<title>${thread_title}</title>`,
-          ],
-          `</head>`,
-          `<body>`,
-          ...[
-            `<h1>${thread_title}</h1>`,
-            `<a href="${url}">${decodeURI(url)}</a>`,
-            `<main>${output.join('\n<hr>\n')}</main>`,
-          ],
-          `</body>`,
-        ],
-        `</html>`,
-      ].join('\n'),
-      decodeURIComponent(thread_slug) + '.html',
+      ((el) => {
+        el.innerText = thread_title;
+        return el;
+      })(document.createElement('title')),
+      ((el) => {
+        el.textContent = /* css */ `
+        main {max-width: 1000px; margin: 0 auto;}
+        .cooked {margin: 2em;}
+        .spoiler:not(:hover):not(:active) {filter:blur(5px);}
+        `;
+        return el;
+      })(document.createElement('style')),
     );
+
+    const body = document.createElement('body');
+    html.append(body);
+
+    body.append(
+      ((el) => {
+        el.innerText = thread_title;
+        return el;
+      })(document.createElement('h1')),
+      ((el) => {
+        const a1 = document.createElement('a');
+        el.append(a1);
+        a1.href = url;
+        a1.innerText = decodeURI(url);
+
+        const span = document.createElement('span');
+        el.append(span);
+        span.innerText = '・';
+
+        const a2 = document.createElement('a');
+        el.append(a2);
+        a2.href = url + '.json';
+        a2.innerText = 'JSON';
+
+        return el;
+      })(document.createElement('p')),
+      main,
+    );
+
+    downloadText(html.outerHTML, decodeURIComponent(thread_slug) + '.html');
   }
 
   function downloadText(text, filename) {
