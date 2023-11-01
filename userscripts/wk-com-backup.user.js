@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Thread Backup
 // @namespace    polv
-// @version      0.2.2
+// @version      0.2.3
 // @description  Backup a thread
 // @author       polv
 // @match        *://community.wanikani.com/*
@@ -156,14 +156,14 @@
               )
                 .map((el) => el.outerHTML)
                 .join('\n'),
-              `<title>${thread_title}</title>`,
+              `<title>${toHTML(thread_title)}</title>`,
             ],
             `</head>`,
             `<body>`,
             ...[
-              `<h1>${thread_title}</h1>`,
-              `<p><a href="${url}" target="_blank">${decodeURI(
-                url,
+              `<h1>${toHTML(thread_title)}</h1>`,
+              `<p><a href="${url}" target="_blank">${toHTML(
+                decodeURI(url),
               )}</a>・<a href="${url}.json" target="_blank">JSON</p>`,
               `<main>${output.join('\n<hr>\n')}</main>`,
             ],
@@ -180,6 +180,14 @@
     a.click();
     URL.revokeObjectURL(a.href);
     a.remove();
+  }
+
+  function toHTML(s) {
+    const div = document.createElement('div');
+    div.innerText = s;
+    const { innerHTML } = div;
+    div.remove();
+    return innerHTML;
   }
 
   Object.assign(window, { backupThread });
