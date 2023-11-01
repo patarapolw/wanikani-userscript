@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Thread Backup
 // @namespace    polv
-// @version      0.2
+// @version      0.2.1
 // @description  Backup a thread
 // @author       polv
 // @match        *://community.wanikani.com/*
@@ -41,6 +41,10 @@
     const main = document.createElement('main');
 
     let cursor = 0;
+
+    const markBatch = 500;
+    let lastMark = 0;
+
     while (true) {
       let nextCursor = cursor;
 
@@ -124,6 +128,12 @@
       if (cursor >= nextCursor) {
         break;
       }
+
+      if (cursor > (lastMark + 1) * markBatch) {
+        lastMark = Math.floor(cursor / markBatch);
+        console.log(cursor);
+      }
+
       cursor = nextCursor;
     }
 
@@ -176,6 +186,7 @@
         el.append(a1);
         a1.href = url;
         a1.innerText = decodeURI(url);
+        a1.target = '_blank';
 
         const span = document.createElement('span');
         el.append(span);
@@ -185,6 +196,7 @@
         el.append(a2);
         a2.href = url + '.json';
         a2.innerText = 'JSON';
+        a2.target = '_blank';
 
         return el;
       })(document.createElement('p')),
