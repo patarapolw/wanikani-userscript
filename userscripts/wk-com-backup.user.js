@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Thread Backup
 // @namespace    polv
-// @version      0.2.4
+// @version      0.2.5
 // @description  Backup a thread
 // @author       polv
 // @match        *://community.wanikani.com/*
@@ -239,7 +239,7 @@
               `<main>${output.join('\n<hr>\n')}</main>`,
               `<script>${
                 /* js */ `
-              ${getCDN}
+              window.cdn = "${getCDN()}"
               ${renderAll}
               ${buildPoll}
               ${html2html}
@@ -279,10 +279,9 @@
 
   function getCDN() {
     // @ts-ignore
-    return (document.querySelector('img.avatar').src || '').replace(
-      /(:\/\/[^/]+\/[^/]+).+$/g,
-      '$1',
-    );
+    return (document.querySelector('img.avatar').src || '')
+      .replace(/(:\/\/[^/]+\/[^/]+).+$/g, '$1')
+      .replace('/user_avatar', '');
   }
 
   function renderAll() {
@@ -312,7 +311,7 @@
       if (!preEl) return;
       const obj = JSON.parse(preEl.textContent || '');
 
-      const el = p.querySelector('.poll-info_counts-count .info-number');
+      const el = p.querySelector('.info-number');
       if (el) {
         el.textContent = obj.voters || el.textContent;
       }
@@ -322,7 +321,8 @@
         ul.classList.add('results');
       }
 
-      const baseURL = getCDN();
+      // @ts-ignore
+      const baseURL = window.cdn;
       if (obj.options) {
         const { voters, preloaded_voters } = obj;
         obj.options.map((op) => {
