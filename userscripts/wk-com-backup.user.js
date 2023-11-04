@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Thread Backup
 // @namespace    polv
-// @version      0.2.5
+// @version      0.2.6
 // @description  Backup a thread
 // @author       polv
 // @match        *://community.wanikani.com/*
@@ -343,7 +343,7 @@
                 percent ? 'width: ' + percent : ''
               }" class="bar"></div></div>
               ${
-                preloaded_voters[op.id]
+                preloaded_voters && preloaded_voters[op.id]
                   ? `<ul class="poll-voters-list"><div class="poll-voters">
                 ${preloaded_voters[op.id]
                   .map(
