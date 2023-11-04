@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Thread Backup
 // @namespace    polv
-// @version      0.2.3
+// @version      0.2.4
 // @description  Backup a thread
 // @author       polv
 // @match        *://community.wanikani.com/*
@@ -17,7 +17,55 @@
 (function () {
   'use strict';
 
-  async function backupThread(thread_id = 0, x1000 = false) {
+  /**
+   *
+   * @param {Object} [opts] Number for thread, or `true` for `?print=true`, or Object specifying options
+   * @param {boolean} [opts.x1000=false]
+   * @param {number} [opts.thread_id]
+   * @param {number} [opts.start]
+   * @param {number} [opts.end]
+   * @param {number} [opts.max]
+   * @returns {Promise}
+   */
+  async function backupThread(opts) {
+    let x1000 = false;
+    let thread_id = 0;
+    let start = 0;
+    let end = 0;
+    let max = 0;
+
+    switch (typeof opts) {
+      case 'boolean':
+        x1000 = opts;
+        break;
+      case 'number':
+        thread_id = opts;
+        break;
+      case 'object':
+        if (opts) {
+          for (const k of Object.keys(opts)) {
+            const v = opts[k];
+            switch (k) {
+              case 'x1000':
+                x1000 = v;
+                break;
+              case 'thread_id':
+                thread_id = v;
+                break;
+              case 'start':
+                start = v;
+                break;
+              case 'end':
+                end = v;
+                break;
+              case 'max':
+                max = v;
+                break;
+            }
+          }
+        }
+    }
+
     if (typeof thread_id === 'boolean') {
       x1000 = thread_id;
       thread_id = 0;
@@ -38,8 +86,11 @@
     }
     if (!thread_id) return;
 
+    const url =
+      location.origin + '/t/' + (thread_slug || '-') + '/' + thread_id;
+
     const output = [];
-    let cursor = 0;
+    let cursor = start;
 
     const markBatch = 500;
     let lastMark = 0;
@@ -74,6 +125,14 @@
 
       obj.post_stream.posts.map((p) => {
         const { username, cooked, polls, post_number, actions_summary } = p;
+
+        if (end) {
+          if (post_number > end) return;
+        }
+        if (max) {
+          if (post_number - start > max) return;
+        }
+
         if (post_number > nextCursor) {
           nextCursor = post_number;
 
@@ -87,13 +146,14 @@
           );
           if (polls?.length) {
             lines.push(
-              `<details><summary>Poll results</summary>${polls
+              `<details style="display:none"><summary>Poll results</summary>${polls
                 .map((p) => {
                   const pre = document.createElement('pre');
+                  pre.setAttribute('data-poll-name', p.name);
                   pre.textContent = JSON.stringify(
                     p,
                     (k, v) => {
-                      if (/^(avatar|assign)_/.test(k)) return;
+                      if (/^(assign)_/.test(k)) return;
                       if (v === null || v === '') return;
                       return v;
                     },
@@ -105,13 +165,17 @@
             );
           }
           lines.push(
-            `<div class="cooked">${cooked.replace(
-              /<img /g,
-              '<img loading="lazy" ',
-            )}</div>`,
+            `<div class="cooked">${cooked
+              .replace(/(<a[^>]+\bhref=")(\/\/)/g, `$1https:$2`)
+              .replace(/(<a[^>]+\bhref=")\//g, `$1${location.origin}/`)
+              .replace(/(<img[^>]+)>/g, '$1 loading="lazy">')}</div>`,
           );
 
-          output.push(lines.join('\n'));
+          output.push(
+            `<section data-post-number="${post_number}">${lines.join(
+              '\n',
+            )}</section>`,
+          );
         }
       });
 
@@ -119,16 +183,20 @@
         break;
       }
 
+      if (end) {
+        if (nextCursor > end) break;
+      }
+      if (max) {
+        if (nextCursor - start > max) break;
+      }
+
       if (cursor > (lastMark + 1) * markBatch) {
         lastMark = Math.floor(cursor / markBatch);
-        console.log(cursor);
+        console.log(`Downloading at ${url}/${cursor}`);
       }
 
       cursor = nextCursor;
     }
-
-    const url =
-      location.origin + '/t/' + (thread_slug || '-') + '/' + thread_id;
 
     console.log('Downloaded ' + url);
 
@@ -144,6 +212,7 @@
           ...[
             `<head>`,
             ...[
+              `<link rel="canonical" href="${url}">`,
               `<style>
             main {max-width: 1000px; margin: 0 auto;}
             .cooked {margin: 2em;}
@@ -151,21 +220,31 @@
             </style>`,
               Array.from(
                 document.querySelectorAll(
-                  'meta[charset], link[rel="icon"], link[rel="stylesheet"], style',
+                  'meta[charset], link[rel="icon"], link[rel="canonical"], link[rel="stylesheet"], style',
                 ),
               )
                 .map((el) => el.outerHTML)
                 .join('\n'),
-              `<title>${toHTML(thread_title)}</title>`,
+              `<title>${text2html(thread_title)}</title>`,
             ],
             `</head>`,
             `<body>`,
             ...[
-              `<h1>${toHTML(thread_title)}</h1>`,
-              `<p><a href="${url}" target="_blank">${toHTML(
+              `<h1>${text2html(thread_title)}</h1>`,
+              `<p><a href="${url}" target="_blank">${text2html(
                 decodeURI(url),
-              )}</a>・<a href="${url}.json" target="_blank">JSON</p>`,
+              )}</a>・<a href="${url}${
+                start ? '/' + start : ''
+              }.json" target="_blank">JSON</a></p>`,
               `<main>${output.join('\n<hr>\n')}</main>`,
+              `<script>${
+                /* js */ `
+              ${getCDN}
+              ${renderAll}
+              ${buildPoll}
+              ${html2html}
+              renderAll();`
+              }</script>`,
             ],
             `</body>`,
           ],
@@ -182,12 +261,123 @@
     a.remove();
   }
 
-  function toHTML(s) {
+  function text2html(s) {
     const div = document.createElement('div');
     div.innerText = s;
     const { innerHTML } = div;
     div.remove();
     return innerHTML;
+  }
+
+  function html2html(s) {
+    const div = document.createElement('div');
+    div.innerHTML = s;
+    const { innerHTML } = div;
+    div.remove();
+    return innerHTML;
+  }
+
+  function getCDN() {
+    // @ts-ignore
+    return (document.querySelector('img.avatar').src || '').replace(
+      /(:\/\/[^/]+\/[^/]+).+$/g,
+      '$1',
+    );
+  }
+
+  function renderAll() {
+    doRender();
+    addEventListener('scroll', doRender);
+
+    function doRender() {
+      document
+        .querySelectorAll('[data-post-number]:not([data-polls="done"])')
+        .forEach((post) => {
+          const rect = post.getBoundingClientRect();
+          if (rect.bottom > 0 && rect.top < window.innerHeight) {
+            buildPoll(post);
+          }
+        });
+    }
+  }
+
+  function buildPoll(post) {
+    const main = /** @type {HTMLElement} */ (post);
+    if (main.getAttribute('data-polls') === 'done') return;
+
+    main.querySelectorAll('.poll').forEach((p) => {
+      const preEl = main.querySelector(
+        `pre[data-poll-name="${p.getAttribute('data-poll-name')}"]`,
+      );
+      if (!preEl) return;
+      const obj = JSON.parse(preEl.textContent || '');
+
+      const el = p.querySelector('.poll-info_counts-count .info-number');
+      if (el) {
+        el.textContent = obj.voters || el.textContent;
+      }
+
+      const ul = p.querySelector('ul');
+      if (ul) {
+        ul.classList.add('results');
+      }
+
+      const baseURL = getCDN();
+      if (obj.options) {
+        const { voters, preloaded_voters } = obj;
+        obj.options.map((op) => {
+          const li = p.querySelector(`li[data-poll-option-id="${op.id}"]`);
+          if (li) {
+            const percent = voters
+              ? Math.round((op.votes / voters) * 100) + '%'
+              : '';
+            li.innerHTML = /*html */ `
+              <div class="option">
+                <p>
+                  <span class="percentage">${percent}</span>${html2html(
+              li.innerHTML,
+            )}</span>
+                </p>
+              </div>
+              <div class="bar-back"><div style="${
+                percent ? 'width: ' + percent : ''
+              }" class="bar"></div></div>
+              ${
+                preloaded_voters[op.id]
+                  ? `<ul class="poll-voters-list"><div class="poll-voters">
+                ${preloaded_voters[op.id]
+                  .map(
+                    (v) => /* html */ `
+                  <li>
+                    <a class="trigger-user-card" data-user-card="${
+                      v.username
+                    }" aria-hidden="true"
+                      ><img
+                        alt=""
+                        width="24"
+                        height="24"
+                        src="${
+                          v.avatar_template.startsWith('//')
+                            ? 'https:'
+                            : baseURL
+                        }${v.avatar_template.replace('{size}', '24')}"
+                        title="${v.username}"
+                        aria-hidden="true"
+                        loading="lazy"
+                        tabindex="-1"
+                        class="avatar"
+                    /></a>
+                  </li>
+                  `,
+                  )
+                  .join('\n')}</div></ul>`
+                  : ''
+              }`;
+          }
+        });
+      }
+    });
+    main.setAttribute('data-polls', 'done');
   }
 
   Object.assign(window, { backupThread });
