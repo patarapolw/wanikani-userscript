@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Wanikani States History
 // @namespace    polv/wanikani
-// @version      0.1.5
+// @version      0.2.0
 // @description  Wanikani States History, with hyperlink to itemPage and dummy lesson
 // @author       polv
 // @match        https://www.wanikani.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @license      MIT
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1241826
+// @require      https://greasyfork.org/scripts/462049-wanikani-queue-manipulator/code/WaniKani%20Queue%20Manipulator.user.js?version=1251359
 // @grant        none
 // ==/UserScript==
 
@@ -97,7 +98,7 @@
           document.createTextNode('・'),
           (() => {
             const a = document.createElement('a');
-            a.href = `https://www.wanikani.com/subjects/extra_study?Reorder%20Omega&queue_type=recent_lessons&queue=${o.id}`;
+            a.href = `https://www.wanikani.com/subjects/extra_study?queue_type=recent_lessons&queue=${o.id}`;
             a.rel = 'noreferer';
             a.target = '_blank';
             a.innerText = 'Extra Study';
@@ -170,4 +171,12 @@
 
     return div;
   });
+
+  if (/^\/subjects\/(?:review|extra_study)/.test(location.pathname)) {
+    const u = new URL(location.href);
+    const id = u.searchParams.get('queue') || '';
+    if (/^\d+$/.test(id)) {
+      wkQueue.addTotalChange(() => [Number(id)]);
+    }
+  }
 })();
