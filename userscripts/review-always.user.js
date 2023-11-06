@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Update Review Count and Forecast
 // @namespace    http://wanikani.com
-// @version      0.1
+// @version      0.1.1
 // @description  Auto update Update Review Count and Forecast by hour
 // @author       polv
 // @match        *://www.wanikani.com/*
@@ -21,17 +21,33 @@
   addEventListener('turbo:load', (ev) => {
     const u = new URL(ev.detail?.url);
     if (['/', '/dashboard', '/dashboard/'].includes(u.pathname)) {
-      updateWkStats();
+      setTimeout(updateWkStats, getMillisecondsToNewHour());
     }
   });
 
-  function updateWkStats() {
+  let forecastTimeoutId = 0;
+  let reviewsTimeoutId = 0;
+
+  async function updateWkStats() {
+    const forecastFrame = document.querySelector(
+      'turbo-frame[data-controller="review-forecast"]',
+    );
+    if (forecastFrame) {
+      const updateFrame = (timeout = 1000 * 60 * 60) => {
+        forecastFrame.reload();
+
+        clearTimeout(forecastTimeoutId);
+        forecastTimeoutId = setTimeout(() => updateFrame(), timeout);
+      };
+      updateFrame();
+    }
+
     const reviewsBtn = document.querySelector(
       '.lessons-and-reviews__reviews-button',
     );
 
     if (reviewsBtn) {
-      wkof
+      return wkof
         .ready('ItemData')
         .then(() =>
           wkof.ItemData.get_items({
@@ -39,10 +55,10 @@
           }),
         )
         .then((rs) => {
-          const updateFrame = () => {
+          const updateFrame = (timeout = 1000 * 60 * 60) => {
             const d = new Date().toISOString();
             const count = rs.filter(
-              (r) => r.available_at && r.available_at <= d,
+              (r) => r.assignments?.available_at <= d,
             ).length;
 
             let countClass = 0;
@@ -73,40 +89,28 @@
             clickable.title = reviewsBtn.title;
             clickable.append(...reviewsBtn.childNodes);
 
-            reviewsBtn.replaceWith(clickable);
-
-            const elCount = reviewsBtn.querySelector(
+            const elCount = clickable.querySelector(
               '.lessons-and-reviews__button-count',
             );
             if (elCount) {
               elCount.innerText = count;
             }
+
+            reviewsBtn.replaceWith(clickable);
+
+            clearTimeout(reviewsTimeoutId);
+            reviewsTimeoutId = setTimeout(() => updateFrame(), timeout);
           };
-          const d = new Date();
-          setTimeout(
-            updateFrame,
-            (d.getMinutes() * 60 + d.getSeconds()) * 1000 + d.getMilliseconds(),
-          );
+          updateFrame(getMillisecondsToNewHour());
         });
     }
+  }
 
-    const forecastFrame = document.querySelector(
-      'turbo-frame[data-controller="review-forecast"]',
+  function getMillisecondsToNewHour() {
+    const d = new Date();
+    return (
+      60 * 60 * 1000 -
+      ((d.getMinutes() * 60 + d.getSeconds()) * 1000 + d.getMilliseconds())
     );
-    if (forecastFrame) {
-      const updateFrame = () => {
-        forecastFrame.src =
-          forecastFrame.src.replace(/&v=[^&]+/, '') +
-          '&v=' +
-          Math.random().toString(36).substring(2);
-
-        setTimeout(updateFrame, 1000 * 60 * 60);
-      };
-      const d = new Date();
-      setTimeout(
-        updateFrame,
-        (d.getMinutes() * 60 + d.getSeconds()) * 1000 + d.getMilliseconds(),
-      );
-    }
   }
 })();
