@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Update Review Count and Forecast
 // @namespace    http://wanikani.com
-// @version      0.1.1
+// @version      0.1.3
 // @description  Auto update Update Review Count and Forecast by hour
 // @author       polv
 // @match        *://www.wanikani.com/*
@@ -25,28 +25,18 @@
     }
   });
 
-  let forecastTimeoutId = 0;
-  let reviewsTimeoutId = 0;
+  let timeoutId = 0;
 
   async function updateWkStats() {
-    const forecastFrame = document.querySelector(
-      'turbo-frame[data-controller="review-forecast"]',
-    );
-    if (forecastFrame) {
-      const updateFrame = (timeout = 1000 * 60 * 60) => {
-        forecastFrame.reload();
+    const updateFrame = async (nextUpdate = 1000 * 60 * 60) => {
+      const forecastFrame = document.querySelector(
+        'turbo-frame[data-controller="review-forecast"]',
+      );
+      if (forecastFrame) forecastFrame.reload();
 
-        clearTimeout(forecastTimeoutId);
-        forecastTimeoutId = setTimeout(() => updateFrame(), timeout);
-      };
-      updateFrame();
-    }
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => updateFrame(), nextUpdate);
 
-    const reviewsBtn = document.querySelector(
-      '.lessons-and-reviews__reviews-button',
-    );
-
-    if (reviewsBtn) {
       return wkof
         .ready('ItemData')
         .then(() =>
@@ -55,55 +45,55 @@
           }),
         )
         .then((rs) => {
-          const updateFrame = (timeout = 1000 * 60 * 60) => {
-            const d = new Date().toISOString();
-            const count = rs.filter(
-              (r) => r.assignments?.available_at <= d,
-            ).length;
+          const reviewsBtn = document.querySelector(
+            '.lessons-and-reviews__reviews-button',
+          );
+          if (!reviewsBtn) return;
 
-            let countClass = 0;
-            if (count >= 1000) {
-              countClass = 1000;
-            } else if (count >= 500) {
-              countClass = 500;
-            } else if (count >= 250) {
-              countClass = 250;
-            } else if (count >= 100) {
-              countClass = 100;
-            } else if (count >= 50) {
-              countClass = 50;
-            } else if (count) {
-              countClass = 1;
-            }
+          const d = new Date().toISOString();
+          const count = rs.filter(
+            (r) => r.assignments?.available_at <= d,
+          ).length;
 
-            const clickable = document.createElement('a');
-            clickable.href = '/subjects/review';
+          let countClass = 0;
+          if (count >= 1000) {
+            countClass = 1000;
+          } else if (count >= 500) {
+            countClass = 500;
+          } else if (count >= 250) {
+            countClass = 250;
+          } else if (count >= 100) {
+            countClass = 100;
+          } else if (count >= 50) {
+            countClass = 50;
+          } else if (count) {
+            countClass = 1;
+          }
 
-            clickable.className =
-              reviewsBtn.className.replace(
-                / lessons-and-reviews__reviews-button--\d+/,
-                '',
-              ) +
-              ' lessons-and-reviews__reviews-button--' +
-              countClass;
-            clickable.title = reviewsBtn.title;
-            clickable.append(...reviewsBtn.childNodes);
+          const clickable = document.createElement('a');
+          clickable.href = '/subjects/review';
 
-            const elCount = clickable.querySelector(
-              '.lessons-and-reviews__button-count',
-            );
-            if (elCount) {
-              elCount.innerText = count;
-            }
+          clickable.className =
+            reviewsBtn.className.replace(
+              / lessons-and-reviews__reviews-button--\d+/,
+              '',
+            ) +
+            ' lessons-and-reviews__reviews-button--' +
+            countClass;
+          clickable.title = reviewsBtn.title;
+          clickable.append(...reviewsBtn.childNodes);
 
-            reviewsBtn.replaceWith(clickable);
+          const elCount = clickable.querySelector(
+            '.lessons-and-reviews__button-count',
+          );
+          if (elCount) {
+            elCount.innerText = count;
+          }
 
-            clearTimeout(reviewsTimeoutId);
-            reviewsTimeoutId = setTimeout(() => updateFrame(), timeout);
-          };
-          updateFrame(getMillisecondsToNewHour());
+          reviewsBtn.replaceWith(clickable);
         });
-    }
+    };
+    return updateFrame();
   }
 
   function getMillisecondsToNewHour() {

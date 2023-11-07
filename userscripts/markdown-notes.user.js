@@ -2,10 +2,10 @@
 // @name         WaniKani Markdown Editor Notes (2023)
 // @namespace    wanikani
 // @description  Write Markdown and HTML in the notes
-// @version      2.1.2
+// @version      2.1.3
 // @require      https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1241826
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1276163
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=markdownguide.org
 // @match        *://www.wanikani.com/*
 // @match        *://preview.wanikani.com/*
