@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani User Synonyms++
 // @namespace    http://www.wanikani.com
-// @version      0.2.5
+// @version      0.3.0
 // @description  Better and Not-only User Synonyms
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -10,6 +10,7 @@
 // @license      MIT
 // @require      https://greasyfork.org/scripts/470201-wanikani-answer-checker/code/WaniKani%20Answer%20Checker.js?version=1215595
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
+// @require      https://unpkg.com/diff@5.1.0/dist/diff.min.js
 // @homepage     https://greasyfork.org/en/scripts/470180-wanikani-user-synonyms
 // @supportURL   https://community.wanikani.com/t/userscript-user-synonyms/62481
 // @source       https://github.com/patarapolw/wanikani-userscript/blob/master/userscripts/synonyms-plus.user.js
@@ -33,7 +34,7 @@
    *   kunyomi?: string[];
    *   onyomi?: string[];
    *   nanori?: string[];
-   *   aux: { questionType: string; text: string; type: AuxiliaryType; message: string }[];
+   *   aux: { questionType: string; text: string; type: AuxiliaryType; message: string; }[];
    * }} EntrySynonym
    */
 
@@ -98,7 +99,7 @@
               : `Not the ${questionType} YOU are looking for`,
         });
 
-        db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
+        wkSynonyms.commit();
         return 'added';
       },
       meaning(r, type = /** @type {AuxiliaryType} */ ('whitelist')) {
@@ -120,7 +121,7 @@
               : `Not the ${questionType} YOU are looking for`,
         });
 
-        db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
+        wkSynonyms.commit();
         return 'added';
       },
     },
@@ -161,7 +162,7 @@
 
         if (isChanged || newAux.length < wkSynonyms.entry.aux.length) {
           wkSynonyms.entry.aux = newAux;
-          db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
+          wkSynonyms.commit();
           return 'removed';
         }
 
@@ -179,7 +180,7 @@
 
         if (newAux.length < wkSynonyms.entry.aux.length) {
           wkSynonyms.entry.aux = newAux;
-          db.synonym.put(wkSynonyms.entry, wkSynonyms.entry.id);
+          wkSynonyms.commit();
           return 'removed';
         }
 
@@ -190,9 +191,10 @@
       id: '',
       aux: [],
     }),
+    diffs: /** @type {Record<string, import('diff').Change[][]>} */ ({}),
     commit() {
       if (!this.entry.id) return;
-      db.synonym.put(this.entry, this.entry.id);
+      return db.synonym.put(this.entry, this.entry.id);
     },
   };
   Object.assign(window, { wkSynonyms });
@@ -263,12 +265,9 @@
   });
 
   addEventListener('willShowNextQuestion', (ev) => {
-    document.querySelectorAll(`.${entryClazz}`).forEach((el) => el.remove());
     answerCheckerParam = null;
-    wkSynonyms.entry = {
-      id: String(/** @type {any} */ (ev).detail.subject.id),
-      aux: [],
-    };
+    wkSynonyms.entry.id = String(/** @type {any} */ (ev).detail.subject.id);
+    wkSynonyms.entry.aux = [];
     isFirstRender = true;
 
     db.synonym.get(wkSynonyms.entry.id).then((it) => {
@@ -289,6 +288,64 @@
   });
 
   const updateListing = () => {
+    if (!answerCheckerParam) return;
+    const { questionType } = answerCheckerParam;
+
+    wkSynonyms.diffs = {};
+
+    const answers = answerCheckerParam.response
+      .split(/[・\/]/g)
+      .map((t) => t.trim())
+      .filter((v) => v);
+
+    if (answers.length) {
+      if (questionType === 'reading') {
+        for (const a of answerCheckerParam.item.auxiliary_readings || []) {
+          wkSynonyms.diffs[a.reading] = [];
+        }
+      } else {
+        for (const a of answerCheckerParam.item.auxiliary_meanings) {
+          wkSynonyms.diffs[a.meaning] = [];
+        }
+        for (const syn of answerCheckerParam.userSynonyms) {
+          wkSynonyms.diffs[syn] = [];
+        }
+      }
+
+      for (const a of wkSynonyms.entry.aux) {
+        if (a.questionType === questionType) {
+          wkSynonyms.diffs[a.text] = [];
+        }
+      }
+
+      const response = toHiragana(answerCheckerParam.response);
+      const keys = Object.keys(wkSynonyms.diffs);
+
+      const diffs = keys.map((k) =>
+        Diff.diffChars(toHiragana(k), toHiragana(response), {
+          ignoreCase: true,
+        }),
+      );
+      const diffSizes = diffs.map((d) => getDiffSize(d));
+      const minDiff = Math.min(...diffSizes);
+
+      keys.map((k, i) => {
+        if (diffSizes[i] === minDiff) {
+          wkSynonyms.diffs[k] = wkSynonyms.diffs[k] || [];
+
+          const baseDiff = wkSynonyms.diffs[k][0]
+            ? getDiffSize(wkSynonyms.diffs[k][0])
+            : 0;
+
+          if (!baseDiff || baseDiff === minDiff) {
+            wkSynonyms.diffs[k].push(diffs[i]);
+          } else if (baseDiff > minDiff) {
+            wkSynonyms.diffs[k] = [diffs[i]];
+          }
+        }
+      });
+    }
+
     const frame = document.querySelector(
       'turbo-frame.user-synonyms',
     )?.parentElement;
@@ -303,6 +360,7 @@
 
     divList.textContent = '';
 
+    /** @type {Record<string, typeof wkSynonyms.entry.aux>} */
     const listing = {};
 
     wkSynonyms.entry.aux.map((a) => {
@@ -330,13 +388,7 @@
         li.className = 'user-synonyms_item';
         ul.append(li);
 
-        const span = document.createElement('span');
-        span.className = 'user-synonym';
-        span.innerText = a.text;
-        if (a.questionType !== 'meaning') {
-          span.innerText += ` (${a.questionType})`;
-        }
-        li.append(span);
+        li.append(makeDiffSpan(a.text, a.questionType));
       }
     }
   };
@@ -362,15 +414,31 @@
 
     if (!subject_id) return;
 
-    db.synonym.get(subject_id).then((it) => {
-      if (it) {
-        wkSynonyms.entry = it;
-        updateAux();
-      }
-    });
-
     updateAux = () => {
       updateListing();
+
+      document
+        .querySelectorAll('.subject-section__meanings-items')
+        .forEach((el) => {
+          if (el.childNodes.length) return;
+          const { textContent } = el;
+          if (!textContent) return;
+          el.textContent = '';
+
+          el.append(
+            ...textContent
+              .split(', ')
+              .map((v) =>
+                makeDiffSpan(v, answerCheckerParam?.questionType || ''),
+              ),
+          );
+        });
+
+      document.querySelectorAll('.user-synonym__button-text').forEach((el) => {
+        el.replaceWith(
+          makeDiffSpan(el.textContent, answerCheckerParam?.questionType || ''),
+        );
+      });
 
       const elContainer = document.querySelector(
         '.user-synonyms__form_container',
@@ -500,13 +568,7 @@
         btn.append(icon);
         icon.className = 'wk-icon fa-regular fa-times';
 
-        const span = document.createElement('span');
-        btn.append(span);
-        span.className = 'user-synonym__button-text';
-        span.innerText = a.text;
-        if (a.questionType !== 'meaning') {
-          span.innerText += ` (${a.questionType})`;
-        }
+        btn.append(makeDiffSpan(a.text, a.questionType));
       }
 
       if (!answerCheckerParam) return;
@@ -561,13 +623,7 @@
                 elDetails.append(elAux);
               }
 
-              const span = document.createElement('span');
-              elAux.append(span);
-              span.className = 'user-synonym__button-text';
-              span.innerText = a.text;
-              if (a.questionType !== 'meaning') {
-                span.innerText += ` (${a.questionType})`;
-              }
+              elAux.append(makeDiffSpan(a.text, a.questionType));
             }
             return elDetails;
           })(),
@@ -601,6 +657,50 @@
     );
   }
 
+  /** @param {import('diff').Change[]} d  */
+  function getDiffSize(d) {
+    return d.reduce(
+      (prev, c) => (c.added || c.removed ? c.value.length + prev : prev),
+      0,
+    );
+  }
+
+  function makeDiffSpan(text, questionType) {
+    const span = document.createElement('span');
+    span.className = 'user-synonym';
+
+    if (wkSynonyms.diffs[text]?.length) {
+      wkSynonyms.diffs[text].map((d, i) => {
+        const li = span;
+        if (i) {
+          li.append(document.createTextNode(' / '));
+        }
+
+        li.append(
+          ...d.map((part) => {
+            const color = part.added ? '' : part.removed ? 'lightgray' : '#0f0';
+            const span = document.createElement('span');
+            span.style.backgroundColor = color;
+            if (part.added) {
+              span.style.fontSize = '0.7em';
+              span.style.textDecoration = 'line-through';
+            }
+            span.innerText = part.value;
+            return span;
+          }),
+        );
+      });
+    } else {
+      span.innerText = text;
+    }
+
+    if (questionType !== 'meaning') {
+      span.append(document.createTextNode(` ${questionType}`));
+    }
+
+    return span;
+  }
+
   (function add_css() {
     const style = document.createElement('style');
     style.append(
@@ -618,6 +718,10 @@
 
       .subject-section__meanings-title {
         min-width: 6em;
+      }
+
+      .user-synonyms__synonym-buttons .user-synonym {
+        margin-bottom: 0;
       }
 
       .user-synonyms__form_container::-webkit-scrollbar {

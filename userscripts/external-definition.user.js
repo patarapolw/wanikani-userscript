@@ -10,7 +10,7 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=weblio.jp
 // @license      MIT
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
-// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1207013
+// @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1276693
 // @grant        GM_xmlhttpRequest
 // @connect      kanjipedia.jp
 // @connect      weblio.jp
