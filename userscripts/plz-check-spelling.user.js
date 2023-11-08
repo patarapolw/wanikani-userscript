@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Please Check Spelling
 // @namespace    http://www.wanikani.com
-// @version      0.4.0
+// @version      0.4.1
 // @description  Plural-accepting no-misspelling script (No Cigar)
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -23,75 +23,6 @@
 /// <reference path="./types/answer-checker.d.ts" />
 (function () {
   'use strict';
-
-  /**
-   * !Okurigana Matcher section
-   * @see https://community.wanikani.com/t/do-you-even-kana-okurigana-matcher/8440
-   */
-  window.modAnswerChecker.register((e) => {
-    if (e.questionType === 'reading' && e.item.type === 'Vocabulary') {
-      if (!makeRegex(e.item.characters).test(e.response.trim())) {
-        return {
-          action: 'retry',
-          message: {
-            text: 'Bro, Do you even Kana?',
-            type: 'answerException',
-          },
-        };
-      }
-    }
-    return null;
-  });
-
-  //Create regex profiles (katakana matches need hiragana counterparts included)
-  /** Prepends Hiragana counterpart to any Katakana string input
-   * @param {String} char - A one character long string that may be a Katakana character
-   * @returns {String} A single character if the input is Hiragana or "ー"; A two character string of (hopefully) Hiragana-Katakana pairs in square brackets (that can form a regex) if not.
-   * @bug Will attempt to pair any character that is not Hiragana or "ー"
-   */
-  function pairKatakana(char) {
-    if (/^[\u3040-\u309fー]$/.test(char)) {
-      //is char hiragana or "ー"?
-      return char;
-    } else {
-      //set up pairs
-      var offset = -6 * 16; //katakana block: 30a0-30ff
-      var katakana = String.fromCharCode(char.charCodeAt(0) + offset);
-      return '[' + char + katakana + ']';
-    }
-  }
-
-  /** Returns true if the character is Kana
-   * @param {String} char
-   */
-  function isKana(char) {
-    return /^[\u3040-\u30ff]$/.test(char);
-  }
-
-  /** Creates regex from a vocabulary item that matches the Kana in that item.
-   * @param {string} cV
-   */
-  function makeRegex(cV) {
-    var r = '^'; //start the regex string
-    for (var c = 0; c < cV.length; c++) {
-      if (isKana(cV[c])) {
-        r += pairKatakana(cV[c]);
-      } else {
-        //we have a non-kana character
-        if (cV[c] !== '〜') {
-          //I doubt WK will be adding Kana suffixes but just covering all the bases to be safe.
-          r += '(.+)'; // unknown number of characters in reading (corresponding to kanji), capturing in groups for versatility
-          while (c < cV.length && !isKana(cV[c + 1])) {
-            c++; //skip non-kana characters (already have ".+" in our regex, do not need to add more)
-          }
-        }
-      }
-    }
-    r += '$'; // End of regex
-    return new RegExp(r);
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
 
   /**
    * !No cigar section
@@ -227,7 +158,7 @@
             // https://community.wanikani.com/t/userscript-i-dont-know-button/7231
             const msg =
               qType === 'reading'
-                ? 'えぇぇーさっぱりわからないぃぃぃ'
+                ? 'えええーさっぱりわからないいいい'
                 : 'Aargh! What does that even mean? (╯°□°)╯︵ ┻━┻';
 
             if (el.value === msg) {

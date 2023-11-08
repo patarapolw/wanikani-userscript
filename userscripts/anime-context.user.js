@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani Anime Sentences
 // @description  Adds example sentences from anime movies and shows for vocabulary from immersionkit.com
-// @version      1.2.0
+// @version      1.2.2
 // @author       psdcon, edited by polv
 // @namespace    wkanimesentences/polv
 
@@ -721,6 +721,7 @@
             .anime-example img {
                 margin-right: 1em;
                 width: 200px;
+                max-width: 35%;
                 height: 115px;
                 object-fit: contain;
             }

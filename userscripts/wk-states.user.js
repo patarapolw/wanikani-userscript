@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani States History
 // @namespace    polv/wanikani
-// @version      0.1.4
+// @version      0.2.1
 // @description  Wanikani States History, with hyperlink to itemPage and dummy lesson
 // @author       polv
 // @match        https://www.wanikani.com/*
@@ -97,7 +97,7 @@
           document.createTextNode('・'),
           (() => {
             const a = document.createElement('a');
-            a.href = `https://www.wanikani.com/subjects/extra_study?Reorder%20Omega&queue_type=recent_lessons&queue=${o.id}`;
+            a.href = `https://www.wanikani.com/subjects/extra_study?queue_type=recent_lessons&queue=${o.id}`;
             a.rel = 'noreferer';
             a.target = '_blank';
             a.innerText = 'Extra Study';
@@ -170,4 +170,12 @@
 
     return div;
   });
+
+  if (/^\/subjects\/(?:review|extra_study)/.test(location.pathname)) {
+    const u = new URL(location.href);
+    const id = u.searchParams.get('queue') || '';
+    if (/^\d+$/.test(id)) {
+      wkQueue.addTotalChange(() => [Number(id)]);
+    }
+  }
 })();
