@@ -55,7 +55,7 @@
 
     let i = wkItemLink.itemData[subject.id].assignments.srs_stage;
     const labels = [
-      '0',
+      '・',
       ...Array(4)
         .fill('A')
         .map((a, i) => a + (i + 1)),
