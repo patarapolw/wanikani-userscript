@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         WK Move a Lesson To Review
 // @namespace    wanikani
-// @version      0.2.0
+// @version      0.2.2
 // @description  Selectively move a Lesson to Review
 // @author       polv
 // @match        *://www.wanikani.com/*
 // @match        *://preview.wanikani.com/*
 // @license      MIT
+// @connect      api.wanikani.com
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1276163
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wanikani.com
 // @grant        GM_xmlhttpRequest
@@ -15,54 +16,54 @@
 (function () {
   'use strict';
 
-  const localStorageKey = 'MOVE_TO_REVIEW_API_KEY';
-  let apikey = localStorage.getItem(localStorageKey);
+  const CLASS_NAME = 'wk-move-to-review';
+  const LOCALSTORAGE_KEY = 'MOVE_TO_REVIEW_API_KEY';
 
-  let r = {};
-  const injector = wkItemInfo
-    .on('itemPage')
-    .appendAtTop('Move to Review', (o) => {
-      if (o.id !== r.id) {
-        r = o;
-        send_api_request(
-          'https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true',
-          'GET',
-        ).then((result) => {
-          if (result) {
-            const assignment = result.data.find(
-              (r) => r.data.subject_id === o.id,
-            );
-            if (assignment) {
-              r.assignment = assignment;
-              injector.renew();
-            }
-          }
-        });
-      }
+  let apikey = localStorage.getItem(LOCALSTORAGE_KEY);
 
-      if (!r.assignment) return;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.onclick = () => {
-        send_api_request(
-          'https://api.wanikani.com/v2/assignments/' +
-            r.assignment.id +
-            '/start',
-          'PUT',
-        ).then((r) => {
-          if (r) {
-            location.reload();
-          }
-        });
-      };
-      button.className = 'wk-button wk-button--default';
-      button.innerText = 'Move to Review';
-      return button;
-    });
+  let lessons = null;
+
+  const injector = wkItemInfo.on('itemPage').appendAtTop('', (o) => {
+    const assignment = lessons.find((r) => r.data.subject_id === o.id);
+    if (!assignment) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.onclick = () => {
+      send_api_request(
+        'https://api.wanikani.com/v2/assignments/' + assignment.id + '/start',
+        'PUT',
+      ).then((r) => {
+        if (r) {
+          location.reload();
+        }
+      });
+    };
+    button.className = 'wk-button wk-button--default';
+    button.innerText = 'Move to Review';
+
+    const headerEl = document.querySelector('h1.page-header__title');
+    if (headerEl) {
+      headerEl.append(button);
+      return;
+    }
+    return button;
+  });
+
+  send_api_request(
+    'https://api.wanikani.com/v2/assignments?immediately_available_for_lessons=true',
+    'GET',
+  ).then((result) => {
+    if (result) {
+      lessons = result.data;
+      console.log(lessons);
+      injector.renew();
+    }
+  });
 
   async function send_api_request(url, method) {
     return new Promise((resolve, reject) => {
-      // GM_ évite problème CORS
+      // not sure if `fetch` with @connect can already bypass CORS, but just to be sure
       GM_xmlhttpRequest({
         method,
         url,
@@ -108,7 +109,7 @@
       "Please enter an API key with 'assignment start' permission",
     );
     if (apikey != null) {
-      localStorage.setItem(localStorageKey, apikey);
+      localStorage.setItem(LOCALSTORAGE_KEY, apikey);
       return true;
     }
   }
