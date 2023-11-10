@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WK Move a Lesson To Review
 // @namespace    wanikani
-// @version      0.2.2
+// @version      0.2.1
 // @description  Selectively move a Lesson to Review
 // @author       polv
 // @match        *://www.wanikani.com/*
@@ -16,14 +16,14 @@
 (function () {
   'use strict';
 
-  const CLASS_NAME = 'wk-move-to-review';
-  const LOCALSTORAGE_KEY = 'MOVE_TO_REVIEW_API_KEY';
-
-  let apikey = localStorage.getItem(LOCALSTORAGE_KEY);
+  const localStorageKey = 'MOVE_TO_REVIEW_API_KEY';
+  let apikey = localStorage.getItem(localStorageKey);
 
   let lessons = null;
 
   const injector = wkItemInfo.on('itemPage').appendAtTop('', (o) => {
+    if (!lessons) return;
+
     const assignment = lessons.find((r) => r.data.subject_id === o.id);
     if (!assignment) return;
 
@@ -41,12 +41,6 @@
     };
     button.className = 'wk-button wk-button--default';
     button.innerText = 'Move to Review';
-
-    const headerEl = document.querySelector('h1.page-header__title');
-    if (headerEl) {
-      headerEl.append(button);
-      return;
-    }
     return button;
   });
 
@@ -109,7 +103,7 @@
       "Please enter an API key with 'assignment start' permission",
     );
     if (apikey != null) {
-      localStorage.setItem(LOCALSTORAGE_KEY, apikey);
+      localStorage.setItem(localStorageKey, apikey);
       return true;
     }
   }
