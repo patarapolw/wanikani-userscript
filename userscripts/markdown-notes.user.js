@@ -2,7 +2,7 @@
 // @name         WaniKani Markdown Editor Notes (2023)
 // @namespace    wanikani
 // @description  Write Markdown and HTML in the notes
-// @version      2.1.3
+// @version      2.2.0
 // @require      https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js
 // @require      https://unpkg.com/dexie@3/dist/dexie.js
 // @require      https://greasyfork.org/scripts/430565-wanikani-item-info-injector/code/WaniKani%20Item%20Info%20Injector.user.js?version=1276693
@@ -35,13 +35,33 @@
 
     constructor() {
       super(entryClazz);
-      this.version(1).stores({
-        markdown: 'id',
-      });
+      this.version(2)
+        .stores({
+          markdown: 'id,state.characters',
+        })
+        .upgrade((tx) => {
+          const toKeep = new Set();
+          tx.table('markdown')
+            .each((it) => {
+              if (it.markdown.trim()) {
+                toKeep.add(it.id);
+              }
+            })
+            .then(() => {
+              return tx
+                .table('markdown')
+                .filter((it) => !toKeep.has(it.id))
+                .delete();
+            });
+        });
     }
   }
 
+  const wkMarkdown = {};
+  Object.assign(window, { wkMarkdown });
+
   const db = new Database();
+  wkMarkdown.db = db;
 
   /** @type {HTMLElement} */
   let elEditor;
@@ -49,21 +69,33 @@
   let editor;
   /** @type {WKItemInfoState} */
   let state;
+  /** @type {EntryMarkdown | undefined} */
+  let currentEntry;
 
   const injector = wkItemInfo
     .under('meaning,reading')
     .spoiling('nothing')
     .append('Markdown Notes', (o) => {
-      if (editor) {
+      if (currentEntry) {
         save();
       }
-
       state = o;
 
       const onElLoaded = () => {
         db.markdown.get(state.id).then((entry) => {
+          currentEntry = entry;
+          const md = entry?.markdown;
+          setTimeout(() => {
+            if (!md) return;
+            if (!editor) return;
+
+            if (editor.getCurrentPreviewStyle() === 'vertical') {
+              editor.exec('toggle-preview');
+            }
+          });
+
           if (editor) {
-            editor.setMarkdown(entry?.markdown || '');
+            editor.setMarkdown(md || '');
             setTimeout(() => {
               editor.blur();
             });
@@ -77,11 +109,139 @@
               linkAttributes: {
                 target: '_blank',
               },
+              toolbarItems: [
+                ['heading', 'bold', 'italic', 'strike'],
+                [
+                  {
+                    name: 'big',
+                    tooltip: 'Big',
+                    command: 'big',
+                    text: 'BIG',
+                    className: 'toastui-editor-toolbar-icons',
+                    style: {
+                      backgroundImage: 'none',
+                      fontSize: '0.7em',
+                      fontFamily: 'sans-serif',
+                    },
+                  },
+                  {
+                    name: 'furigana',
+                    tooltip: 'Furigana',
+                    command: 'furigana',
+                    text: 'ふ',
+                    className: 'toastui-editor-toolbar-icons',
+                    style: {
+                      backgroundImage: 'none',
+                      fontSize: '1em',
+                      fontFamily: 'sans-serif',
+                    },
+                  },
+                  {
+                    name: 'subject-type',
+                    tooltip: 'Subject type',
+                    text: '漢',
+                    className: 'toastui-editor-toolbar-icons',
+                    style: {
+                      backgroundImage: 'none',
+                      fontSize: '1em',
+                      fontFamily: 'sans-serif',
+                    },
+                    popup: {
+                      className: 'toastui-editor-popup-add-heading',
+                      body: ((el) => {
+                        el.className = 'toastui-editor-popup-body';
+
+                        const ul = document.createElement('ul');
+                        ul.setAttribute('aria-role', 'menu');
+                        el.append(ul);
+
+                        for (const p of ['rad', 'kan', 'voc', 'read']) {
+                          const li = document.createElement('li');
+                          ul.append(li);
+                          li.setAttribute('aria-role', 'menuitem');
+
+                          switch (p) {
+                            case 'rad':
+                              li.innerText = 'Radical';
+                              break;
+                            case 'kan':
+                              li.innerText = 'Kanji';
+                              break;
+                            case 'voc':
+                              li.innerText = 'Vocabulary';
+                              break;
+                            default:
+                              li.innerText = 'Reading';
+                          }
+                          li.title = li.innerText;
+
+                          li.onclick = () => {
+                            const text = editor.getSelectedText();
+                            if (text) {
+                              editor.replaceSelection(`#${p}#${text}#/${p}#`);
+                            }
+                          };
+                        }
+
+                        return el;
+                      })(document.createElement('div')),
+                    },
+                  },
+                ],
+                ['hr', 'quote'],
+                ['ul', 'ol'],
+                ['table', 'image', 'link'],
+                // ['code', 'codeblock'],
+                ['scrollSync'],
+                [
+                  {
+                    name: 'preview',
+                    tooltip: 'Preview',
+                    command: 'toggle-preview',
+                    text: '',
+                    className:
+                      'fa fa-eye toastui-editor-toolbar-icons toggle-preview',
+                    style: { backgroundImage: 'none', fontSize: '1em' },
+                  },
+                  {
+                    name: 'save',
+                    tooltip: 'Save/Reload',
+                    command: 'save',
+                    text: '',
+                    className: 'fa fa-save toastui-editor-toolbar-icons',
+                    style: { backgroundImage: 'none', fontSize: '1em' },
+                  },
+                ],
+              ],
               previewHighlight: false,
               customHTMLSanitizer: (s) => {
                 return s;
               },
               customHTMLRenderer: {
+                htmlInline: {
+                  big(node, { entering }) {
+                    const { attrs = {} } = node;
+                    attrs.style = 'font-size: 2em';
+                    return entering
+                      ? {
+                          type: 'openTag',
+                          tagName: 'span',
+                          attributes: attrs,
+                        }
+                      : { type: 'closeTag', tagName: 'span' };
+                  },
+                  small(node, { entering }) {
+                    const { attrs = {} } = node;
+                    attrs.style = 'font-size: 0.7em';
+                    return entering
+                      ? {
+                          type: 'openTag',
+                          tagName: 'span',
+                          attributes: attrs,
+                        }
+                      : { type: 'closeTag', tagName: 'span' };
+                  },
+                },
                 text: function (node, ctx) {
                   /** @type {import('@toast-ui/editor/types/toastmark').HTMLToken[]} */
                   const out = [];
@@ -187,39 +347,116 @@
                     }
                   };
 
-                  mdItFuriganaParser(node.literal || '');
+                  /** @param {string} s */
+                  const wkMarkParser = (s) => {
+                    const segments = s.split(
+                      /#(rad|kan|voc|read)#(.+?)#\/\1#/g,
+                    );
+                    while (segments.length) {
+                      const [raw, p, text] = segments.splice(0, 3);
+                      mdItFuriganaParser(raw);
+
+                      if (text) {
+                        let className = '';
+                        let title = '';
+
+                        switch (p) {
+                          case 'rad':
+                            className = 'radical-highlight';
+                            title = 'Radical';
+                            break;
+                          case 'kan':
+                            className = 'kanji-highlight';
+                            title = 'Kanji';
+                            break;
+                          case 'voc':
+                            className = 'vocabulary-highlight';
+                            title = 'Vocabulary';
+                            break;
+                          default:
+                            className = 'reading-highlight';
+                            title = 'Reading';
+                        }
+
+                        out.push(
+                          {
+                            type: 'openTag',
+                            tagName: 'span',
+                            classNames: [className],
+                            attributes: { title },
+                          },
+                          {
+                            type: 'text',
+                            content: text,
+                          },
+                          {
+                            type: 'closeTag',
+                            tagName: 'span',
+                          },
+                        );
+                      }
+                    }
+                  };
+
+                  wkMarkParser(node.literal || '');
 
                   return out;
                 },
               },
               autofocus: false,
-              initialValue: entry?.markdown,
+              initialValue: md,
             };
 
             // @ts-ignore
             editor = new toastui.Editor(opts);
-            // @ts-ignore
-            window.wkMarkdownEditor = editor;
+            wkMarkdown.editor = editor;
 
-            const elSave = document.createElement('button');
-            elSave.type = 'button';
-            elSave.className = 'fa fa-save save-button';
-
-            elSave.onclick = () => {
-              elSave.classList.add(isClickedClass);
+            editor.addCommand('markdown', 'save', () => {
               save();
-              setTimeout(() => {
-                elSave.classList.remove(isClickedClass);
-              }, 100);
-            };
+              const md = editor.getMarkdown();
+              // editor.reset();
+              editor.setMarkdown(md, false);
+              return true;
+            });
 
-            editor.insertToolbarItem(
-              { groupIndex: -1, itemIndex: -1 },
-              {
-                name: 'Save',
-                el: elSave,
-              },
-            );
+            editor.addCommand('markdown', 'toggle-preview', () => {
+              if (editor.getCurrentPreviewStyle() === 'tab') {
+                editor.changePreviewStyle('vertical');
+              } else {
+                editor.changePreviewStyle('tab');
+                const elPreviewButton = elEditor.querySelector(
+                  '.toastui-editor-tabs > .tab-item:last-child',
+                );
+                if (elPreviewButton instanceof HTMLElement) {
+                  elPreviewButton.click();
+                  setTimeout(() => {
+                    const btn = elEditor.querySelector('.toggle-preview');
+                    if (btn) {
+                      btn.removeAttribute('disabled');
+                    }
+                  });
+                }
+              }
+              return false;
+            });
+
+            editor.addCommand('markdown', 'big', () => {
+              const text = editor.getSelectedText();
+              if (text) {
+                editor.replaceSelection(`<big>${text}</big>`);
+                return true;
+              }
+              return false;
+            });
+
+            editor.addCommand('markdown', 'furigana', () => {
+              const text = editor.getSelectedText();
+              if (text) {
+                editor.replaceSelection(`[${text}]{ふり}`);
+                return true;
+              }
+              return false;
+            });
 
             editor.on('blur', () => {
               save();
@@ -297,22 +534,11 @@
       font-family: var(--md-font-family-sans-serif);
     }
 
-    ${K} big {
-      font-size: 1.7em;
+    ${K} .toastui-editor-md-tab-container {
+      display: none !important;
     }
 
-    ${K} small {
-      font-size: 0.7em;
-    }
-
-    ${K} button.save-button {
-      position: relative;
-      background: transparent;
-      font-size: 1em;
-      bottom: 0.5em;
-    }
-
-    ${K} button.save-button.${isClickedClass} {
+    ${K} .toastui-editor-toolbar-icons.${isClickedClass} {
       background-color: gray;
     }
     `),

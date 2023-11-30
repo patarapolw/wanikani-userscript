@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Update Review Count and Forecast
 // @namespace    http://wanikani.com
-// @version      0.1.3
+// @version      0.1.4
 // @description  Auto update Update Review Count and Forecast by hour
 // @author       polv
 // @match        *://www.wanikani.com/*
@@ -18,12 +18,14 @@
 
   Object.assign(window, { updateWkStats });
 
-  addEventListener('turbo:load', (ev) => {
-    const u = new URL(ev.detail?.url);
-    if (['/', '/dashboard', '/dashboard/'].includes(u.pathname)) {
+  addEventListener('turbo:load', doUpdateNow);
+  addEventListener('popstate', doUpdateNow);
+
+  function doUpdateNow() {
+    if (['/', '/dashboard', '/dashboard/'].includes(location.pathname)) {
       setTimeout(updateWkStats, getMillisecondsToNewHour());
     }
-  });
+  }
 
   let timeoutId = 0;
 
