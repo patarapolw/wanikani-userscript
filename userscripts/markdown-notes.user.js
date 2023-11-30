@@ -35,23 +35,20 @@
 
     constructor() {
       super(entryClazz);
-      this.version(2)
+      this.version(8)
         .stores({
           markdown: 'id,state.characters',
         })
         .upgrade((tx) => {
-          const toKeep = new Set();
+          const toKeep = [];
           tx.table('markdown')
             .each((it) => {
               if (it.markdown.trim()) {
-                toKeep.add(it.id);
+                toKeep.push(it.id);
               }
             })
             .then(() => {
-              return tx
-                .table('markdown')
-                .filter((it) => !toKeep.has(it.id))
-                .delete();
+              return tx.table('markdown').where('id').noneOf(toKeep).delete();
             });
         });
     }
@@ -76,9 +73,7 @@
     .under('meaning,reading')
     .spoiling('nothing')
     .append('Markdown Notes', (o) => {
-      if (currentEntry) {
-        save();
-      }
+      save();
       state = o;
 
       const onElLoaded = () => {
@@ -86,19 +81,20 @@
           currentEntry = entry;
           const md = entry?.markdown;
           setTimeout(() => {
-            if (!md) return;
             if (!editor) return;
 
-            if (editor.getCurrentPreviewStyle() === 'vertical') {
+            editor.changePreviewStyle('vertical');
+            if (md) {
               editor.exec('toggle-preview');
             }
+
+            setTimeout(() => {
+              editor.blur();
+            });
           });
 
           if (editor) {
             editor.setMarkdown(md || '');
-            setTimeout(() => {
-              editor.blur();
-            });
           } else {
             /** @type {import('@toast-ui/editor').EditorOptions} */
             const opts = {
@@ -197,11 +193,18 @@
                   {
                     name: 'preview',
                     tooltip: 'Preview',
-                    command: 'toggle-preview',
-                    text: '',
-                    className:
-                      'fa fa-eye toastui-editor-toolbar-icons toggle-preview',
-                    style: { backgroundImage: 'none', fontSize: '1em' },
+                    el: ((btn) => {
+                      btn.type = 'button';
+                      btn.className =
+                        'fa fa-eye toastui-editor-toolbar-icons toggle-preview';
+                      btn.style.backgroundImage = 'none';
+                      btn.style.fontSize = '1em';
+                      btn.style.margin = '-7px -5px';
+                      btn.onclick = () => {
+                        editor.exec('toggle-preview');
+                      };
+                      return btn;
+                    })(document.createElement('button')),
                   },
                   {
                     name: 'save',
@@ -427,14 +430,9 @@
                 const elPreviewButton = elEditor.querySelector(
                   '.toastui-editor-tabs > .tab-item:last-child',
                 );
+
                 if (elPreviewButton instanceof HTMLElement) {
                   elPreviewButton.click();
-                  setTimeout(() => {
-                    const btn = elEditor.querySelector('.toggle-preview');
-                    if (btn) {
-                      btn.removeAttribute('disabled');
-                    }
-                  });
                 }
               }
               return false;
@@ -484,12 +482,14 @@
     injector.renew();
   });
 
-  function save() {
+  function save(force = true) {
     if (editor) {
-      db.markdown.put(
-        { id: state.id, state, markdown: editor.getMarkdown() },
-        state.id,
-      );
+      const markdown = editor.getMarkdown().trim();
+      if (markdown || currentEntry) force = true;
+
+      if (force) {
+        db.markdown.put({ id: state.id, state, markdown }, state.id);
+      }
 
       if (!elEditor) {
         editor.destroy();
