@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WaniKani Even Kana? (ModAnswerChecker)
 // @namespace    http://www.wanikani.com
-// @version      1.2.0
+// @version      1.2.1
 // @description  Check that the okurigana matches the answer
 // @author       polv
 // @match        https://www.wanikani.com/extra_study/session*
@@ -26,6 +26,7 @@
 
   window.modAnswerChecker.register((e) => {
     if (e.questionType === 'reading' && e.item.type === 'Vocabulary') {
+      console.log(e);
       if (!matchOkurigana(e.item.characters, e.response.trim())) {
         return {
           action: 'retry',
@@ -62,7 +63,12 @@
    */
   function matchOkurigana(key, userAnswer) {
     return new RegExp(
-      '^' + toHiragana(key).replace(/[^\p{sc=Hiragana}ー]+/gu, '.+') + '$',
+      '^' +
+        toHiragana(key.replace(/〜/g, '')).replace(
+          /[^\p{sc=Hiragana}ー]+/gu,
+          '.+',
+        ) +
+        '$',
     ).test(toHiragana(userAnswer));
   }
 })();
