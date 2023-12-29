@@ -17,9 +17,10 @@
     const text = await navigator.clipboard.readText();
     if (text) {
       await navigator.clipboard.writeText(
-        text.replace(/(%[0-9A-Z]{2})+/g, (r) =>
-          URI.normalize(r, { unicodeSupport: true }),
-        ),
+        text.replace(/(%[0-9A-F]{2})+/gi, (r) => {
+          return URI.normalize(r, { iri: true });
+          // return decodeURIComponent(r);
+        }),
       );
     }
   });
