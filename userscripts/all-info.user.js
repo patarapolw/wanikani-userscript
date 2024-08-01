@@ -7,6 +7,7 @@
 // @match        https://www.wanikani.com/extra_study/session*
 // @match        https://www.wanikani.com/review/session*
 // @match        https://www.wanikani.com/subjects/*
+// @match        https://www.wanikani.com/subject-lessons/*
 // @match        https://preview.wanikani.com/extra_study/session*
 // @match        https://preview.wanikani.com/review/session*
 // @match        https://preview.wanikani.com/subjects*
